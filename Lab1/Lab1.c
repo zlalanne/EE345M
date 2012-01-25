@@ -4,9 +4,14 @@
 // TA:
 // Date of last change: 1/24/2012
 
-#include <stdio.h>
+#include "inc/hw_memmap.h"
+#include "inc/hw_types.h"
+
+#include "driverlib/sysctl.h"
+
 #include "Output.h"
 #include "rit128x96x4.h"
+
 
 // Functions from startup.s
 void EnableInterrupts(void);
@@ -17,7 +22,9 @@ void EndCritical(long st);
 
 int main(void){
   
-  char count = 0;
+  // Setting the clock to 50 MHz
+  SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
+                  SYSCTL_XTAL_8MHZ);       
 
   Output_Init();
   // Enabling interrupts
