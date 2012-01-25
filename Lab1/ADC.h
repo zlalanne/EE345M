@@ -16,6 +16,7 @@
 // Input: none
 // Output: none
 void ADC_Init(void);
+// test
 
 //------------Get_ADC_Data------------
 // If the MAILflag is set to true, then the values of the current 
