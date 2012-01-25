@@ -1,3 +1,15 @@
+// Modified By:
+// Thomas Brezinski
+// Zachary Lalanne ZLL67
+// TA:
+// Date of last change: 1/24/2012
+
+// Modified By:
+// Megan Ruthven MAR3939
+// Zachary Lalanne ZLL67
+// TA: NACHI
+// Date of last change: 9/19/2011
+
 // Output.h
 // Runs on LM3S811, LM3S1968, LM3S8962
 // Implement the fputc() function in stdio.h to enable useful
@@ -64,8 +76,4 @@ void Output_On(void);
 // Output: none
 void Output_Color(unsigned char newColor);
 
-//------------Draw_Pircure------------
-void Draw_Clock(void);
-
-//------------Draw_Line------------
-void Draw_Line(void);
+extern void oLED_Message(int device, int line, char *string, long value);

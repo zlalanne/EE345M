@@ -1,4 +1,10 @@
 // Modified By:
+// Thomas Brezinski
+// Zachary Lalanne ZLL67
+// TA:
+// Date of last change: 1/24/2012
+
+// Modified By:
 // Megan Ruthven MAR3939
 // Zachary Lalanne ZLL67
 // TA: NACHI
@@ -992,19 +998,20 @@ RIT128x96x4DrawLine(int startx, int starty, int endx, int endy) {
 //*****************************************************************************
 void 
 RIT128x96x4DrawDot(unsigned long xpos, unsigned long ypos){
-	unsigned char *pucRow;
-	const unsigned char dotBufferRight[] = {0x0F};
-	const unsigned char dotBufferLeft[] = {0x0F};
-	if((xpos % 2) == 0)
-	{
-		pucRow = (unsigned char *)&dotBufferLeft[0];
-	} else
-	{
-		pucRow = (unsigned char *)&dotBufferRight[0];
-		xpos--;
-	}
-	RIT128x96x4ImageDraw(pucRow, xpos, ypos, 2, 1);
+  unsigned char *pucRow;
+  const unsigned char dotBufferRight[] = {0x0F};
+  const unsigned char dotBufferLeft[] = {0x0F};
+  if((xpos % 2) == 0)
+  {
+    pucRow = (unsigned char *)&dotBufferLeft[0];
+  } else
+  {
+  	pucRow = (unsigned char *)&dotBufferRight[0];
+	xpos--;
+  }
+  RIT128x96x4ImageDraw(pucRow, xpos, ypos, 2, 1);
 }
+
 
 //*****************************************************************************
 //

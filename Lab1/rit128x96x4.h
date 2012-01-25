@@ -1,4 +1,10 @@
 // Modified By:
+// Thomas Brezinski
+// Zachary Lalanne ZLL67
+// TA:
+// Date of last change: 1/24/2012
+
+// Modified By:
 // Megan Ruthven MAR3939
 // Zachary Lalanne ZLL67
 // TA: NACHI
@@ -54,5 +60,6 @@ extern void RIT128x96x4DisplayOn(void);
 extern void RIT128x96x4DisplayOff(void);
 extern void RIT128x96x4DrawLine(int startx, int starty, int endx, int endy);
 extern void RIT128x96x4DrawDot(unsigned long xpos, unsigned long ypos);
+
 
 #endif // __RIT128X96X4_H__

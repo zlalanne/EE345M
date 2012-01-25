@@ -1,7 +1,12 @@
+// Written By:
+// Thomas Brezinski
+// Zachary Lalanne ZLL67
+// TA:
+// Date of last change: 1/24/2012
 
+#include <stdio.h>
 #include "Output.h"
 #include "rit128x96x4.h"
-
 
 // Functions from startup.s
 void EnableInterrupts(void);
@@ -11,15 +16,22 @@ void EndCritical(long st);
 
 
 int main(void){
-  const char prompt[] = "Set the alarm time:";
+  
+  char count = 0;
 
   Output_Init();
-  
-
   // Enabling interrupts
   EnableInterrupts();
 
-  RIT128x96x4StringDraw(prompt,0,0,0xF);
+  oLED_Message(0, 0, "Device 0, Line 0", 15);
+  oLED_Message(0, 1, "Device 0, Line 1", 15);
+  oLED_Message(0, 2, "Device 0, Line 2", 15);
+  oLED_Message(0, 3, "Device 0, Line 3", 15);
+  
+  oLED_Message(1, 0, "Device 1, Line 0", 15);
+  oLED_Message(1, 1, "Device 1, Line 1", 15);
+  oLED_Message(1, 2, "Device 1, Line 2", 15);
+  oLED_Message(1, 3, "Device 1, Line 3", 15);
 
   for(;;){
 

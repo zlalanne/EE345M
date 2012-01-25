@@ -1,3 +1,15 @@
+// Modified By:
+// Thomas Brezinski
+// Zachary Lalanne ZLL67
+// TA:
+// Date of last change: 1/24/2012
+
+// Modified By:
+// Megan Ruthven MAR3939
+// Zachary Lalanne ZLL67
+// TA: NACHI
+// Date of last change: 9/19/2011
+
 // Output.c
 // Runs on LM3S1968
 // Implement the fputc() function in stdio.h to enable useful
@@ -34,6 +46,10 @@
 #define TOTALCHARCOLUMNS        21   // (128 pixels)/(6 pixels/char) columns
 #define TOTALCHARROWS           12   // (96 pixels)/(8 pixels/char) rows
 #define WRAP                    1    // automatically wrap to next line
+
+#define NUMROWS 96 // Number of rows on oLED
+#define NUMDEVICES 2 // Number of devices displaying info to oLED
+#define NUMLINES 4 // Number of lines per device
 
 // Cursor x-position [0:126] of next character
 static unsigned short CursorX = 0;
@@ -223,6 +239,30 @@ void Output_Color(unsigned char newColor){
   else{
     Color = newColor;
   }
+}
+
+//------------oLED_Message------------
+// Outputs a string to a section of the oLED
+// Input: Device specifies which section of the screen,
+//   line specifies which line of the device's section,
+//   string specifies the string to output
+//   value = ??				TODO: Figure out purpose of value
+// Output: none
+void 
+oLED_Message(int device, int line, char *string, long value){
+  
+  unsigned long level, spacing;
+
+  // Determing the space occupied by each device
+  spacing = NUMROWS / NUMDEVICES;
+  
+  // Determine base y corrdinate for string
+  level = device * spacing;
+
+  // Calculate final y coordinate for string
+  level = level + (line * (spacing / NUMLINES));
+   	
+  RIT128x96x4StringDraw(string, 0, level, Color);
 }
 
 
