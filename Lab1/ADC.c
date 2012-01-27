@@ -28,67 +28,49 @@ unsigned char LastIndex = 0;
 
 void ADC3_Handler(void);
 
-void ADC_Init(void) {
+void ADC_Open(void){
 
-  // The ADC0 peripheral must be enabled for use.
+  // The ADC0 & ADC1 peripheral must be enabled for use.
   SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-
-  // Enable the ADC0 for interrupt Sequence 3
-  ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_TIMER, 0);
-  ADCSequenceStepConfigure(ADC0_BASE, 3, 0, ADC_CTL_CH0 | ADC_CTL_IE | ADC_CTL_END);
-  ADCSequenceEnable(ADC0_BASE, 3);
-  ADCIntClear(ADC0_BASE, 3);
-  ADCIntRegister(ADC0_BASE, 3, ADC3_Handler);
-  ADCIntEnable(ADC0_BASE, 3);
-
-  // Setting Timer0 as a peripheral
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-
-  // Disabling Timers during configuration
-  TimerDisable(TIMER0_BASE, TIMER_A);
-
-  // Configuring prescale
-  TimerPrescaleSet(TIMER0_BASE, TIMER_A, 125);
-
-  // Loading count time for timer
-  TimerLoadSet(TIMER0_BASE, TIMER_A, 5600);
-
-  // Enabling timers
-  TimerEnable(TIMER0_BASE, TIMER_A);
-  TimerIntEnable(TIMER0_BASE, TIMER_A); 
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC1);
 
 }
 
-unsigned char Get_ADC_Data(unsigned short *temperature, unsigned long *resistance) {
+unsigned long ADC_In(int channel){
+  
+  unsigned long config;
+  unsigned long data;
 
+  // Configuring ADC to start by processor call instead of interrupt
+  ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0);
 
+  // Determine input channel
+  switch(channel){
+    case 0: config = ADC_CTL_CH0; break;
+	case 1: config = ADC_CTL_CH1; break;
+	case 2: config = ADC_CTL_CH2; break;
+	case 3: config = ADC_CTL_CH3; break;
+  } 
 
-  // Checking if new data in mailbox
-  if(MailFlag == FALSE) {
-    return FALSE;
-  } else {
-	// Transverse through the ADCdata array
-	/*for(i = 1; i < 1024; i++) { 
-	  // If you find that the last conversion, is less than the 
-	  // index of the array, then store the index before it
-	  if(LastConversion < ADCdata[i]) {
-	    LastIndex = (i - 1);
-	    i = 1024;
-	  }
-	} */
+  // Enable ADC interrupt and last step of sequence
+  config |= ADC_CTL_IE | ADC_CTL_END;
+  ADCSequenceStepConfigure(ADC0_BASE, 3, 0, config);
 
+  ADCSequenceEnable(ADC0_BASE, 3);
+  ADCIntClear(ADC0_BASE, 3);
 
-	// Set all passed refferences to the corresponding
-	// array at index LastIndex
-	//*temperature = Tdata[LastIndex];
-	//*resistance = Rdata[LastIndex];
-	
-	// Set mail flag to false
-	MailFlag = FALSE;
+  // Start ADC conversion
+  ADCProcessorTrigger(ADC0_BASE, 3);
 
-	// Return true
-	return TRUE;
-  }
+  // Wait for ADC conversion to finish
+  while(!ADCIntStatus(ADC0_BASE, 3, false)){}
+
+  // Clear interrupt flag and read conversion data
+  ADCIntClear(ADC0_BASE, 3);
+  ADCSequenceDataGet(ADC0_BASE, 3, &data);
+
+  return data;
+
 }
 
 void ADC3_Handler(void) {
