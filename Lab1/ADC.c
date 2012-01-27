@@ -19,25 +19,24 @@
 
 #include "ADC.h"
 
-#define TRUE 1
-#define FALSE 0
 
-char MailFlag = FALSE;
-unsigned long LastConversion = 0;
-unsigned char LastIndex = 0;
 
-void ADC3_Handler(void);
+
+void ADC0_Handler(void);
+
+unsigned long * Buffer;
+unsigned char Status = FALSE;
 
 void ADC_Open(void){
 
   // The ADC0 & ADC1 peripheral must be enabled for use.
   SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC1);
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
 
 }
 
-unsigned long ADC_In(int channel){
-  
+unsigned long ADC_In(unsigned int channelNum){
+
   unsigned long config;
   unsigned long data;
 
@@ -45,7 +44,7 @@ unsigned long ADC_In(int channel){
   ADCSequenceConfigure(ADC0_BASE, 3, ADC_TRIGGER_PROCESSOR, 0);
 
   // Determine input channel
-  switch(channel){
+  switch(channelNum){
     case 0: config = ADC_CTL_CH0; break;
 	case 1: config = ADC_CTL_CH1; break;
 	case 2: config = ADC_CTL_CH2; break;
@@ -70,18 +69,79 @@ unsigned long ADC_In(int channel){
   ADCSequenceDataGet(ADC0_BASE, 3, &data);
 
   return data;
-
 }
 
-void ADC3_Handler(void) {
+int ADC_Collect(unsigned int channelNum, unsigned int fs, 
+  unsigned long buffer[], unsigned int numberOfSamples){
+
+  int i;
+  unsigned long config;
+
+  // Setting global pointer to point at array passed by funciton
+  Buffer = buffer;
+
+  // Determine input channel
+  switch(channelNum){
+    case 0: config = ADC_CTL_CH0; break;
+	case 1: config = ADC_CTL_CH1; break;
+	case 2: config = ADC_CTL_CH2; break;
+	case 3: config = ADC_CTL_CH3; break;
+  }
+
+  // Enable the ADC0 for interrupt Sequence 0 with lower priority then single shot
+  ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 1);
+
+  // Configuring steps of sequence, last step contains ADC_CTL_END config paramter
+  for(i = 0; i < (numberOfSamples - 1); i++){
+    ADCSequenceStepConfigure(ADC0_BASE, 0, i, config);
+  }
+  ADCSequenceStepConfigure(ADC0_BASE, 0, numberOfSamples - 1, config | ADC_CTL_END | ADC_CTL_IE);
+  ADCIntRegister(ADC0_BASE, 0, ADC0_Handler);
+  ADCSequenceEnable(ADC0_BASE, 0);
+
+  // Disabling Timer0A for confugraiton
+  TimerDisable(TIMER0_BASE, TIMER_A);
+
+  // Configure as 16 bit timer and trigger ADC conversion
+  TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC);
+  TimerControlTrigger(TIMER0_BASE, TIMER_A, true);
+
+  //
+  //
+  // TODO: configure this to calculate load value based on frequency inputed
+  //
+  //
+  TimerLoadSet(TIMER0_BASE, TIMER_A, 1000);
+  TimerEnable(TIMER0_BASE, TIMER_A);
+
+  ADCIntClear(ADC0_BASE, 0);
+  TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+
+  ADCIntEnable(ADC0_BASE, 0);
+  TimerIntEnable(TIMER0_BASE, TIMER_A);
+
+  // Claering Status flag
+  Status = FALSE;
+  
+  return 1; 
+}
+
+int ADC_Status(void){
+  if(Status == TRUE){
+    Status = FALSE;
+	return TRUE;
+  } else {
+    return FALSE;
+  }
+};
+    
+void ADC0_Handler(void){
 
   // Clear flag
-  ADCIntClear(ADC0_BASE, 3);
+  ADCIntClear(ADC0_BASE, 0);
   
-  // Get ADC value, and store in LastConversion
-  ADCSequenceDataGet(ADC0_BASE, 3, &LastConversion);
-
-  // Indicate new ADC value
-  MailFlag = TRUE;
+  ADCSequenceDataGet(ADC0_BASE, 0, Buffer);
+	
+  Status = TRUE;
 }
 
