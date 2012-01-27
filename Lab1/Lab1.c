@@ -30,13 +30,13 @@ int main(void){
   // Enabling interrupts
   EnableInterrupts();
 
-  oLED_Message(0, 0, "Device 0, Line 0", 15);
-  oLED_Message(0, 1, "Device 0, Line 1", 15);
-  oLED_Message(0, 2, "Device 0, Line 2", 15);
-  oLED_Message(0, 3, "Device 0, Line 3", 15);
+  oLED_Message(0, 0, "Device 0, Line 0", 1);
+  oLED_Message(0, 1, "Device 0, Line 1", 20);
+  oLED_Message(0, 2, "Device 0, Line 2", 300);
+  oLED_Message(0, 3, "Device 0, Line 3", 4000);
   
-  oLED_Message(1, 0, "Device 1, Line 0", 15);
-  oLED_Message(1, 1, "Device 1, Line 1", 15);
+  oLED_Message(1, 0, "Device 1, Line 0", 50000);
+  oLED_Message(1, 1, "Device 1, Line 1", 600000);
   oLED_Message(1, 2, "Device 1, Line 2", 15);
   oLED_Message(1, 3, "Device 1, Line 3", 15);
 

@@ -50,6 +50,8 @@
 #define NUMROWS 96 // Number of rows on oLED
 #define NUMDEVICES 2 // Number of devices displaying info to oLED
 #define NUMLINES 4 // Number of lines per device
+#define PIXELSPERCOLUMN 6 // number of pixels used by a character in each column
+#define BUFFERSIZE 5 // size of buffer allocated for the value printed in oLED_MESSAGE
 
 // Cursor x-position [0:126] of next character
 static unsigned short CursorX = 0;
@@ -246,12 +248,13 @@ void Output_Color(unsigned char newColor){
 // Input: Device specifies which section of the screen,
 //   line specifies which line of the device's section,
 //   string specifies the string to output
-//   value = ??				TODO: Figure out purpose of value
+//   value is simply a value that will be printed right justified, useful for debug prints
 // Output: none
 void 
 oLED_Message(int device, int line, char *string, long value){
   
   unsigned long level, spacing;
+  char valueString [BUFFERSIZE];
 
   // Determing the space occupied by each device
   spacing = NUMROWS / NUMDEVICES;
@@ -263,6 +266,12 @@ oLED_Message(int device, int line, char *string, long value){
   level = level + (line * (spacing / NUMLINES));
    	
   RIT128x96x4StringDraw(string, 0, level, Color);
+  
+  // print the value to a string?
+  snprintf(valueString, BUFFERSIZE, "%*d", (BUFFERSIZE - 1), value);  // snprintf is a overflow safe sprintf
+
+  RIT128x96x4StringDraw(valueString, ((TOTALCHARCOLUMNS - BUFFERSIZE) * PIXELSPERCOLUMN), level, Color);
+
 }
 
 
