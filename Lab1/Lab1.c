@@ -12,6 +12,7 @@
 #include "Output.h"
 #include "rit128x96x4.h"
 #include "ADC.h"
+#include "UART.h"
 
 
 // Functions from startup.s
@@ -34,6 +35,9 @@ int main(void){
   EnableInterrupts();
   			 
   ADC_Collect(0, 12000, buffer, 4);
+
+  UART0_Init();
+
   for(;;){
 
   while(ADC_Status == FALSE){};

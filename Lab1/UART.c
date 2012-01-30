@@ -1,4 +1,5 @@
 #include "Fifo.h"
+#include "UART.h"
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
@@ -12,8 +13,6 @@
 
 #define START_STRING "\r\nVCom Initilization Done!\n\r"
 #define SIZE_START_STRING 26 // Numer of chars of START_STRING
-#define BAUD 9600
-#define MAXTRIES 200
 
 #define TRUE 1
 #define FALSE 0
@@ -22,12 +21,15 @@
 #define FIFOSUCCESS 1         // return value on success
 #define FIFOFAIL    0         // return value on failure
 
+char CommandRx = FALSE;
+
 AddIndexFifo(Rx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
 AddIndexFifo(Tx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
 
 // Function Protoypes
 void UART0_Handler(void);
 void UART0_SendString(unsigned char *stringBuffer);
+void UART_OutChar(unsigned char data);
 
 void UART0_Init(void){
   
@@ -73,6 +75,8 @@ void copyHardwareToSoftware(void){
   while((UARTCharsAvail(UART0_BASE) != false) && (RxFifo_Size() < (FIFOSIZE - 1))){
     letter = (char) UARTCharGetNonBlocking(UART0_BASE);
     RxFifo_Put(letter);
+	UART_OutChar(letter); // Echo to screen
+
   }
 }
 
@@ -122,23 +126,6 @@ char Read_CharTyped(char *typedChar){
   } else {
     return FALSE;
   }
-}
-
-// Recieves a <enter>/CR terminated string
-void UART0_RecieveString(unsigned char *stringBuffer, unsigned short max) {
-  int length = 0;
-  char character;
-  character = UART_InChar();
-  
-  while(character != '\n' && character != '\0'){
-    if(length < max){
-      *stringBuffer = character;
-      stringBuffer++;
-      length++;
-    }
-    character = UART_InChar();
-  }
-  *stringBuffer = 0;
 }
 
 // Interrupt on recieve from XBee or transmit FIFO getting too full
