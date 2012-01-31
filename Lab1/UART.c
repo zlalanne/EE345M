@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "Fifo.h"
 #include "UART.h"
 
@@ -11,25 +13,29 @@
 #include "driverlib/gpio.h"
 #include "driverlib/timer.h"
 
-#define START_STRING "\r\nVCom Initilization Done!\n\r"
+#define START_STRING "\n\rVCom Initilization Done!\n\r"
 #define SIZE_START_STRING 26 // Numer of chars of START_STRING
 
 #define TRUE 1
 #define FALSE 0
+#define MAXCMDSIZE 32
 
 #define FIFOSIZE   128         // size of the FIFOs (must be power of 2)
 #define FIFOSUCCESS 1         // return value on success
 #define FIFOFAIL    0         // return value on failure
 
 char CommandRx = FALSE;
+char CMDCursor = 0;
+char LastCMD[MAXCMDSIZE] = "";
+char CurCMD[MAXCMDSIZE] = "";
 
 AddIndexFifo(Rx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
 AddIndexFifo(Tx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
 
 // Function Protoypes
 void UART0_Handler(void);
-void UART0_SendString(unsigned char *stringBuffer);
-void UART_OutChar(unsigned char data);
+void UART0_SendString(char *stringBuffer);
+void UART_OutChar(char data);
 
 void UART0_Init(void){
   
@@ -45,8 +51,6 @@ void UART0_Init(void){
   UARTDisable(UART0_BASE);
 
   // Configuring the pins needed for UART
-  GPIOPinConfigure(GPIO_PA0_U0RX);
-  GPIOPinConfigure(GPIO_PA1_U0TX);
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
   
   // Configure clock
@@ -75,7 +79,28 @@ void copyHardwareToSoftware(void){
   while((UARTCharsAvail(UART0_BASE) != false) && (RxFifo_Size() < (FIFOSIZE - 1))){
     letter = (char) UARTCharGetNonBlocking(UART0_BASE);
     RxFifo_Put(letter);
-	UART_OutChar(letter); // Echo to screen
+	if(letter == '\n' || letter == '\r'){
+	  // Print new line if user presses ENTER
+	  UART_OutChar('\n'); // Echo to screen
+	  UART_OutChar('\r');
+	  CurCMD[CMDCursor] = '\0';	// Terminate string
+	  strncpy(LastCMD, CurCMD, MAXCMDSIZE); // Store into LastCMD
+	  CMDCursor = 0;
+	  // Use last command if user presses ESC
+	} else if(letter == 0x1B){
+	  strncpy(CurCMD, LastCMD, MAXCMDSIZE);
+	  CMDCursor = strlen(LastCMD);
+	  CurCMD[CMDCursor] = '\0';
+	  UART0_SendString(CurCMD);
+	} else if(letter == 0x07F) {
+	
+	
+	} else {
+	  // Save char typed if user press key
+	  UART_OutChar(letter);
+	  CurCMD[CMDCursor] = letter;
+	  CMDCursor++;
+	}
 
   }
 }
@@ -93,7 +118,7 @@ void copySoftwareToHardware(void){
 
 // Output ASCII character to UART
 // Spin if TxFifo is full
-void UART_OutChar(unsigned char data){
+void UART_OutChar(char data){
   while(TxFifo_Put(data) == FIFOFAIL){};
   UARTIntDisable(UART0_BASE, UART_INT_TX);
   copySoftwareToHardware();
@@ -102,7 +127,7 @@ void UART_OutChar(unsigned char data){
 
 // Input ASCII character from UART
 // Spin if RxFifo is empty
-unsigned char UART_InChar(void){
+char UART_InChar(void){
   char letter;
   char tries = MAXTRIES;
   while((RxFifo_Get(&letter) == FIFOFAIL) && tries > 0){
@@ -112,7 +137,7 @@ unsigned char UART_InChar(void){
   return(letter);
 }
 
-void UART0_SendString(unsigned char *stringBuffer){
+void UART0_SendString(char *stringBuffer){
   // Loop while there are more characters to send.
   while(*stringBuffer) {
     UARTCharPut(UART0_BASE, *stringBuffer);
