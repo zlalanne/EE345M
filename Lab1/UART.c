@@ -1,7 +1,9 @@
 #include <string.h>
+#include <stdio.h>
 
 #include "Fifo.h"
 #include "UART.h"
+#include "ADC.h"
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
@@ -19,6 +21,7 @@
 #define TRUE 1
 #define FALSE 0
 #define MAXCMDSIZE 32
+#define BUFFERSIZE 20
 
 #define FIFOSIZE   128         // size of the FIFOs (must be power of 2)
 #define FIFOSUCCESS 1         // return value on success
@@ -72,6 +75,58 @@ void UART0_Init(void){
   UART0_SendString((unsigned char *) START_STRING);
 }
 
+char CMD_Status(void) {
+  char letter;
+  
+  if(RxFifo_Get(&letter) == FIFOFAIL){
+    return FIFOFAIL;
+  }
+
+  if(letter == '\n' || letter == '\r'){
+    // Print new line if user presses ENTER
+	UART_OutChar('\n'); // Echo to screen
+	UART_OutChar('\r');
+	CurCMD[CMDCursor] = '\0';	// Terminate string
+	strncpy(LastCMD, CurCMD, MAXCMDSIZE); // Store into LastCMD
+	CMDCursor = 0;
+	return SUCCESS;
+	// Use last command if user presses ESC
+  } else if(letter == 0x1B){
+	strncpy(CurCMD, LastCMD, MAXCMDSIZE);
+	CMDCursor = strlen(LastCMD);
+	CurCMD[CMDCursor] = '\0';
+	UART0_SendString(CurCMD);
+	// Erase character if user presses BS
+  } else if(letter == 0x07F) {
+    UART_OutChar(letter);
+	CMDCursor--;
+	CurCMD[CMDCursor] = '\0';
+  } else {
+    // Save char typed if user press key
+    UART_OutChar(letter);
+    CurCMD[CMDCursor] = letter;
+    CMDCursor++;
+  }
+
+  return FAILURE;
+}
+
+void CMD_Run(void) {
+  
+  unsigned long measurement;
+  char buffer[20];
+
+  switch(LastCMD[0]){
+    case 'a':
+	  measurement = ADC_In(LastCMD[1] - 0x30);
+	  snprintf(buffer, BUFFERSIZE, "ADC%c: %d\n\r", LastCMD[1], measurement);
+	  UART0_SendString(buffer);
+	  break;
+  }
+
+
+}
+
 // Copy from hardware RX FIFO to software RX FIFO
 // Stop when hardware RX FIFO is empty or software RX FIFO is full
 void copyHardwareToSoftware(void){
@@ -79,29 +134,6 @@ void copyHardwareToSoftware(void){
   while((UARTCharsAvail(UART0_BASE) != false) && (RxFifo_Size() < (FIFOSIZE - 1))){
     letter = (char) UARTCharGetNonBlocking(UART0_BASE);
     RxFifo_Put(letter);
-	if(letter == '\n' || letter == '\r'){
-	  // Print new line if user presses ENTER
-	  UART_OutChar('\n'); // Echo to screen
-	  UART_OutChar('\r');
-	  CurCMD[CMDCursor] = '\0';	// Terminate string
-	  strncpy(LastCMD, CurCMD, MAXCMDSIZE); // Store into LastCMD
-	  CMDCursor = 0;
-	  // Use last command if user presses ESC
-	} else if(letter == 0x1B){
-	  strncpy(CurCMD, LastCMD, MAXCMDSIZE);
-	  CMDCursor = strlen(LastCMD);
-	  CurCMD[CMDCursor] = '\0';
-	  UART0_SendString(CurCMD);
-	} else if(letter == 0x07F) {
-	
-	
-	} else {
-	  // Save char typed if user press key
-	  UART_OutChar(letter);
-	  CurCMD[CMDCursor] = letter;
-	  CMDCursor++;
-	}
-
   }
 }
 
@@ -125,35 +157,16 @@ void UART_OutChar(char data){
   UARTIntEnable(UART0_BASE, UART_INT_TX | UART_INT_RX | UART_INT_RT);
 }
 
-// Input ASCII character from UART
-// Spin if RxFifo is empty
-char UART_InChar(void){
-  char letter;
-  char tries = MAXTRIES;
-  while((RxFifo_Get(&letter) == FIFOFAIL) && tries > 0){
-    tries--;
-    letter = '\0';
-  };
-  return(letter);
-}
 
 void UART0_SendString(char *stringBuffer){
   // Loop while there are more characters to send.
   while(*stringBuffer) {
-    UARTCharPut(UART0_BASE, *stringBuffer);
+    UART_OutChar(*stringBuffer);
 	stringBuffer++;
   }
 }
 
-char Read_CharTyped(char *typedChar){
-  if(RxFifo_Get(typedChar) == FIFOSUCCESS){
-    return TRUE;
-  } else {
-    return FALSE;
-  }
-}
-
-// Interrupt on recieve from XBee or transmit FIFO getting too full
+// Interrupt on recieve or transmit FIFO getting too full
 void UART0_Handler(void){
 
 	unsigned long status;
