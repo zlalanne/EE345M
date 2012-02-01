@@ -75,11 +75,15 @@ void UART0_Init(void){
   UART0_SendString((unsigned char *) START_STRING);
 }
 
-char CMD_Status(void) {
-  char letter;
+void CMD_Run(void) {
   
+  unsigned long measurement;
+  char buffer[20];
+  char letter;
+  char newCMD = FALSE;
+
   if(RxFifo_Get(&letter) == FIFOFAIL){
-    return FIFOFAIL;
+    return;
   }
 
   if(letter == '\n' || letter == '\r'){
@@ -89,7 +93,7 @@ char CMD_Status(void) {
 	CurCMD[CMDCursor] = '\0';	// Terminate string
 	strncpy(LastCMD, CurCMD, MAXCMDSIZE); // Store into LastCMD
 	CMDCursor = 0;
-	return SUCCESS;
+	newCMD = TRUE;
 	// Use last command if user presses ESC
   } else if(letter == 0x1B){
 	strncpy(CurCMD, LastCMD, MAXCMDSIZE);
@@ -108,13 +112,9 @@ char CMD_Status(void) {
     CMDCursor++;
   }
 
-  return FAILURE;
-}
-
-void CMD_Run(void) {
-  
-  unsigned long measurement;
-  char buffer[20];
+  if(newCMD == FALSE){
+    return;
+  }
 
   switch(LastCMD[0]){
     case 'a':
@@ -123,6 +123,8 @@ void CMD_Run(void) {
 	  UART0_SendString(buffer);
 	  break;
   }
+
+  return;
 
 
 }

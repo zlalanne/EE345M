@@ -41,26 +41,7 @@ int main(void){
   
 
   for(;;){
-
-    if(CMD_Status() == SUCCESS){
-	  CMD_Run();
-	}
-
-//  while(ADC_Status == FALSE){};
-//  oLED_Message(0, 0, "Chan0 Sam1", buffer[0]);
-//  oLED_Message(0, 1, "Chan0 Sam2", buffer[1]);
-//  oLED_Message(0, 2, "Chan0 Sam3", buffer[2]);
-//  oLED_Message(0, 3, "Chan0 Sam4", buffer[3]);
-//
-//	
-//  data = ADC_In(0);
-//  oLED_Message(1, 0, "Chan0", data);
-//  data = ADC_In(1);
-//  oLED_Message(1, 1, "Chan1", data);
-//  data = ADC_In(2);
-//  oLED_Message(1, 2, "Chan2", data);
-//  data = ADC_In(3);
-//  oLED_Message(1, 3, "Chan3", data);
+	CMD_Run();
   }
 
 }
