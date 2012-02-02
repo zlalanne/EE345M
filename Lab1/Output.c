@@ -270,7 +270,7 @@ oLED_Message(int device, int line, char *string, long value){
   // print the value to a string?
   snprintf(valueString, BUFFERSIZE, "%*d", (BUFFERSIZE - 1), value);  // snprintf is a overflow safe sprintf
 
-  RIT128x96x4StringDraw(valueString, ((TOTALCHARCOLUMNS - BUFFERSIZE) * PIXELSPERCOLUMN), level, Color);
+  RIT128x96x4StringDraw(valueString, ((TOTALCHARCOLUMNS - (BUFFERSIZE - 1)) * PIXELSPERCOLUMN), level, Color);
 
 }
 

@@ -14,7 +14,7 @@
 #ifndef __OS_H
 #define __OS_H  1
 
-// fill these depending on your clock
+// fill these depending on your clock (Currently for 50Mhz clock)
 #define TIME_1MS  50000
 #define TIME_2MS  2*TIME_1MS
 
@@ -44,10 +44,19 @@ void OS_Launch(unsigned long theTimeSlice);
 // ********** OS_AddPeriodicThread *********
 // Inputs: task is a pointer to the functino to execute every period
 // Inputs: period is number of milliseconds, priority is value specified for NVIC
-int OS_AddPeriodicThread(void(*task)(void) unsigned long period, unsigned long priority)
+// Output: ??????
+void OS_AddPeriodicThread(void(*task)(void), unsigned long period, unsigned long priority);
 
-
+// ******** OS_ClearMsTime *************
+// Clears the Timer2 interrupt counter gTimer2Counter
+// Input: none
+// Output: none
 void OS_ClearMsTime(void);
+
+// ******** OS_MsTime *************
+// Returns the Timer2 interrupt counter gTimer2Counter
+// Input: none
+// Output: current value of gTimer2Counter
 unsigned long OS_MsTime(void);
 
 
