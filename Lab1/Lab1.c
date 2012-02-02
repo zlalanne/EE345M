@@ -2,7 +2,7 @@
 // Thomas Brezinski
 // Zachary Lalanne ZLL67
 // TA:
-// Date of last change: 1/24/2012
+// Date of last change: 2/1/2012
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
@@ -23,9 +23,7 @@ void EndCritical(long st);
 
 
 int main(void){
-  
-   unsigned long data;
-   unsigned long buffer[4];
+
   // Setting the clock to 50 MHz
   SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                   SYSCTL_XTAL_8MHZ);       
@@ -35,10 +33,6 @@ int main(void){
   UART0_Init();
 
   EnableInterrupts();
-  			 
-//  ADC_Collect(0, 12000, buffer, 4);
-
-  
 
   for(;;){
 	CMD_Run();
