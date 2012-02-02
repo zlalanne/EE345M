@@ -32,7 +32,8 @@
 #include "driverlib/gpio.h"
 #include "driverlib/timer.h"
 
-#define START_STRING "\n\rUART0 Initilization Done!\n\r"
+#define STARTSTRING "\n\rUART0 Initilization Done!\n\r"
+#define CMDPROMPT ">> "
 
 #define MAXCMDSIZE 30       // Max size of a command entered
 #define BUFFERSIZE 30       // Max size of snprintf buffer
@@ -89,7 +90,8 @@ void UART0_Init(void){
   UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT); 
 
   // Send string to show that UART is initialized
-  UART0_SendString((unsigned char *) START_STRING);
+  UART0_SendString(STARTSTRING);
+  UART0_SendString(CMDPROMPT);
 }
 
 //------------CMD_Run--------------
@@ -185,6 +187,9 @@ void CMD_Run(void) {
 	  oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
       UART0_SendString("Message Printed\n\r");
 	  break;
+	case 'h':
+	  UART0_SendString("Available commands: adc, on, clear, print\n\r");
+	  break;
 	default:
 	  UART0_SendString("Command not recgonized\n\r");
 	  break;
@@ -192,6 +197,7 @@ void CMD_Run(void) {
 
   // Store command executed as last command
   strncpy(LastCMD, CurCMD, MAXCMDSIZE);
+  UART0_SendString(CMDPROMPT);
 
   return;
 }
