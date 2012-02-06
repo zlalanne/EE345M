@@ -15,6 +15,10 @@
 #include "driverlib/interrupt.h"  // defines IntEnable
 
 #include "os.h"
+#include "inc/lm3s8962.h"
+
+
+
 
 // Assembly function protoypes
 //void OS_DisableInterrupts(void); // Disable interrupts
@@ -118,7 +122,9 @@ void OS_AddPeriodicThread(void(*task)(void),
 }
 
 void TIMER2_Handler(void){
+   GPIO_PORTG_DATA_R |= 0x01;
    TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT); // Or should it be TIMER_TIMB_TIMEOUT
    gTimer2Count++;
    gThread1p();   // Call periodic function
+   GPIO_PORTG_DATA_R &= 0xFE;
 }

@@ -28,6 +28,7 @@ void DummyInit(void) {
     // Enable the GPIO port that is used for the on-board LED.
 
     SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOF;
+	SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOG;
 
 	// Do a dummy read to insert a few cycles after enabling the peripheral.
 	ulLoop = SYSCTL_RCGC2_R;
@@ -36,10 +37,14 @@ void DummyInit(void) {
     // enable the GPIO pin for digital function.
     GPIO_PORTF_DIR_R = 0x01;
     GPIO_PORTF_DEN_R = 0x01;
+
+	GPIO_PORTG_DIR_R = 0x01;
+	GPIO_PORTG_DEN_R = 0x01;
 }
 
 void Dummy(void) {
-	GPIO_PORTF_DATA_R ^= 0x01;
+//	GPIO_PORTF_DATA_R ^= 0x01;
+//	GPIO_PORTG_DATA_R ^= 0x01;
 }
 
 int main(void){
