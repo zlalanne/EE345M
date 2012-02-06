@@ -37,13 +37,20 @@
  http://users.ece.utexas.edu/~valvano/
  */
 
-#define BACKSPACE               0x8  // back up one character
-#define TAB                     0x9  // move cursor right
-#define LF                      0xA  // move cursor all the way left on current line
-#define HOME                    0xA  // move cursor all the way left on current line
-#define NEWLINE                 0xD  // move cursor all the way left on next line
-#define RETURN                  0xD  // move cursor all the way left on next line
-#define CR                      0xD  // move cursor all the way left on next line
+#ifndef ASCII
+  #define ASCII
+  #define CR   0x0D
+  #define LF   0x0A
+  #define TAB  0x09
+  #define BS   0x08
+  #define BACKSPACE 0x08
+  #define ESC  0x1B
+  #define SP   0x20
+  #define DEL  0x7F
+  #define HOME 0x0A
+  #define NEWLINE 0x0D
+  #define RETURN 0x0D
+#endif
 
 //------------Output_Init------------
 // Initializes the OLED interface.

@@ -1,4 +1,26 @@
+// UART.h
+// Implements an interpreter on UART0.
+// To add new commands for the interrupter modify CMD_Run()
+
+// Modified By:
+// Thomas Brezinski
+// Zachary Lalanne ZLL67
+// TA:
+// Date of last change: 2/1/2012
+
+// Written By:
+// Megan Ruthven MAR3939
+// Zachary Lalanne ZLL67
+// TA: NACHI
+// Date of last change: 10/17/2011
+
+#include <string.h>
+#include <stdio.h>
+
 #include "Fifo.h"
+#include "UART.h"
+#include "ADC.h"
+#include "Output.h"
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
@@ -10,25 +32,32 @@
 #include "driverlib/gpio.h"
 #include "driverlib/timer.h"
 
-#define START_STRING "\r\nVCom Initilization Done!\n\r"
-#define SIZE_START_STRING 26 // Numer of chars of START_STRING
-#define BAUD 9600
-#define MAXTRIES 200
+#define STARTSTRING "\n\rUART0 Initilization Done!\n\r"
+#define CMDPROMPT ">> "
 
-#define TRUE 1
-#define FALSE 0
+#define MAXCMDSIZE 30       // Max size of a command entered
+#define BUFFERSIZE 30       // Max size of snprintf buffer
+#define MAXARGS 7
+#define MAXARGLENGTH 20
 
-#define FIFOSIZE   128         // size of the FIFOs (must be power of 2)
-#define FIFOSUCCESS 1         // return value on success
-#define FIFOFAIL    0         // return value on failure
+#define FIFOSIZE   128      // size of the FIFOs (must be power of 2)
+#define FIFOSUCCESS 1       // return value on success
+#define FIFOFAIL    0       // return value on failure
+
+char CMDCursor = 0;
+char LastCMD[MAXCMDSIZE] = "";
+char CurCMD[MAXCMDSIZE] = "";
 
 AddIndexFifo(Rx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
 AddIndexFifo(Tx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
 
 // Function Protoypes
 void UART0_Handler(void);
-void UART0_SendString(unsigned char *stringBuffer);
 
+//------------UART0_Init------------
+// Initilizes UART0 as interpreturer
+// Input: none
+// Output: none
 void UART0_Init(void){
   
   // Enabling the peripherals
@@ -43,8 +72,6 @@ void UART0_Init(void){
   UARTDisable(UART0_BASE);
 
   // Configuring the pins needed for UART
-  GPIOPinConfigure(GPIO_PA0_U0RX);
-  GPIOPinConfigure(GPIO_PA1_U0TX);
   GPIOPinTypeUART(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1);
   
   // Configure clock
@@ -63,7 +90,119 @@ void UART0_Init(void){
   UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT); 
 
   // Send string to show that UART is initialized
-  UART0_SendString((unsigned char *) START_STRING);
+  UART0_SendString(STARTSTRING);
+  UART0_SendString(CMDPROMPT);
+}
+
+//------------CMD_Run--------------
+// Runs the latest command entered 
+//   if no new command simply returns
+// Input: none
+// Output: none
+void CMD_Run(void) {
+  
+  unsigned long measurement;
+  char buffer[BUFFERSIZE];
+  char arg[MAXARGS][MAXARGLENGTH] = {NULL, NULL};
+  char letter;
+  char *tokenPtr;
+  char newCMD = FALSE;
+  int i = 0;
+
+  // If no new characters then exit
+  if(RxFifo_Get(&letter) == FIFOFAIL){
+    return;
+  }
+
+  // Decoding character pressed
+  switch(letter) {
+    case '\n':
+		break;
+	case '\r':
+	    // Print new line if user presses ENTER
+		UART0_OutChar('\n'); // Echo to screen
+		UART0_OutChar('\r');
+		CurCMD[CMDCursor] = '\0'; // Terminate string
+		CMDCursor = 0;
+		newCMD = TRUE;
+		break;
+	case 0x1B:
+		// Use last command if user presses ESC
+		strncpy(CurCMD, LastCMD, MAXCMDSIZE);
+		CMDCursor = strlen(LastCMD);
+		CurCMD[CMDCursor] = '\0';
+		UART0_SendString(CurCMD);
+		break;
+	case 0x7F:
+	    // User pressed backspace
+	  if(CMDCursor > 0) {
+	    UART0_OutChar(letter);
+		CMDCursor--;
+	    CurCMD[CMDCursor] = '\0';
+	  }	
+	  break;
+  	default:
+	    // Save char typed if user press key
+	    UART0_OutChar(letter);
+	    CurCMD[CMDCursor] = letter;
+	    CMDCursor = (CMDCursor + 1) % MAXCMDSIZE;				  
+		break;
+  }
+
+  // Leave function if user has not pressed enter yet
+  if(newCMD == FALSE){
+    return;
+  }
+
+  // Seperating spaces into differnt arguments, the cmd is in arg[0]
+  tokenPtr = strtok(CurCMD," ");
+  i = 0;
+  while (tokenPtr != NULL) {
+	strncpy(arg[i], tokenPtr, MAXARGLENGTH); 	  
+    tokenPtr = strtok(NULL," ");
+	i++;
+  }
+
+  // Decode command
+  // Note: no commands check their arguments, make sure to use correctly
+  switch(arg[0][0]){
+    case 'a':
+	  // ADC Measurement, arg[1] is channel number
+	  measurement = ADC_In(arg[1][0] - 0x30);
+	  snprintf(buffer, BUFFERSIZE, "ADC%c: %d\n\r", arg[1][0], measurement);
+	  UART0_SendString(buffer);
+	  break;
+	case 'c':
+	  // Clear oLED screen
+	  Output_Clear();
+	  UART0_SendString("oLED Cleared\n\r");
+	  break;
+	case 'o':
+	  // Turn on oLED screen
+	  Output_On();
+	  UART0_SendString("oLED On\n\r");
+	  break;
+	case 'p':
+	  // Print string to oLED, must include device/line
+	  // arg[1] is device number, arg[2] is line number
+	  // arg[3] - arg[5] are strings to print
+	  snprintf(buffer, BUFFERSIZE, "%s %s %s", arg[3], arg[4], arg[5]);
+	  oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
+      UART0_SendString("Message Printed\n\r");
+	  break;
+	case 'h':
+	  UART0_SendString("Available commands: adc, on, clear, print\n\r");
+	  break;
+	default:
+	  UART0_SendString("Command not recgonized\n\r");
+	  break;
+  }
+
+  // Store command executed as last command
+  strncpy(LastCMD, CurCMD, MAXCMDSIZE);
+  UART0_SendString(CMDPROMPT);
+
+  return;
 }
 
 // Copy from hardware RX FIFO to software RX FIFO
@@ -87,61 +226,31 @@ void copySoftwareToHardware(void){
   }
 }
 
-// Output ASCII character to UART
-// Spin if TxFifo is full
-void UART_OutChar(unsigned char data){
+//--------UART0_OutChar------------
+// Outputs a character to UART0, spin
+//   if TxFifo is full
+// Input: Single character to print
+// Output: none
+void UART0_OutChar(char data){
   while(TxFifo_Put(data) == FIFOFAIL){};
   UARTIntDisable(UART0_BASE, UART_INT_TX);
   copySoftwareToHardware();
   UARTIntEnable(UART0_BASE, UART_INT_TX | UART_INT_RX | UART_INT_RT);
 }
 
-// Input ASCII character from UART
-// Spin if RxFifo is empty
-unsigned char UART_InChar(void){
-  char letter;
-  char tries = MAXTRIES;
-  while((RxFifo_Get(&letter) == FIFOFAIL) && tries > 0){
-    tries--;
-    letter = '\0';
-  };
-  return(letter);
-}
-
-void UART0_SendString(unsigned char *stringBuffer){
+//--------UART0_SendString---------
+// Outputs a string to UART0
+// Input: Null terminated string
+// Output: none
+void UART0_SendString(char *stringBuffer){
   // Loop while there are more characters to send.
   while(*stringBuffer) {
-    UARTCharPut(UART0_BASE, *stringBuffer);
+    UART0_OutChar(*stringBuffer);
 	stringBuffer++;
   }
 }
 
-char Read_CharTyped(char *typedChar){
-  if(RxFifo_Get(typedChar) == FIFOSUCCESS){
-    return TRUE;
-  } else {
-    return FALSE;
-  }
-}
-
-// Recieves a <enter>/CR terminated string
-void UART0_RecieveString(unsigned char *stringBuffer, unsigned short max) {
-  int length = 0;
-  char character;
-  character = UART_InChar();
-  
-  while(character != '\n' && character != '\0'){
-    if(length < max){
-      *stringBuffer = character;
-      stringBuffer++;
-      length++;
-    }
-    character = UART_InChar();
-  }
-  *stringBuffer = 0;
-}
-
-// Interrupt on recieve from XBee or transmit FIFO getting too full
+// Interrupt on recieve or transmit FIFO getting too full
 void UART0_Handler(void){
 
 	unsigned long status;

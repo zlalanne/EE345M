@@ -1,57 +1,71 @@
+// UART.h
+// Implements an interpreter on UART0, to add new commands
+// for the interrupter modify CMD_Run()
+
+// Modified By:
+// Thomas Brezinski
+// Zachary Lalanne ZLL67
+// TA:
+// Date of last change: 2/1/2012
+
+// Written By:
+// Megan Ruthven MAR3939
+// Zachary Lalanne ZLL67
+// TA: NACHI
+// Date of last change: 10/17/2011
+
 // Standard ASCII symbols
-#define CR   0x0D
-#define LF   0x0A
-#define BS   0x08
-#define ESC  0x1B
-#define SP   0x20
-#define DEL  0x7F
+#ifndef ASCII
+  #define ASCII
+  #define CR   0x0D
+  #define LF   0x0A
+  #define TAB  0x09
+  #define BS   0x08
+  #define BACKSPACE 0x08
+  #define ESC  0x1B
+  #define SP   0x20
+  #define DEL  0x7F
+  #define HOME 0x0A
+  #define NEWLINE 0x0D
+  #define RETURN 0x0D
+#endif
 
-// Frame Creation
-#define MAXFRAMESIZE 100
-#define LENGTHOFMESSAGE 5
+#ifndef boolean
+  #define boolean
+  #define TRUE 1
+  #define FALSE 0
+  #define SUCCESS 1
+  #define FAILURE 0
+#endif
 
-// AT commands
-#define MAXCOMMANDSIZE 10
-#define LOWDESTADDRSTR "2C"
-#define LOWDESTADDRHEX 0x2C
-#define MYADDR "2D"
 
+// UART Parameters
 #define BAUD 9600
-#define MAXTRIES 10
 
-//------------XBeeTX_Init-----------------
-// Initalizes the XBeeTX unit, prints status to VCom
+//------------UART0_Init------------
+// Initilizes UART0 as interpreturer
 // Input: none
 // Output: none
-void XBeeTX_Init(void);
+void UART0_Init(void);
 
-//------------XBee_SendTxFrame------------
-// Outputs Frame to XBee
-// Input: Pointer to frame to send, length of frame
+//--------UART0_SendString---------
+// Outputs a string to UART0
+// Input: Null terminated string
 // Output: none
-void XBee_SendTxFrame(unsigned char *stringBuffer, int length);
+void UART0_SendString(char *stringBuffer);
 
-//------------XBee_SendString-------------
-// Outputs String to XBee
-// Input: Pointer to string to send, must be NULL terminated
+//--------UART0_OutChar------------
+// Outputs a character to UART0, spin
+//   if TxFifo is full
+// Input: Single character to print
 // Output: none
-void XBee_SendString(unsigned char *stringBuffer);
+void UART0_OutChar(char data);
 
-//------------XBee_RecieveString----------
-// Creates string until <enter>, will only create a string as
-// long as max
-// Input: Pointer to string to write to, max number of characters in string
-// Output: None
-void XBee_RecieveString(unsigned char *stringBuffer, unsigned short max);
+//------------CMD_Run--------------
+// Runs the latest command entered 
+//   if no new command simply returns
+// Input: none
+// Output: none
+void CMD_Run(void);
 
-//------------Create_TransferFrame---------
-// Creates frame to transmit
-// Input: Message to transmit, destination for frame, length of message to send
-// Output: Length of frame
-int Create_TransferFrame(unsigned char *message, unsigned char *frame, unsigned short length);
 
-//------------XBee_TxStatus---------
-// Determines if last frame was sent correctly by looking at frame recieved
-// Input: None
-// Output: 1 = frame was not sent properly, 0 = frame was sent properly
-char XBee_TxStatus(void);
