@@ -117,6 +117,7 @@ void CMD_Run(void) {
   // Decoding character pressed
   switch(letter) {
     case '\n':
+		break;
 	case '\r':
 	    // Print new line if user presses ENTER
 		UART0_OutChar('\n'); // Echo to screen
@@ -134,10 +135,12 @@ void CMD_Run(void) {
 		break;
 	case 0x7F:
 	    // User pressed backspace
+	  if(CMDCursor > 0) {
 	    UART0_OutChar(letter);
 		CMDCursor--;
-		CurCMD[CMDCursor] = '\0';
-		break;
+	    CurCMD[CMDCursor] = '\0';
+	  }	
+	  break;
   	default:
 	    // Save char typed if user press key
 	    UART0_OutChar(letter);
