@@ -19,21 +19,15 @@
 
 #include "ADC.h"
 
-void ADC0_Handler(void) {
-	ADCIntClear(ADC0_BASE, 3);
-	ADCSequenceDataGet(ADC0_BASE, 3, Buffer);
-}
-
 unsigned long * Buffer;
 unsigned char Status = FALSE;
 
+void ADC0_Handler(void);
+
 void ADC_Open(void){
 
-  // The ADC0 & ADC1 peripheral must be enabled for use.
+  // The ADC0 peripheral must be enabled for use.
   SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
-  // Do we need to enable the port that ADC0 is being used with as well?
-  // SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-  // GPIOinTypeADC(GPIO_PORTE_BASE, GPIO_PIN_7);
   SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
 
 }
@@ -48,7 +42,7 @@ unsigned long ADC_In(unsigned int channelNum){
 
   // Determine input channel
   switch(channelNum){
-    case 0: config = ADC_CTL_0CH0; break;
+    case 0: config = ADC_CTL_CH0; break;
 	case 1: config = ADC_CTL_CH1; break;
 	case 2: config = ADC_CTL_CH2; break;
 	case 3: config = ADC_CTL_CH3; break;

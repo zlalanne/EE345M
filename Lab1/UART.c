@@ -17,11 +17,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "Fifo.h"
-#include "UART.h"
-#include "ADC.h"
-#include "Output.h"
-
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
 #include "inc/hw_ints.h"
@@ -32,10 +27,16 @@
 #include "driverlib/gpio.h"
 #include "driverlib/timer.h"
 
+#include "Fifo.h"
+#include "UART.h"
+#include "ADC.h"
+#include "Output.h"
+#include "OS.h"
+
 #define STARTSTRING "\n\rUART0 Initilization Done!\n\r"
 #define CMDPROMPT ">> "
 
-#define MAXCMDSIZE 30       // Max size of a command entered
+#define MAXCMDSIZE 60       // Max size of a command entered
 #define BUFFERSIZE 30       // Max size of snprintf buffer
 #define MAXARGS 7
 #define MAXARGLENGTH 20
@@ -45,7 +46,6 @@
 #define FIFOFAIL    0       // return value on failure
 
 char CMDCursor = 0;
-char LastCMD[MAXCMDSIZE] = "";
 char CurCMD[MAXCMDSIZE] = "";
 
 AddIndexFifo(Rx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
@@ -102,7 +102,8 @@ void UART0_Init(void){
 void CMD_Run(void) {
   
   unsigned long measurement;
-  char buffer[BUFFERSIZE];
+  char buffer[BUFFERSIZE]; // Used for snprintf
+
   char arg[MAXARGS][MAXARGLENGTH] = {NULL, NULL};
   char letter;
   char *tokenPtr;
@@ -125,13 +126,6 @@ void CMD_Run(void) {
 		CurCMD[CMDCursor] = '\0'; // Terminate string
 		CMDCursor = 0;
 		newCMD = TRUE;
-		break;
-	case 0x1B:
-		// Use last command if user presses ESC
-		strncpy(CurCMD, LastCMD, MAXCMDSIZE);
-		CMDCursor = strlen(LastCMD);
-		CurCMD[CMDCursor] = '\0';
-		UART0_SendString(CurCMD);
 		break;
 	case 0x7F:
 	    // User pressed backspace
@@ -190,6 +184,17 @@ void CMD_Run(void) {
 	  oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
       UART0_SendString("Message Printed\n\r");
 	  break;
+	case 't':
+	  // Get Timer2 interrupt counter
+	  measurement = OS_MsTime();
+	  snprintf(buffer, BUFFERSIZE, "Timer2 Counter: %d\n\r", measurement);
+	  UART0_SendString(buffer);
+	  break;
+	case 'r':
+	  // Reset Timer2 interurpt counter
+	  OS_ClearMsTime();
+	  UART0_SendString("Timer2 Counter Cleared\n\r");
+	  break;
 	case 'h':
 	  UART0_SendString("Available commands: adc, on, clear, print\n\r");
 	  break;
@@ -199,7 +204,6 @@ void CMD_Run(void) {
   }
 
   // Store command executed as last command
-  strncpy(LastCMD, CurCMD, MAXCMDSIZE);
   UART0_SendString(CMDPROMPT);
 
   return;

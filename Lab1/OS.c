@@ -1,25 +1,22 @@
-// Modified By:
-// Thomas Brezinski
+// Written By:
+// Thomas Brezinski	TCB567
 // Zachary Lalanne ZLL67
 // TA:
 // Date of last change: 1/25/2012
 
-// Written By:
-// Thomas Brezinski TCB567
-// Zachary Lalanne ZLL67
-// TA:
-// Date of last change: 10/17/2011
 
-#include "os.h"
 #include "inc/hw_types.h"
 #include "inc/hw_timer.h"
-#include "inc/hw_memmap.h"   // defines TIMER2_BASE
+#include "inc/hw_memmap.h"
+#include "inc/hw_ints.h" 
+
 #include "driverlib/timer.h"
 #include "driverlib/sysctl.h"
-#include "inc/hw_ints.h"    // defines INT_TIMER2A
 #include "driverlib/interrupt.h"  // defines IntEnable
 
-// function definitions in osasm.s
+#include "os.h"
+
+// Assembly function protoypes
 //void OS_DisableInterrupts(void); // Disable interrupts
 void DisableInterrupts(void); // Disable interrupts
 //void OS_EnableInterrupts(void);  // Enable interrupts
@@ -35,6 +32,7 @@ struct tcb{
    long *sp;          // pointer to stack (valid for threads not running
    struct tcb *next;  // linked-list pointer
 };
+
 typedef struct tcb tcbType;
 tcbType tcbs[NUMTHREADS];
 tcbType *RunPt;
