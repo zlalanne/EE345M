@@ -4,21 +4,17 @@
 // TA:
 // Date of last change: 1/25/2012
 
+#include "OS.h"
 
 #include "inc/hw_types.h"
-#include "inc/hw_timer.h"
 #include "inc/hw_memmap.h"
-#include "inc/hw_ints.h" 
+#include "inc/hw_ints.h"
+#include "inc/lm3s8962.h"
+ 
 
 #include "driverlib/timer.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/interrupt.h"  // defines IntEnable
-
-#include "os.h"
-#include "inc/lm3s8962.h"
-
-
-
 
 // Assembly function protoypes
 //void OS_DisableInterrupts(void); // Disable interrupts
@@ -34,12 +30,8 @@ void EndCritical(long primask);
 
 struct tcb{
    long *sp;          // pointer to stack (valid for threads not running
-   struct tcb *next;  // linked-list pointer
-   struct tcb *previous; // linked-list pointer
-   int id;
-   int sleepState;
-   int priority;
-   int blockedState;
+   struct tcb *next, *previous; // linked-list pointer
+   char id, sleepState, priority, blockedState;
 };
 
 typedef struct tcb tcbType;
@@ -127,6 +119,126 @@ int OS_AddPeriodicThread(void(*task)(void),
 
    return 1;
 }
+
+//******** OS_AddThread *************** 
+// add a foregound thread to the scheduler
+// Inputs: pointer to a void/void foreground task
+//         number of bytes allocated for its stack
+//         priority (0 is highest)
+// Outputs: 1 if successful, 0 if this thread can not be added
+// stack size must be divisable by 8 (aligned to double word boundary)
+// In Lab 2, you can ignore both the stackSize and priority fields
+// In Lab 3, you can ignore the stackSize fields
+int OS_AddThread(void(*task)(void), 
+   unsigned long stackSize, unsigned long priority);
+
+//******** OS_Id *************** 
+// returns the thread ID for the currently running thread
+// Inputs: none
+// Outputs: Thread ID, number greater than zero 
+unsigned long OS_Id(void);
+
+// ******** OS_Fifo_Init ************
+// Initialize the Fifo to be empty
+// Inputs: size
+// Outputs: none 
+// In Lab 2, you can ignore the size field
+// In Lab 3, you should implement the user-defined fifo size
+// In Lab 3, you can put whatever restrictions you want on size
+//    e.g., 4 to 64 elements
+//    e.g., must be a power of 2,4,8,16,32,64,128
+void OS_Fifo_Init(unsigned long size) {
+  return;
+}
+
+// ******** OS_Fifo_Put ************
+// Enter one data sample into the Fifo
+// Called from the background, so no waiting 
+// Inputs:  data
+// Outputs: true if data is properly saved,
+//          false if data not saved, because it was full
+// Since this is called by interrupt handlers 
+//  this function can not disable or enable interrupts
+int OS_Fifo_Put(unsigned long data);  
+
+// ******** OS_Fifo_Get ************
+// Remove one data sample from the Fifo
+// Called in foreground, will spin/block if empty
+// Inputs:  none
+// Outputs: data 
+unsigned long OS_Fifo_Get(void);
+
+// ******** OS_Fifo_Size ************
+// Check the status of the Fifo
+// Inputs: none
+// Outputs: returns the number of elements in the Fifo
+//          greater than zero if a call to OS_Fifo_Get will return right away
+//          zero or less than zero if the Fifo is empty 
+//          zero or less than zero  if a call to OS_Fifo_Get will spin or block
+long OS_Fifo_Size(void);
+
+// ******** OS_InitSemaphore ************
+// initialize semaphore 
+// input:  pointer to a semaphore
+// output: none
+void OS_InitSemaphore(Sema4Type *semaPt, long value) {
+  semaPt->Value = value;
+  return;
+};
+
+// ******** OS_Wait ************
+// decrement semaphore and spin/block if less than zero
+// input:  pointer to a counting semaphore
+// output: none
+void OS_Wait(Sema4Type *semaPt) {
+  IntMasterDisable();
+  while(!(semaPt->Value)) {
+    IntMasterEnable();
+    IntMasterDisable();
+  }
+  semaPt->Value--; // Lock
+  IntMasterEnable();
+}
+
+// ******** OS_Signal ************
+// increment semaphore, wakeup blocked thread if appropriate 
+// input:  pointer to a counting semaphore
+// output: none
+void OS_Signal(Sema4Type *semaPt) {
+  IntMasterDisable();
+  // Free
+  semaPt->Value++;
+  IntMasterEnable();
+}
+
+// ******** OS_bWait ************
+// if the semaphore is 0 then spin/block
+// if the semaphore is 1, then clear semaphore to 0
+// input:  pointer to a binary semaphore
+// output: none
+void OS_bWait(Sema4Type *semaPt) {
+  IntMasterDisable();
+  while(semaPt->Value == 0){
+    IntMasterEnable();
+    IntMasterDisable();
+  }
+  // Lock
+  semaPt->Value = 0;
+  IntMasterEnable();
+} 
+
+// ******** OS_bSignal ************
+// set semaphore to 1, wakeup blocked thread if appropriate 
+// input:  pointer to a binary semaphore
+// output: none
+void OS_bSignal(Sema4Type *semaPt) {
+  IntMasterDisable();
+  // Free
+  semaPt->Value = 1;
+  IntMasterEnable();
+}
+
+
 
 void TIMER2_Handler(void){
    GPIO_PORTG_DATA_R |= 0x01;

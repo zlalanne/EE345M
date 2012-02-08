@@ -66,6 +66,4 @@ void UART0_OutChar(char data);
 //   if no new command simply returns
 // Input: none
 // Output: none
-void CMD_Run(void);
-
-
+void Interpreter(void);

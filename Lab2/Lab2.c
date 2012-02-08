@@ -7,12 +7,14 @@
 // feel free to adjust these includes as needed
 #include <stdio.h>
 #include <string.h>
-#include "inc/hw_types.h"
+
+#include "ADC.h"
+#include "OS.h"
 #include "UART.h"
 #include "rit128x96x4.h"
 #include "Output.h"
-#include "adc.h"
-#include "os.h"
+
+#include "inc/hw_types.h"
 
 unsigned long NumCreated;   // number of foreground threads created
 unsigned long PIDWork;      // current number of PID calculations finished
@@ -150,7 +152,7 @@ void Consumer(void){
 unsigned long data,DCcomponent; // 10-bit raw ADC sample, 0 to 1023
 unsigned long t;  // time in ms
 unsigned long myId = OS_Id(); 
-  ADC_Collect(0, 1000, &Producer); // start ADC sampling, channel 0, 1000 Hz
+//  ADC_Collect(0, 1000, &Producer); // start ADC sampling, channel 0, 1000 Hz
   NumCreated += OS_AddThread(&Display,128,0); 
   while(NumSamples < RUNLENGTH) { 
     for(t = 0; t < 64; t++){   // collect 64 ADC samples

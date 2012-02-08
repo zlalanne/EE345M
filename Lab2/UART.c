@@ -99,7 +99,7 @@ void UART0_Init(void){
 //   if no new command simply returns
 // Input: none
 // Output: none
-void CMD_Run(void) {
+void Interpreter(void) {
   
   unsigned long measurement;
   char buffer[BUFFERSIZE]; // Used for snprintf
