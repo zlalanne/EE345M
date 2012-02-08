@@ -5,16 +5,18 @@
 //
 //*****************************************************************************
 // feel free to adjust these includes as needed
+
+
 #include <stdio.h>
 #include <string.h>
 
-#include "ADC.h"
+#include "inc/hw_types.h"
+
 #include "OS.h"
+#include "ADC.h"
 #include "UART.h"
 #include "rit128x96x4.h"
 #include "Output.h"
-
-#include "inc/hw_types.h"
 
 unsigned long NumCreated;   // number of foreground threads created
 unsigned long PIDWork;      // current number of PID calculations finished

@@ -10,7 +10,7 @@
 // TA: 
 // Date of last change: 10/17/2011
 
-			// filename **********OS.H***********
+// filename **********OS.H***********
 // Real Time Operating System for Labs 2 and 3 
 // Jonathan W. Valvano 2/3/11, valvano@mail.utexas.edu
 //***********Ready to go*************
