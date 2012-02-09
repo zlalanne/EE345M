@@ -46,7 +46,7 @@
         EXPORT  SysTick_Handler
 
 
-;*********** DisableInterrupts ***************
+;*********** OS_DisableInterrupts ***************
 ; disable interrupts
 ; inputs:  none
 ; outputs: none
@@ -54,7 +54,7 @@ OS_DisableInterrupts
         CPSID   I
         BX      LR
 
-;*********** EnableInterrupts ***************
+;*********** OS_EnableInterrupts ***************
 ; disable interrupts
 ; inputs:  none
 ; outputs: none

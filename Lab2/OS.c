@@ -5,6 +5,8 @@
 // Date of last change: 1/25/2012
 
 #include "OS.h"
+#include "UART.h"	// defines UART0_Init for OS_Init
+#include "ADC.h"    // defines ADC_Open for OS_Init
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -16,26 +18,20 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/interrupt.h"  // defines IntEnable
 
-#include "UART.h"	// defines UART0_Init for OS_Init
-#include "ADC.h"    // defines ADC_Open for OS_Init
-
 // Assembly function protoypes
-//void OS_DisableInterrupts(void); // Disable interrupts
-void DisableInterrupts(void); // Disable interrupts
-//void OS_EnableInterrupts(void);  // Enable interrupts
-void EnableInterrupts(void);  // Enable interrupts
+void OS_DisableInterrupts(void); // Disable interrupts
+void OS_EnableInterrupts(void);  // Enable interrupts
 long StartCritical(void);
 void EndCritical(long primask);
-//void StartOS(void);
+void StartOS(void);
 
 #define PERIODICPERIOD 500   // period of periodic background thread connected to Timer2 in ms
 
-#define NUMTHREADS 3    // maximum number of threads
+#define NUMTHREADS 5    // maximum number of threads
 #define STACKSIZE  100  // number of 32-bit words in stack
 
 struct tcb{
-   long stack[STACKSIZE];
-   long *sp;          // pointer to stack (valid for threads not running
+   long *sp;          // pointer to stack (valid for threads not running)
    struct tcb *next, *previous; // linked-list pointer
    char id, sleepState, priority, blockedState;
 };
@@ -43,11 +39,13 @@ struct tcb{
 typedef struct tcb tcbType;
 tcbType tcbs[NUMTHREADS];
 tcbType *RunPt;
+
 long Stacks[NUMTHREADS][STACKSIZE];
+
+int tcbIndex = 0; // global index to point to place to put new tcb in array
 
 unsigned long gTimer2Count;      // global 32-bit counter incremented everytime Timer2 executes
 void (*gThread1p)(void);			 //	global function pointer for Thread1 function
-
 
 void TIMER2_Handler(void);
 
@@ -58,7 +56,7 @@ void TIMER2_Handler(void);
 // output: non
 void OS_Init(void) {
 	// disable interrupts
-	DisableInterrupts();
+	OS_DisableInterrupts();
 	
 	// initialze serial
 	UART0_Init();
@@ -84,10 +82,12 @@ void OS_Init(void) {
     TimerIntRegister(TIMER2_BASE, TIMER_BOTH, TIMER2_Handler);
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
     IntEnable(INT_TIMER2A);
-    // Timer2 is not currently enabled	
+    // Timer2 is not currently enabled
+
+	RunPt = &tcbs[0];       // thread 0 will run first
 }
 
-// *********** OS_AddThread **************
+// *********** OS_AddThreads **************
 // add three foreground threads to the scheduler
 // Inputs: three pointers to a void/void foreground tasks
 // Outputs: 1 if successful, 0 if this thread can not be added
@@ -96,6 +96,25 @@ int OS_AddThreads(void(*task0)(void),
                   void(*task2)(void)) {
    // FUTURE LAB
    return 1;
+}
+
+void setInitialStack(int i){
+  tcbs[i].sp = &Stacks[i][STACKSIZE-16]; // thread stack pointer
+  Stacks[i][STACKSIZE-1] = 0x01000000;   // thumb bit
+  Stacks[i][STACKSIZE-3] = 0x14141414;   // R14
+  Stacks[i][STACKSIZE-4] = 0x12121212;   // R12
+  Stacks[i][STACKSIZE-5] = 0x03030303;   // R3
+  Stacks[i][STACKSIZE-6] = 0x02020202;   // R2
+  Stacks[i][STACKSIZE-7] = 0x01010101;   // R1
+  Stacks[i][STACKSIZE-8] = 0x00000000;   // R0
+  Stacks[i][STACKSIZE-9] = 0x11111111;   // R11
+  Stacks[i][STACKSIZE-10] = 0x10101010;  // R10
+  Stacks[i][STACKSIZE-11] = 0x09090909;  // R9
+  Stacks[i][STACKSIZE-12] = 0x08080808;  // R8
+  Stacks[i][STACKSIZE-13] = 0x07070707;  // R7
+  Stacks[i][STACKSIZE-14] = 0x06060606;  // R6
+  Stacks[i][STACKSIZE-15] = 0x05050505;  // R5
+  Stacks[i][STACKSIZE-16] = 0x04040404;  // R4
 }
 
 //******** OS_AddThread *************** 
@@ -108,8 +127,31 @@ int OS_AddThreads(void(*task0)(void),
 // In Lab 2, you can ignore both the stackSize and priority fields
 // In Lab 3, you can ignore the stackSize fields
 int OS_AddThread(void(*task)(void), 
-   unsigned long stackSize, unsigned long priority){  
-   return 0;
+   unsigned long stackSize, unsigned long priority) {
+   
+   long status;
+
+   status = StartCritical();
+
+   if(tcbIndex != 0) {
+     tcbs[tcbIndex].previous = &tcbs[tcbIndex - 1];
+	 tcbs[tcbIndex].next = &tcbs[0];
+	 tcbs[tcbIndex - 1].next = &tcbs[tcbIndex];
+   } else {
+     // If first thread set next and previous to NULL
+	 tcbs[tcbIndex].previous = '\0';
+	 tcbs[tcbIndex].next = '\0';
+   }
+
+   // Initilize stack for debugging
+   setInitialStack(tcbIndex);
+
+   // Set PC for stack to point to function to run
+   Stacks[tcbIndex][STACKSIZE-2] = (long)(task);
+
+   EndCritical(status);
+
+   return 1;
 }
 
 // ******* OS_Launch *********************

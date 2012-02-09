@@ -44,31 +44,6 @@ void OS_Init(void);
 // output: none
 void OS_InitSemaphore(Sema4Type *semaPt, long value); 
 
-// ******** OS_Wait ************
-// decrement semaphore and spin/block if less than zero
-// input:  pointer to a counting semaphore
-// output: none
-void OS_Wait(Sema4Type *semaPt); 
-
-// ******** OS_Signal ************
-// increment semaphore, wakeup blocked thread if appropriate 
-// input:  pointer to a counting semaphore
-// output: none
-void OS_Signal(Sema4Type *semaPt); 
-
-// ******** OS_bWait ************
-// if the semaphore is 0 then spin/block
-// if the semaphore is 1, then clear semaphore to 0
-// input:  pointer to a binary semaphore
-// output: none
-void OS_bWait(Sema4Type *semaPt); 
-
-// ******** OS_bSignal ************
-// set semaphore to 1, wakeup blocked thread if appropriate 
-// input:  pointer to a binary semaphore
-// output: none
-void OS_bSignal(Sema4Type *semaPt); 
-
 //******** OS_AddThread *************** 
 // add a foregound thread to the scheduler
 // Inputs: pointer to a void/void foreground task
@@ -259,5 +234,38 @@ unsigned long OS_MsTime(void);
 // In Lab 2, you can ignore the theTimeSlice field
 // In Lab 3, you should implement the user-defined TimeSlice field
 void OS_Launch(unsigned long theTimeSlice);
+
+// Assembly function protoypes
+void OS_DisableInterrupts(void); // Disable interrupts
+void OS_EnableInterrupts(void);  // Enable interrupts
+long StartCritical(void);
+void EndCritical(long primask);
+void StartOS(void);
+
+// ******** OS_Wait ************
+// decrement semaphore and spin/block if less than zero
+// input:  pointer to a counting semaphore
+// output: none
+void OS_Wait(Sema4Type *semaPt); 
+
+// ******** OS_Signal ************
+// increment semaphore, wakeup blocked thread if appropriate 
+// input:  pointer to a counting semaphore
+// output: none
+void OS_Signal(Sema4Type *semaPt); 
+
+// ******** OS_bWait ************
+// if the semaphore is 0 then spin/block
+// if the semaphore is 1, then clear semaphore to 0
+// input:  pointer to a binary semaphore
+// output: none
+void OS_bWait(Sema4Type *semaPt); 
+
+// ******** OS_bSignal ************
+// set semaphore to 1, wakeup blocked thread if appropriate 
+// input:  pointer to a binary semaphore
+// output: none
+void OS_bSignal(Sema4Type *semaPt); 
+
 
 #endif
