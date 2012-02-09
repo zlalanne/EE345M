@@ -237,58 +237,6 @@ void OS_InitSemaphore(Sema4Type *semaPt, long value) {
   return;
 };
 
-// ******** OS_Wait ************
-// decrement semaphore and spin/block if less than zero
-// input:  pointer to a counting semaphore
-// output: none
-void OS_Wait(Sema4Type *semaPt) {
-  IntMasterDisable();
-  while(!(semaPt->Value)) {
-    IntMasterEnable();
-    IntMasterDisable();
-  }
-  semaPt->Value--; // Lock
-  IntMasterEnable();
-}
-
-// ******** OS_Signal ************
-// increment semaphore, wakeup blocked thread if appropriate 
-// input:  pointer to a counting semaphore
-// output: none
-void OS_Signal(Sema4Type *semaPt) {
-  IntMasterDisable();
-  // Free
-  semaPt->Value++;
-  IntMasterEnable();
-}
-
-// ******** OS_bWait ************
-// if the semaphore is 0 then spin/block
-// if the semaphore is 1, then clear semaphore to 0
-// input:  pointer to a binary semaphore
-// output: none
-void OS_bWait(Sema4Type *semaPt) {
-  IntMasterDisable();
-  while(semaPt->Value == 0){
-    IntMasterEnable();
-    IntMasterDisable();
-  }
-  // Lock
-  semaPt->Value = 0;
-  IntMasterEnable();
-} 
-
-// ******** OS_bSignal ************
-// set semaphore to 1, wakeup blocked thread if appropriate 
-// input:  pointer to a binary semaphore
-// output: none
-void OS_bSignal(Sema4Type *semaPt) {
-  IntMasterDisable();
-  // Free
-  semaPt->Value = 1;
-  IntMasterEnable();
-}
-
 //******** OS_AddButtonTask *************** 
 // add a background task to run whenever the Select button is pushed
 // Inputs: pointer to a void/void background function
