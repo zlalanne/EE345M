@@ -17,13 +17,8 @@
 #include "driverlib/timer.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/interrupt.h"  // defines IntEnable
+#include "driverlib/systick.h"
 
-// Assembly function protoypes
-void OS_DisableInterrupts(void); // Disable interrupts
-void OS_EnableInterrupts(void);  // Enable interrupts
-long StartCritical(void);
-void EndCritical(long primask);
-void StartOS(void);
 
 #define PERIODICPERIOD 500   // period of periodic background thread connected to Timer2 in ms
 
@@ -47,7 +42,9 @@ int tcbIndex = 0; // global index to point to place to put new tcb in array
 unsigned long gTimer2Count;      // global 32-bit counter incremented everytime Timer2 executes
 void (*gThread1p)(void);			 //	global function pointer for Thread1 function
 
-void TIMER2_Handler(void);
+void Select_Switch_Handler(void);
+void Timer2_Handler(void);
+void SysTick_Handler(void);
 
 // ************ OS_Init ******************
 // initialize operating system, disable interrupts until OS_Launch
@@ -66,11 +63,13 @@ void OS_Init(void) {
 	
 	// initialize systick
 	// The period is set in OS_Launch and it should also be enabled there so....?
-	
+	SysTickIntRegister(SysTick_Handler);
+	SysTickIntEnable();	
+
 	// select switch
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
 	GPIOIntTypeSet(GPIO_PORTF_BASE,1, GPIO_FALLING_EDGE);
-	GPIOPortIntRegister(GPIO_PORTF_BASE, void(*SelectSwitchHandler)(void));
+	GPIOPortIntRegister(GPIO_PORTF_BASE, Select_Switch_Handler);
 	GPIOPinIntEnable(GPIO_PORTF_BASE,1);
 	GPIOPinIntClear(GPIO_PORTF_BASE,1);
 	
@@ -79,7 +78,7 @@ void OS_Init(void) {
     TimerDisable(TIMER2_BASE, TIMER_BOTH);
     TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
     TimerLoadSet(TIMER2_BASE, TIMER_A, (PERIODICPERIOD * TIME_1MS));
-    TimerIntRegister(TIMER2_BASE, TIMER_BOTH, TIMER2_Handler);
+    TimerIntRegister(TIMER2_BASE, TIMER_BOTH, Timer2_Handler);
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
     IntEnable(INT_TIMER2A);
     // Timer2 is not currently enabled
@@ -94,8 +93,17 @@ void OS_Init(void) {
 int OS_AddThreads(void(*task0)(void),
                   void(*task1)(void),
                   void(*task2)(void)) {
-   // FUTURE LAB
-   return 1;
+   
+   int result = 0;
+   result += OS_AddThread(task0, STACKSIZE, 0);
+   result += OS_AddThread(task1, STACKSIZE, 0);
+   result += OS_AddThread(task2, STACKSIZE, 0);
+
+   if (result == 3) {
+      return 1;
+   } else {
+      return 0;
+   }
 }
 
 void setInitialStack(int i){
@@ -160,7 +168,14 @@ int OS_AddThread(void(*task)(void),
 //        ( Maximum of 24 bits)
 // Outputs: none (does not return)
 void OS_Launch(unsigned long theTimeSlice){
-   // FUTURE LAB
+
+   SysTickPeriodSet(theTimeSlice);
+   SysTickEnable();
+   TimerEnable(TIMER2_BASE, TIMER_BOTH);
+   OS_EnableInterrupts();
+   // not supposed to return?
+   while(1) { }
+
 }
 
 // ********** OS_ClearMsTime ***************
@@ -197,7 +212,7 @@ int OS_AddPeriodicThread(void(*task)(void),
    // Clear periodic counter
    OS_ClearMsTime();
    // should the task be registered as the int handler? or should there be a regular int handler that calls task?
-   TimerIntRegister(TIMER2_BASE,TIMER_BOTH,TIMER2_Handler);
+   TimerIntRegister(TIMER2_BASE,TIMER_BOTH,Timer2_Handler);
    // Configure the Timer2 interrupt for timer timeout.
    TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT); // or should it be TIMER_TIMB_TIMEOUT?
    // Enable the Timer2 interrupt on the processor (NVIC).
@@ -384,10 +399,14 @@ unsigned long OS_TimeDifference(unsigned long start, unsigned long stop){
 }
 
 
-void TIMER2_Handler(void){
+void Timer2_Handler(void){
    GPIO_PORTG_DATA_R |= 0x01;
    TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT); // Or should it be TIMER_TIMB_TIMEOUT
    gTimer2Count++;
    gThread1p();   // Call periodic function
    GPIO_PORTG_DATA_R &= 0xFE;
+}
+
+void Select_Switch_Handler(void){
+	return;
 }

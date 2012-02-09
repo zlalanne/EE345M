@@ -241,6 +241,7 @@ void OS_EnableInterrupts(void);  // Enable interrupts
 long StartCritical(void);
 void EndCritical(long primask);
 void StartOS(void);
+void SysTick_Handler(void);
 
 // ******** OS_Wait ************
 // decrement semaphore and spin/block if less than zero
