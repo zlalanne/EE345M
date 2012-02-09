@@ -10,11 +10,14 @@
 #include "inc/hw_memmap.h"
 #include "inc/hw_ints.h"
 #include "inc/lm3s8962.h"
-
-
+ 
+#include "driverlib/gpio.h"
 #include "driverlib/timer.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/interrupt.h"  // defines IntEnable
+
+#include "UART.h"	// defines UART0_Init for OS_Init
+#include "ADC.h"    // defines ADC_Open for OS_Init
 
 // Assembly function protoypes
 //void OS_DisableInterrupts(void); // Disable interrupts
@@ -25,10 +28,13 @@ long StartCritical(void);
 void EndCritical(long primask);
 //void StartOS(void);
 
+#define PERIODICPERIOD 500   // period of periodic background thread connected to Timer2 in ms
+
 #define NUMTHREADS 3    // maximum number of threads
 #define STACKSIZE  100  // number of 32-bit words in stack
 
 struct tcb{
+   long stack[STACKSIZE];
    long *sp;          // pointer to stack (valid for threads not running
    struct tcb *next, *previous; // linked-list pointer
    char id, sleepState, priority, blockedState;
@@ -51,7 +57,34 @@ void TIMER2_Handler(void);
 // input: none
 // output: non
 void OS_Init(void) {
-   // FUTURE LAB
+	// disable interrupts
+	DisableInterrupts();
+	
+	// initialze serial
+	UART0_Init();
+	
+	// initialze ADC
+	ADC_Open();
+	
+	// initialize systick
+	// The period is set in OS_Launch and it should also be enabled there so....?
+	
+	// select switch
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+	GPIOIntTypeSet(GPIO_PORTF_BASE,1, GPIO_FALLING_EDGE);
+	GPIOPortIntRegister(GPIO_PORTF_BASE, void(*SelectSwitchHandler)(void));
+	GPIOPinIntEnable(GPIO_PORTF_BASE,1);
+	GPIOPinIntClear(GPIO_PORTF_BASE,1);
+	
+	// initialize timer2
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+    TimerDisable(TIMER2_BASE, TIMER_BOTH);
+    TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
+    TimerLoadSet(TIMER2_BASE, TIMER_A, (PERIODICPERIOD * TIME_1MS));
+    TimerIntRegister(TIMER2_BASE, TIMER_BOTH, TIMER2_Handler);
+    TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+    IntEnable(INT_TIMER2A);
+    // Timer2 is not currently enabled	
 }
 
 // *********** OS_AddThread **************
@@ -65,7 +98,7 @@ int OS_AddThreads(void(*task0)(void),
    return 1;
 }
 
-//******** OS_AddThread ***************
+//******** OS_AddThread *************** 
 // add a foregound thread to the scheduler
 // Inputs: pointer to a void/void foreground task
 //         number of bytes allocated for its stack
@@ -74,11 +107,10 @@ int OS_AddThreads(void(*task0)(void),
 // stack size must be divisable by 8 (aligned to double word boundary)
 // In Lab 2, you can ignore both the stackSize and priority fields
 // In Lab 3, you can ignore the stackSize fields
-int OS_AddThread(void(*task)(void),
-   unsigned long stackSize, unsigned long priority){
+int OS_AddThread(void(*task)(void), 
+   unsigned long stackSize, unsigned long priority){  
    return 0;
 }
-
 
 // ******* OS_Launch *********************
 // start the scheduler, enable interrupts
@@ -127,7 +159,7 @@ int OS_AddPeriodicThread(void(*task)(void),
    // Configure the Timer2 interrupt for timer timeout.
    TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT); // or should it be TIMER_TIMB_TIMEOUT?
    // Enable the Timer2 interrupt on the processor (NVIC).
-   IntEnable(INT_TIMER2A); // or should it be INT_TIMER2B?
+   IntEnable(INT_TIMER2A); // or should it be INT_TIMER2B?      
    // Set the global function pointer to the address of the provided function
    gThread1p = task;
    TimerEnable(TIMER2_BASE, TIMER_BOTH);
@@ -135,7 +167,7 @@ int OS_AddPeriodicThread(void(*task)(void),
    return 1;
 }
 
-//******** OS_AddThread ***************
+//******** OS_AddThread *************** 
 // add a foregound thread to the scheduler
 // Inputs: pointer to a void/void foreground task
 //         number of bytes allocated for its stack
@@ -144,19 +176,19 @@ int OS_AddPeriodicThread(void(*task)(void),
 // stack size must be divisable by 8 (aligned to double word boundary)
 // In Lab 2, you can ignore both the stackSize and priority fields
 // In Lab 3, you can ignore the stackSize fields
-int OS_AddThread(void(*task)(void),
+int OS_AddThread(void(*task)(void), 
    unsigned long stackSize, unsigned long priority);
 
-//******** OS_Id ***************
+//******** OS_Id *************** 
 // returns the thread ID for the currently running thread
 // Inputs: none
-// Outputs: Thread ID, number greater than zero
+// Outputs: Thread ID, number greater than zero 
 unsigned long OS_Id(void);
 
 // ******** OS_Fifo_Init ************
 // Initialize the Fifo to be empty
 // Inputs: size
-// Outputs: none
+// Outputs: none 
 // In Lab 2, you can ignore the size field
 // In Lab 3, you should implement the user-defined fifo size
 // In Lab 3, you can put whatever restrictions you want on size
@@ -168,21 +200,21 @@ void OS_Fifo_Init(unsigned long size) {
 
 // ******** OS_Fifo_Put ************
 // Enter one data sample into the Fifo
-// Called from the background, so no waiting
+// Called from the background, so no waiting 
 // Inputs:  data
 // Outputs: true if data is properly saved,
 //          false if data not saved, because it was full
-// Since this is called by interrupt handlers
+// Since this is called by interrupt handlers 
 //  this function can not disable or enable interrupts
 int OS_Fifo_Put(unsigned long data){
   return 0;
-}
+}  
 
 // ******** OS_Fifo_Get ************
 // Remove one data sample from the Fifo
 // Called in foreground, will spin/block if empty
 // Inputs:  none
-// Outputs: data
+// Outputs: data 
 unsigned long OS_Fifo_Get(void){
   return 0;
 }
@@ -192,12 +224,12 @@ unsigned long OS_Fifo_Get(void){
 // Inputs: none
 // Outputs: returns the number of elements in the Fifo
 //          greater than zero if a call to OS_Fifo_Get will return right away
-//          zero or less than zero if the Fifo is empty
+//          zero or less than zero if the Fifo is empty 
 //          zero or less than zero  if a call to OS_Fifo_Get will spin or block
 long OS_Fifo_Size(void);
 
 // ******** OS_InitSemaphore ************
-// initialize semaphore
+// initialize semaphore 
 // input:  pointer to a semaphore
 // output: none
 void OS_InitSemaphore(Sema4Type *semaPt, long value) {
@@ -220,7 +252,7 @@ void OS_Wait(Sema4Type *semaPt) {
 }
 
 // ******** OS_Signal ************
-// increment semaphore, wakeup blocked thread if appropriate
+// increment semaphore, wakeup blocked thread if appropriate 
 // input:  pointer to a counting semaphore
 // output: none
 void OS_Signal(Sema4Type *semaPt) {
@@ -244,10 +276,10 @@ void OS_bWait(Sema4Type *semaPt) {
   // Lock
   semaPt->Value = 0;
   IntMasterEnable();
-}
+} 
 
 // ******** OS_bSignal ************
-// set semaphore to 1, wakeup blocked thread if appropriate
+// set semaphore to 1, wakeup blocked thread if appropriate 
 // input:  pointer to a binary semaphore
 // output: none
 void OS_bSignal(Sema4Type *semaPt) {
@@ -257,7 +289,7 @@ void OS_bSignal(Sema4Type *semaPt) {
   IntMasterEnable();
 }
 
-//******** OS_AddButtonTask ***************
+//******** OS_AddButtonTask *************** 
 // add a background task to run whenever the Select button is pushed
 // Inputs: pointer to a void/void background function
 //         priority 0 is highest, 5 is lowest
@@ -268,16 +300,16 @@ void OS_bSignal(Sema4Type *semaPt) {
 // This task does not have a Thread ID
 // In labs 2 and 3, this command will be called 0 or 1 times
 // In lab 2, the priority field can be ignored
-// In lab 3, there will be up to four background threads, and this priority field
+// In lab 3, there will be up to four background threads, and this priority field 
 //           determines the relative priority of these four threads
 int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
   return 0;
 }
 
-//******** OS_Id ***************
+//******** OS_Id *************** 
 // returns the thread ID for the currently running thread
 // Inputs: none
-// Outputs: Thread ID, number greater than zero
+// Outputs: Thread ID, number greater than zero 
 unsigned long OS_Id(void){
   return 0;
 }
@@ -303,7 +335,7 @@ void OS_MailBox_Init(void) {
 // Inputs:  data to be sent
 // Outputs: none
 // This function will be called from a foreground thread
-// It will spin/block if the MailBox contains data not yet received
+// It will spin/block if the MailBox contains data not yet received 
 void OS_MailBox_Send(unsigned long data) {
   return;
 }
@@ -313,7 +345,7 @@ void OS_MailBox_Send(unsigned long data) {
 // Inputs:  none
 // Outputs: data received
 // This function will be called from a foreground thread
-// It will spin/block if the MailBox is empty
+// It will spin/block if the MailBox is empty 
 unsigned long OS_MailBox_Recv(void){
   return 0;
 }
@@ -326,12 +358,12 @@ unsigned long OS_MailBox_Recv(void){
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
   return;
-}
+} 
 
 // ******** OS_Suspend ************
 // suspend execution of currently running thread
 // scheduler will choose another thread to execute
-// Can be used to implement cooperative multitasking
+// Can be used to implement cooperative multitasking 
 // Same function as OS_Sleep(0)
 // input:  none
 // output: none
@@ -340,12 +372,12 @@ void OS_Suspend(void) {
 }
 
 // ******** OS_Time ************
-// reads a timer value
+// reads a timer value 
 // Inputs:  none
 // Outputs: time in 20ns units, 0 to max
 // The time resolution should be at least 1us, and the precision at least 12 bits
-// It is ok to change the resolution and precision of this function as long as
-//   this function and OS_TimeDifference have the same resolution and precision
+// It is ok to change the resolution and precision of this function as long as 
+//   this function and OS_TimeDifference have the same resolution and precision 
 unsigned long OS_Time() {
   return 0;
 }
@@ -353,10 +385,10 @@ unsigned long OS_Time() {
 // ******** OS_TimeDifference ************
 // Calculates difference between two times
 // Inputs:  two times measured with OS_Time
-// Outputs: time difference in 20ns units
+// Outputs: time difference in 20ns units 
 // The time resolution should be at least 1us, and the precision at least 12 bits
-// It is ok to change the resolution and precision of this function as long as
-//   this function and OS_Time have the same resolution and precision
+// It is ok to change the resolution and precision of this function as long as 
+//   this function and OS_Time have the same resolution and precision 
 unsigned long OS_TimeDifference(unsigned long start, unsigned long stop){
   return 0;
 }
