@@ -11,10 +11,13 @@
 #include "inc/hw_ints.h"
 #include "inc/lm3s8962.h"
  
-
+#include "driverlib/gpio.h"
 #include "driverlib/timer.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/interrupt.h"  // defines IntEnable
+
+#include "UART.h"	// defines UART0_Init for OS_Init
+#include "ADC.h"    // defines ADC_Open for OS_Init
 
 // Assembly function protoypes
 //void OS_DisableInterrupts(void); // Disable interrupts
@@ -25,10 +28,13 @@ long StartCritical(void);
 void EndCritical(long primask);
 //void StartOS(void);
 
+#define PERIODICPERIOD 500   // period of periodic background thread connected to Timer2 in ms
+
 #define NUMTHREADS 3    // maximum number of threads
 #define STACKSIZE  100  // number of 32-bit words in stack
 
 struct tcb{
+   long stack[STACKSIZE];
    long *sp;          // pointer to stack (valid for threads not running
    struct tcb *next, *previous; // linked-list pointer
    char id, sleepState, priority, blockedState;
@@ -51,7 +57,34 @@ void TIMER2_Handler(void);
 // input: none
 // output: non
 void OS_Init(void) {
-   // FUTURE LAB
+	// disable interrupts
+	DisableInterrupts();
+	
+	// initialze serial
+	UART0_Init();
+	
+	// initialze ADC
+	ADC_Open();
+	
+	// initialize systick
+	// The period is set in OS_Launch and it should also be enabled there so....?
+	
+	// select switch
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+	GPIOIntTypeSet(GPIO_PORTF_BASE,1, GPIO_FALLING_EDGE);
+	GPIOPortIntRegister(GPIO_PORTF_BASE, void(*SelectSwitchHandler)(void));
+	GPIOPinIntEnable(GPIO_PORTF_BASE,1);
+	GPIOPinIntClear(GPIO_PORTF_BASE,1);
+	
+	// initialize timer2
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+    TimerDisable(TIMER2_BASE, TIMER_BOTH);
+    TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
+    TimerLoadSet(TIMER2_BASE, TIMER_A, (PERIODICPERIOD * TIME_1MS));
+    TimerIntRegister(TIMER2_BASE, TIMER_BOTH, TIMER2_Handler);
+    TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+    IntEnable(INT_TIMER2A);
+    // Timer2 is not currently enabled	
 }
 
 // *********** OS_AddThread **************
