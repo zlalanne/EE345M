@@ -43,7 +43,7 @@
 	    EXPORT  OS_Signal
 		EXPORT  OS_Wait
 
-        EXPORT  SysTick_Handler
+        EXPORT  PendSV_Handler
 
 
 ;*********** OS_DisableInterrupts ***************
@@ -146,13 +146,18 @@ OS_bSignal
     BNE OS_bSignal
     BX LR
 
-SysTick_Handler                ; 1) Saves R0-R3,R12,LR,PC,PSR
+PendSV_Handler                 ; 1) Saves R0-R3,R12,LR,PC,PSR
     CPSID   I                  ; 2) Prevent interrupt during switch
     PUSH    {R4-R11}           ; 3) Save remaining regs r4-11
     LDR     R0, =RunPt         ; 4) R0=pointer to RunPt, old thread
     LDR     R1, [R0]           ;    R1 = RunPt
     STR     SP, [R1]           ; 5) Save SP into TCB
-    LDR     R1, [R1,#4]        ; 6) R1 = RunPt->next
+sleeping
+	LDR		R1, [R1,#4]		   ; 6) R1 = RunPt->next
+	LDR		R2, [R1,#8]		   ;    R2 = RunPt->sleepCount
+	CMP		R2, #0			   ;    Check if thread is sleeping
+	BNE		sleeping		   ;    Get next TCB if thread is sleeping
+
     STR     R1, [R0]           ;    RunPt = R1
     LDR     SP, [R1]           ; 7) new thread SP; SP = RunPt->sp;
     POP     {R4-R11}           ; 8) restore regs r4-11

@@ -7,6 +7,7 @@
 #include "OS.h"
 #include "UART.h"	// defines UART0_Init for OS_Init
 #include "ADC.h"    // defines ADC_Open for OS_Init
+#include "Output.h"
 
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
@@ -19,23 +20,24 @@
 #include "driverlib/interrupt.h"  // defines IntEnable
 #include "driverlib/systick.h"
 
+#define PERIODICPERIOD 50000   // period of periodic background thread connected to Timer2 in ms
 
-#define PERIODICPERIOD 500   // period of periodic background thread connected to Timer2 in ms
-
-#define NUMTHREADS 5    // maximum number of threads
+#define MAXTHREADS 10    // maximum number of threads
 #define STACKSIZE  100  // number of 32-bit words in stack
 
+// TCB structure, assembly code depends on the order of variables
+// in this structure. Specifically sp, next and sleepState.
 struct tcb{
    long *sp;          // pointer to stack (valid for threads not running)
-   struct tcb *next, *previous; // linked-list pointer
-   char id, sleepState, priority, blockedState;
+   struct tcb *next;  // linked-list pointer
+   long sleepState, blockedState;
+   long id, priority;
+   long stack[STACKSIZE]; 
 };
 
 typedef struct tcb tcbType;
-tcbType tcbs[NUMTHREADS];
+tcbType tcbs[MAXTHREADS];
 tcbType *RunPt;
-
-long Stacks[NUMTHREADS][STACKSIZE];
 
 int tcbIndex = 0; // global index to point to place to put new tcb in array
 
@@ -52,14 +54,18 @@ void SysTick_Handler(void);
 // input: none
 // output: non
 void OS_Init(void) {
-	// disable interrupts
+
+	// Disable interrupts
 	OS_DisableInterrupts();
+
+	// Setting the clock to 50 MHz
+	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
+    	SYSCTL_XTAL_8MHZ);   
 	
-	// initialze serial
+	// Initialze peripherals
 	UART0_Init();
-	
-	// initialze ADC
 	ADC_Open();
+	Output_Init();
 	
 	// initialize systick
 	// The period is set in OS_Launch and it should also be enabled there so....?
@@ -68,20 +74,29 @@ void OS_Init(void) {
 
 	// select switch
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-	GPIOIntTypeSet(GPIO_PORTF_BASE,1, GPIO_FALLING_EDGE);
+    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_1);
 	GPIOPortIntRegister(GPIO_PORTF_BASE, Select_Switch_Handler);
-	GPIOPinIntEnable(GPIO_PORTF_BASE,1);
-	GPIOPinIntClear(GPIO_PORTF_BASE,1);
+	GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_FALLING_EDGE);
+	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
+	GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
 	
 	// initialize timer2
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
     TimerDisable(TIMER2_BASE, TIMER_BOTH);
     TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
-    TimerLoadSet(TIMER2_BASE, TIMER_A, (PERIODICPERIOD * TIME_1MS));
+    //TimerLoadSet(TIMER2_BASE, TIMER_A, (PERIODICPERIOD * TIME_1MS));
     TimerIntRegister(TIMER2_BASE, TIMER_BOTH, Timer2_Handler);
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
     IntEnable(INT_TIMER2A);
     // Timer2 is not currently enabled
+
+	// Setting priorities for all interrupts
+	// To add more look up correct names in inc\hw_ints.h
+	IntPrioritySet(FAULT_PENDSV, 7);
+	IntPrioritySet(FAULT_SYSTICK, 6);
+	IntPrioritySet(INT_UART0, 0);
+
+    IntPrioritySet(INT_ADC0SS3, 1);
 
 	RunPt = &tcbs[0];       // thread 0 will run first
 }
@@ -106,23 +121,23 @@ int OS_AddThreads(void(*task0)(void),
    }
 }
 
-void setInitialStack(int i){
-  tcbs[i].sp = &Stacks[i][STACKSIZE-16]; // thread stack pointer
-  Stacks[i][STACKSIZE-1] = 0x01000000;   // thumb bit
-  Stacks[i][STACKSIZE-3] = 0x14141414;   // R14
-  Stacks[i][STACKSIZE-4] = 0x12121212;   // R12
-  Stacks[i][STACKSIZE-5] = 0x03030303;   // R3
-  Stacks[i][STACKSIZE-6] = 0x02020202;   // R2
-  Stacks[i][STACKSIZE-7] = 0x01010101;   // R1
-  Stacks[i][STACKSIZE-8] = 0x00000000;   // R0
-  Stacks[i][STACKSIZE-9] = 0x11111111;   // R11
-  Stacks[i][STACKSIZE-10] = 0x10101010;  // R10
-  Stacks[i][STACKSIZE-11] = 0x09090909;  // R9
-  Stacks[i][STACKSIZE-12] = 0x08080808;  // R8
-  Stacks[i][STACKSIZE-13] = 0x07070707;  // R7
-  Stacks[i][STACKSIZE-14] = 0x06060606;  // R6
-  Stacks[i][STACKSIZE-15] = 0x05050505;  // R5
-  Stacks[i][STACKSIZE-16] = 0x04040404;  // R4
+void setInitialStack(int i) {
+  tcbs[i].sp = &tcbs[i].stack[STACKSIZE-16]; // thread stack pointer
+  tcbs[i].stack[STACKSIZE-1] = 0x01000000;   // thumb bit
+  tcbs[i].stack[STACKSIZE-3] = 0x14141414;   // R14
+  tcbs[i].stack[STACKSIZE-4] = 0x12121212;   // R12
+  tcbs[i].stack[STACKSIZE-5] = 0x03030303;   // R3
+  tcbs[i].stack[STACKSIZE-6] = 0x02020202;   // R2
+  tcbs[i].stack[STACKSIZE-7] = 0x01010101;   // R1
+  tcbs[i].stack[STACKSIZE-8] = 0x00000000;   // R0
+  tcbs[i].stack[STACKSIZE-9] = 0x11111111;   // R11
+  tcbs[i].stack[STACKSIZE-10] = 0x10101010;  // R10
+  tcbs[i].stack[STACKSIZE-11] = 0x09090909;  // R9
+  tcbs[i].stack[STACKSIZE-12] = 0x08080808;  // R8
+  tcbs[i].stack[STACKSIZE-13] = 0x07070707;  // R7
+  tcbs[i].stack[STACKSIZE-14] = 0x06060606;  // R6
+  tcbs[i].stack[STACKSIZE-15] = 0x05050505;  // R5
+  tcbs[i].stack[STACKSIZE-16] = 0x04040404;  // R4
 }
 
 //******** OS_AddThread *************** 
@@ -135,31 +150,39 @@ void setInitialStack(int i){
 // In Lab 2, you can ignore both the stackSize and priority fields
 // In Lab 3, you can ignore the stackSize fields
 int OS_AddThread(void(*task)(void), 
-   unsigned long stackSize, unsigned long priority) {
+  unsigned long stackSize, unsigned long priority) {
    
-   long status;
+  long status;
 
-   status = StartCritical();
+  status = StartCritical();
 
-   if(tcbIndex != 0) {
-     tcbs[tcbIndex].previous = &tcbs[tcbIndex - 1];
-	 tcbs[tcbIndex].next = &tcbs[0];
-	 tcbs[tcbIndex - 1].next = &tcbs[tcbIndex];
-   } else {
-     // If first thread set next and previous to NULL
-	 tcbs[tcbIndex].previous = '\0';
-	 tcbs[tcbIndex].next = '\0';
-   }
+  if(tcbIndex < MAXTHREADS) {
+  
+    if(tcbIndex != 0) {	  
+	  tcbs[tcbIndex - 1].next = &tcbs[tcbIndex];
+	}
 
-   // Initilize stack for debugging
-   setInitialStack(tcbIndex);
+	// Point next to beginning
+	tcbs[tcbIndex].next = &tcbs[0];
+	
+	// Initilizing the stack for debugging
+	setInitialStack(tcbIndex);
 
-   // Set PC for stack to point to function to run
-   Stacks[tcbIndex][STACKSIZE-2] = (long)(task);
+	// Set PC for stack to point to function to run
+	tcbs[tcbIndex].stack[STACKSIZE-2] = (long)(task);
+
+	// Set inital values for sleep status and id
+	tcbs[tcbIndex].sleepState = 0;
+	tcbs[tcbIndex].id = tcbIndex;
+	tcbIndex++;
+
+	EndCritical(status);
+	return SUCCESS;
+
+  }
 
    EndCritical(status);
-
-   return 1;
+   return FAILURE;
 }
 
 // ******* OS_Launch *********************
@@ -171,7 +194,8 @@ void OS_Launch(unsigned long theTimeSlice){
 
    SysTickPeriodSet(theTimeSlice);
    SysTickEnable();
-   TimerEnable(TIMER2_BASE, TIMER_BOTH);
+   //TimerEnable(TIMER2_BASE, TIMER_BOTH);
+   StartOS(); // Assembly language function that initilizes stack for running
    OS_EnableInterrupts();
    // not supposed to return?
    while(1) { }
@@ -240,7 +264,9 @@ int OS_AddThread(void(*task)(void),
 // returns the thread ID for the currently running thread
 // Inputs: none
 // Outputs: Thread ID, number greater than zero 
-unsigned long OS_Id(void);
+unsigned long OS_Id(void){
+  return (*RunPt).id;
+}
 
 // ******** OS_Fifo_Init ************
 // Initialize the Fifo to be empty
@@ -290,7 +316,7 @@ long OS_Fifo_Size(void);
 // input:  pointer to a semaphore
 // output: none
 void OS_InitSemaphore(Sema4Type *semaPt, long value) {
-  semaPt->Value = value;
+  (*semaPt).Value = value;
   return;
 };
 
@@ -308,14 +334,6 @@ void OS_InitSemaphore(Sema4Type *semaPt, long value) {
 // In lab 3, there will be up to four background threads, and this priority field 
 //           determines the relative priority of these four threads
 int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
-  return 0;
-}
-
-//******** OS_Id *************** 
-// returns the thread ID for the currently running thread
-// Inputs: none
-// Outputs: Thread ID, number greater than zero 
-unsigned long OS_Id(void){
   return 0;
 }
 
@@ -362,6 +380,8 @@ unsigned long OS_MailBox_Recv(void){
 // You are free to select the time resolution for this function
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
+  (*RunPt).sleepState = sleepTime;
+  IntPendSet(FAULT_PENDSV); 
   return;
 } 
 
@@ -373,6 +393,7 @@ void OS_Sleep(unsigned long sleepTime) {
 // input:  none
 // output: none
 void OS_Suspend(void) {
+  IntPendSet(FAULT_PENDSV); 
   return;
 }
 
@@ -400,13 +421,25 @@ unsigned long OS_TimeDifference(unsigned long start, unsigned long stop){
 
 
 void Timer2_Handler(void){
-   GPIO_PORTG_DATA_R |= 0x01;
-   TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT); // Or should it be TIMER_TIMB_TIMEOUT
+   TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
    gTimer2Count++;
    gThread1p();   // Call periodic function
-   GPIO_PORTG_DATA_R &= 0xFE;
 }
+
+
 
 void Select_Switch_Handler(void){
 	return;
+}
+
+void SysTick_Handler(void) {
+  int i;
+
+  for(i = 0; i < tcbIndex; i++) {
+    
+	if(tcbs[0].sleepState != 0) {
+	  tcbs[0].sleepState--;
+	}
+  }
+  IntPendSet(FAULT_PENDSV); 
 }

@@ -75,6 +75,14 @@ __heap_limit
 
 ;******************************************************************************
 ;
+; External declaration for the interrupt handler used by the application.
+;
+;******************************************************************************
+
+		EXTERN PendSV_Handler
+
+;******************************************************************************
+;
 ; The vector table.
 ;
 ;******************************************************************************
@@ -94,7 +102,7 @@ __Vectors
         DCD     IntDefaultHandler           ; SVCall handler
         DCD     IntDefaultHandler           ; Debug monitor handler
         DCD     0                           ; Reserved
-        DCD     IntDefaultHandler           ; PendSV Handler
+        DCD     PendSV_Handler              ; PendSV Handler
         DCD     IntDefaultHandler           ; SysTick Handler
         DCD     IntDefaultHandler           ; GPIO Port A
         DCD     IntDefaultHandler           ; GPIO Port B

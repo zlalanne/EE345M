@@ -242,7 +242,7 @@ void Interpreter(void);    // just a prototype, link to your interpreter
 //--------------end of Task 5-----------------------------
 
 //*******************final user main DEMONTRATE THIS TO TA**********
-int main(void){ 
+int mainDemo(void){ 
   OS_Init();           // initialize, disable interrupts
 
   DataLost = 0;        // lost data between producer and consumer
@@ -345,7 +345,7 @@ void Thread3b(void){
     Count3++;
   }
 }
-int testmain2(void){  // testmain2
+int main(void){  // testmain2
   OS_Init();           // initialize, disable interrupts
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&Thread1b,128,1); 
