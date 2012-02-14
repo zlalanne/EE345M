@@ -149,6 +149,8 @@ void setInitialStack(int i) {
 // stack size must be divisable by 8 (aligned to double word boundary)
 // In Lab 2, you can ignore both the stackSize and priority fields
 // In Lab 3, you can ignore the stackSize fields
+
+// TODO: add valid bit
 int OS_AddThread(void(*task)(void), 
   unsigned long stackSize, unsigned long priority) {
    
@@ -345,11 +347,18 @@ void OS_Kill(void) {
   return;
 }
 
+// Global variables for mailbox
+Sema4Type BoxFree;
+Sema4Type DataValid;
+unsigned long Mailbox;
+
 // ******** OS_MailBox_Init ************
 // Initialize communication channel
 // Inputs:  none
 // Outputs: none
 void OS_MailBox_Init(void) {
+  OS_InitSemaphore(&BoxFree, 1);
+  OS_InitSemaphore(&DataValid, 0);
   return;
 }
 
@@ -360,6 +369,9 @@ void OS_MailBox_Init(void) {
 // This function will be called from a foreground thread
 // It will spin/block if the MailBox contains data not yet received 
 void OS_MailBox_Send(unsigned long data) {
+  OS_bWait(&BoxFree);
+  Mailbox = data;
+  OS_bSignal(&DataValid);
   return;
 }
 
@@ -369,9 +381,17 @@ void OS_MailBox_Send(unsigned long data) {
 // Outputs: data received
 // This function will be called from a foreground thread
 // It will spin/block if the MailBox is empty 
-unsigned long OS_MailBox_Recv(void){
-  return 0;
+unsigned long OS_MailBox_Recv(void) {
+  unsigned long mail;
+  
+  OS_bWait(&DataValid);
+  mail = Mailbox;
+  OS_bSignal(&BoxFree);
+  
+  return mail;
 }
+
+
 
 // ******** OS_Sleep ************
 // place this thread into a dormant state
