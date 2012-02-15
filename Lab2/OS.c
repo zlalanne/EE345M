@@ -20,7 +20,6 @@
 #include "driverlib/interrupt.h"  // defines IntEnable
 #include "driverlib/systick.h"
 
-#define PERIODICPERIOD 50000   // period of periodic background thread connected to Timer2 in ms
 
 #define MAXTHREADS 10    // maximum number of threads
 #define STACKSIZE  100  // number of 32-bit words in stack
@@ -38,15 +37,29 @@ struct tcb{
 typedef struct tcb tcbType;
 tcbType tcbs[MAXTHREADS];
 tcbType *RunPt;
+tcbType *NextPt;
 
 int tcbIndex = 0; // global index to point to place to put new tcb in array
 
+unsigned long gTimeSlice;
 unsigned long gTimer2Count;      // global 32-bit counter incremented everytime Timer2 executes
 void (*gThread1p)(void);			 //	global function pointer for Thread1 function
 
 void Select_Switch_Handler(void);
 void Timer2_Handler(void);
 void SysTick_Handler(void);
+
+
+
+// ********* Scheduler *************
+// Calculates next thread to be run and sets NextPt to it
+void Scheduler(void) {
+   NextPt = (*RunPt).next;
+   while ((*NextPt).sleepState != 0) {
+      NextPt = (*NextPt).next;
+   }
+   IntPendSet(FAULT_PENDSV); 
+}
 
 // ************ OS_Init ******************
 // initialize operating system, disable interrupts until OS_Launch
@@ -84,7 +97,6 @@ void OS_Init(void) {
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
     TimerDisable(TIMER2_BASE, TIMER_BOTH);
     TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
-    //TimerLoadSet(TIMER2_BASE, TIMER_A, (PERIODICPERIOD * TIME_1MS));
     TimerIntRegister(TIMER2_BASE, TIMER_BOTH, Timer2_Handler);
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
     IntEnable(INT_TIMER2A);
@@ -97,6 +109,8 @@ void OS_Init(void) {
 	IntPrioritySet(INT_UART0, 0);
 
     IntPrioritySet(INT_ADC0SS3, 1);
+	// TIMER2 priority set in OS_AddPeriodicThread
+	
 
 	RunPt = &tcbs[0];       // thread 0 will run first
 }
@@ -191,14 +205,14 @@ int OS_AddThread(void(*task)(void),
 //        ( Maximum of 24 bits)
 // Outputs: none (does not return)
 void OS_Launch(unsigned long theTimeSlice){
-
-   SysTickPeriodSet(theTimeSlice);
-   SysTickEnable();
-   //TimerEnable(TIMER2_BASE, TIMER_BOTH);
-   StartOS(); // Assembly language function that initilizes stack for running
-   OS_EnableInterrupts();
-   // not supposed to return?
-   while(1) { }
+  gTimeSlice = theTimeSlice;
+  SysTickPeriodSet(theTimeSlice);
+  SysTickEnable();
+  //TimerEnable(TIMER2_BASE, TIMER_BOTH);
+  StartOS(); // Assembly language function that initilizes stack for running
+  OS_EnableInterrupts();
+  // not supposed to return?
+  while(1) { }
 
 }
 
@@ -225,22 +239,11 @@ unsigned long OS_MsTime(void) {
 int OS_AddPeriodicThread(void(*task)(void),
    unsigned long period,
    unsigned long priority){
-   // The Timer2 peripheral must be enabled for use.
-   SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
-   // Disabling Timer2 for configuration
-   TimerDisable(TIMER2_BASE, TIMER_BOTH);
-   // Configure Timer2 as a 32-bit periodic timer.
-   TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
-   // Set the Timer2 load value
+   
+   IntPrioritySet (INT_TIMER2A, priority);
    TimerLoadSet(TIMER2_BASE, TIMER_A, (period * TIME_1MS)); // should be TIMER_A when configured for 32-bit
    // Clear periodic counter
-   OS_ClearMsTime();
-   // should the task be registered as the int handler? or should there be a regular int handler that calls task?
-   TimerIntRegister(TIMER2_BASE,TIMER_BOTH,Timer2_Handler);
-   // Configure the Timer2 interrupt for timer timeout.
-   TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT); // or should it be TIMER_TIMB_TIMEOUT?
-   // Enable the Timer2 interrupt on the processor (NVIC).
-   IntEnable(INT_TIMER2A); // or should it be INT_TIMER2B?      
+   OS_ClearMsTime();    
    // Set the global function pointer to the address of the provided function
    gThread1p = task;
    TimerEnable(TIMER2_BASE, TIMER_BOTH);
@@ -248,17 +251,6 @@ int OS_AddPeriodicThread(void(*task)(void),
    return 1;
 }
 
-//******** OS_AddThread *************** 
-// add a foregound thread to the scheduler
-// Inputs: pointer to a void/void foreground task
-//         number of bytes allocated for its stack
-//         priority (0 is highest)
-// Outputs: 1 if successful, 0 if this thread can not be added
-// stack size must be divisable by 8 (aligned to double word boundary)
-// In Lab 2, you can ignore both the stackSize and priority fields
-// In Lab 3, you can ignore the stackSize fields
-int OS_AddThread(void(*task)(void), 
-   unsigned long stackSize, unsigned long priority);
 
 //******** OS_Id *************** 
 // returns the thread ID for the currently running thread
@@ -381,7 +373,7 @@ unsigned long OS_MailBox_Recv(void){
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
   (*RunPt).sleepState = sleepTime;
-  IntPendSet(FAULT_PENDSV); 
+  IntPendSet(FAULT_SYSTICK);
   return;
 } 
 
@@ -393,7 +385,7 @@ void OS_Sleep(unsigned long sleepTime) {
 // input:  none
 // output: none
 void OS_Suspend(void) {
-  IntPendSet(FAULT_PENDSV); 
+  IntPendSet(FAULT_SYSTICK);
   return;
 }
 
@@ -421,8 +413,15 @@ unsigned long OS_TimeDifference(unsigned long start, unsigned long stop){
 
 
 void Timer2_Handler(void){
+   int i;
    TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
    gTimer2Count++;
+   for(i = 0; i < tcbIndex; i++) {
+    
+	if(tcbs[0].sleepState != 0) {
+	  tcbs[0].sleepState--;
+	}
+   }
    gThread1p();   // Call periodic function
 }
 
@@ -432,14 +431,12 @@ void Select_Switch_Handler(void){
 	return;
 }
 
-void SysTick_Handler(void) {
-  int i;
 
-  for(i = 0; i < tcbIndex; i++) {
-    
-	if(tcbs[0].sleepState != 0) {
-	  tcbs[0].sleepState--;
-	}
-  }
-  IntPendSet(FAULT_PENDSV); 
+// ******** SysTick_Handler ************
+// Resets its value to gTimeSlice and calls thread scheduler
+void SysTick_Handler(void) {
+   SysTickPeriodSet(gTimeSlice);  
+   Scheduler();
 }
+
+

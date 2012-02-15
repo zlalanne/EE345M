@@ -32,6 +32,7 @@
         PRESERVE8
 
         EXTERN  RunPt            ; currently running thread
+		EXTERN  NextPt           ; next thread to run
 
         EXPORT  OS_DisableInterrupts
         EXPORT  OS_EnableInterrupts
@@ -152,17 +153,14 @@ PendSV_Handler                 ; 1) Saves R0-R3,R12,LR,PC,PSR
     LDR     R0, =RunPt         ; 4) R0=pointer to RunPt, old thread
     LDR     R1, [R0]           ;    R1 = RunPt
     STR     SP, [R1]           ; 5) Save SP into TCB
-sleeping
-	LDR		R1, [R1,#4]		   ; 6) R1 = RunPt->next
-	LDR		R2, [R1,#8]		   ;    R2 = RunPt->sleepCount
-	CMP		R2, #0			   ;    Check if thread is sleeping
-	BNE		sleeping		   ;    Get next TCB if thread is sleeping
 
-    STR     R1, [R0]           ;    RunPt = R1
-    LDR     SP, [R1]           ; 7) new thread SP; SP = RunPt->sp;
-    POP     {R4-R11}           ; 8) restore regs r4-11
-    CPSIE   I                  ; 9) tasks run with interrupts enabled
-    BX      LR                 ; 10) restore R0-R3,R12,LR,PC,PSR
+	LDR R1, =NextPt            ; 6) R1=pointer to NextPt, next thread
+	STR R1, [R0] 			   ; 7) Update Runpt to NextPt
+
+    LDR     SP, [R1]           ; 8) new thread SP; SP = RunPt->sp;
+    POP     {R4-R11}           ; 9) restore regs r4-11
+    CPSIE   I                  ; 10) tasks run with interrupts enabled
+    BX      LR                 ; 11) restore R0-R3,R12,LR,PC,PSR
 
     
 	ALIGN
