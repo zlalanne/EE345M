@@ -49,6 +49,9 @@ int NumThreads = 0; // global index to point to place to put new tcb in array
 unsigned long gTimer2Count;      // global 32-bit counter incremented everytime Timer2 executes
 void (*gThread1p)(void);			 //	global function pointer for Thread1 function
 
+void (*gButtonThreadPt)(void);       // global function pointer for the thread to be launched on button pushes
+int ButtonThreadPriority;
+
 void Select_Switch_Handler(void);
 void Timer2_Handler(void);
 void SysTick_Handler(void);
@@ -360,7 +363,9 @@ void OS_InitSemaphore(Sema4Type *semaPt, long value) {
 // In lab 3, there will be up to four background threads, and this priority field 
 //           determines the relative priority of these four threads
 int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
-  return 0;
+  gButtonThreadPt = task;
+  gButtonThreadPriority = priority;
+  return 1;
 }
 
 // ******** OS_Kill ************
@@ -480,7 +485,8 @@ void Timer2_Handler(void){
 
 
 void Select_Switch_Handler(void){
-	return;
+	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
+	OS_AddThread(gButtonThreadPt,STACKSTIZE, gButtonThreadPriority);
 }
 
 
