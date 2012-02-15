@@ -369,7 +369,33 @@ int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
 // output: none
 void OS_Kill(void) {
 
-  return;
+  long status;
+  int id;
+  tcbType *temp;
+
+  // Starting critical section to delete TCB
+  status = StartCritical();
+  
+  NumThreads--;
+  id = (*RunPt).id;
+
+  // Make TCB invalid
+  tcbs[id].valid = INVALID;
+  
+  // Remove TCB from linked list
+  temp = tcbs[id].prev;
+  (*temp).next = tcbs[id].next;
+  
+  // Check if thread is Head or Tail
+  if(&tcbs[id] == Head) {
+    Head = tcbs[id].next; 
+  }	else if(&tcbs[id] == Tail) {
+    Tail = tcbs[id].prev;
+  }
+  
+  EndCritical(status);
+
+  while(1){} // Never
 }
 
 // Global variables for mailbox
