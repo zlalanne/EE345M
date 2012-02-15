@@ -50,7 +50,7 @@ unsigned long gTimer2Count;      // global 32-bit counter incremented everytime 
 void (*gThread1p)(void);			 //	global function pointer for Thread1 function
 
 void (*gButtonThreadPt)(void);       // global function pointer for the thread to be launched on button pushes
-int ButtonThreadPriority;
+int gButtonThreadPriority;
 
 void Select_Switch_Handler(void);
 void Timer2_Handler(void);
@@ -486,7 +486,7 @@ void Timer2_Handler(void){
 
 void Select_Switch_Handler(void){
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
-	OS_AddThread(gButtonThreadPt,STACKSTIZE, gButtonThreadPriority);
+	OS_AddThread(gButtonThreadPt,STACKSIZE, gButtonThreadPriority);
 }
 
 
