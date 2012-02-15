@@ -268,5 +268,16 @@ void OS_bWait(Sema4Type *semaPt);
 // output: none
 void OS_bSignal(Sema4Type *semaPt); 
 
-
 #endif
+
+// Boolean phrases
+#ifndef boolean
+  #define boolean
+  #define TRUE 1
+  #define FALSE 0
+  #define SUCCESS 1
+  #define FAILURE 0
+  #define VALID 1
+  #define INVALID 0
+#endif
+
