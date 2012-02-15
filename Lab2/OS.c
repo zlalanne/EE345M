@@ -29,7 +29,7 @@
 // in this structure. Specifically sp, next and sleepState.
 struct tcb{
    long *sp;          // pointer to stack (valid for threads not running)
-   struct tcb *next;  // linked-list pointer
+   struct tcb *next, *prev;  // linked-list pointer
    long sleepState, blockedState;
    long id, priority;
    char valid;
@@ -174,6 +174,7 @@ int OS_AddThread(void(*task)(void),
   if(NumThreads == 0) {
     // First thread no TCBs yet
     tcbs[0].next = &tcbs[0];
+	tcbs[0].prev = &tcbs[0];
 	Head = &tcbs[0];
 	Tail = &tcbs[0];
 	index = 0;
@@ -194,6 +195,7 @@ int OS_AddThread(void(*task)(void),
 	}
 
 	tcbs[index].next = Head; // New tcb points to head
+	tcbs[index].prev = Tail; // Point back to current tail
 	(*Tail).next = &tcbs[index]; // Tail now points to new tcb
 	Tail = &tcbs[index]; // New tcb becomes the tail
   }
