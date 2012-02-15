@@ -32,14 +32,17 @@ struct tcb{
    struct tcb *next;  // linked-list pointer
    long sleepState, blockedState;
    long id, priority;
+   char valid;
    long stack[STACKSIZE]; 
 };
 
 typedef struct tcb tcbType;
 tcbType tcbs[MAXTHREADS];
 tcbType *RunPt;
+tcbType *Head = '\0';
+tcbType *Tail = '\0';
 
-int tcbIndex = 0; // global index to point to place to put new tcb in array
+int NumThreads = 0; // global index to point to place to put new tcb in array
 
 unsigned long gTimer2Count;      // global 32-bit counter incremented everytime Timer2 executes
 void (*gThread1p)(void);			 //	global function pointer for Thread1 function
@@ -54,6 +57,8 @@ void SysTick_Handler(void);
 // input: none
 // output: non
 void OS_Init(void) {
+
+	int i;
 
 	// Disable interrupts
 	OS_DisableInterrupts();
@@ -97,6 +102,13 @@ void OS_Init(void) {
 	IntPrioritySet(INT_UART0, 0);
 
     IntPrioritySet(INT_ADC0SS3, 1);
+
+	// Initializing TCBs
+	for(i = 0; i < MAXTHREADS; i++) {
+	  tcbs[i].valid = INVALID;
+	}
+
+
 
 	RunPt = &tcbs[0];       // thread 0 will run first
 }
@@ -150,41 +162,58 @@ void setInitialStack(int i) {
 // In Lab 2, you can ignore both the stackSize and priority fields
 // In Lab 3, you can ignore the stackSize fields
 
-// TODO: add valid bit
 int OS_AddThread(void(*task)(void), 
   unsigned long stackSize, unsigned long priority) {
    
   long status;
+  int i;
+  int index;
 
   status = StartCritical();
 
-  if(tcbIndex < MAXTHREADS) {
-  
-    if(tcbIndex != 0) {	  
-	  tcbs[tcbIndex - 1].next = &tcbs[tcbIndex];
+  if(NumThreads == 0) {
+    // First thread no TCBs yet
+    tcbs[0].next = &tcbs[0];
+	Head = &tcbs[0];
+	Tail = &tcbs[0];
+	index = 0;
+  } else {
+    
+	for(i = 0; i < MAXTHREADS; i++) {
+	  if(tcbs[i].valid == INVALID) {
+	    index = i;
+		i = MAXTHREADS; // Exit loop
+	  } else {
+	    index = -1;  // Sentinel to detect no invalid spots
+	  }
 	}
 
-	// Point next to beginning
-	tcbs[tcbIndex].next = &tcbs[0];
-	
-	// Initilizing the stack for debugging
-	setInitialStack(tcbIndex);
+	if(index == -1) {
+	  EndCritical(status);
+	  return FAILURE; // No space in tcbs
+	}
 
-	// Set PC for stack to point to function to run
-	tcbs[tcbIndex].stack[STACKSIZE-2] = (long)(task);
-
-	// Set inital values for sleep status and id
-	tcbs[tcbIndex].sleepState = 0;
-	tcbs[tcbIndex].id = tcbIndex;
-	tcbIndex++;
-
-	EndCritical(status);
-	return SUCCESS;
-
+	tcbs[index].next = Head; // New tcb points to head
+	(*Tail).next = &tcbs[index]; // Tail now points to new tcb
+	Tail = &tcbs[index]; // New tcb becomes the tail
   }
 
-   EndCritical(status);
-   return FAILURE;
+
+  // Initilizing the stack for debugging
+  setInitialStack(index);
+
+  // Set PC for stack to point to function to run
+  tcbs[index].stack[STACKSIZE-2] = (long)(task);
+
+  // Set inital values for sleep status and id
+  tcbs[index].sleepState = 0;
+  tcbs[index].id = index;
+  tcbs[index].valid = VALID;
+  NumThreads++;
+  
+  EndCritical(status);
+  return SUCCESS;
+
 }
 
 // ******* OS_Launch *********************
@@ -344,6 +373,7 @@ int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
 // input:  none
 // output: none
 void OS_Kill(void) {
+
   return;
 }
 
@@ -390,7 +420,6 @@ unsigned long OS_MailBox_Recv(void) {
   
   return mail;
 }
-
 
 
 // ******** OS_Sleep ************
@@ -453,13 +482,6 @@ void Select_Switch_Handler(void){
 }
 
 void SysTick_Handler(void) {
-  int i;
 
-  for(i = 0; i < tcbIndex; i++) {
-    
-	if(tcbs[0].sleepState != 0) {
-	  tcbs[0].sleepState--;
-	}
-  }
   IntPendSet(FAULT_PENDSV); 
 }
