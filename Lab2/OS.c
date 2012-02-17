@@ -20,9 +20,9 @@
 #include "driverlib/interrupt.h"  // defines IntEnable
 #include "driverlib/systick.h"
 
-
 #define MAXTHREADS 10    // maximum number of threads
 #define STACKSIZE  100  // number of 32-bit words in stack
+#define FIFOSIZE 64
 
 // TCB structure, assembly code depends on the order of variables
 // in this structure. Specifically sp, next and sleepState.
@@ -35,27 +35,41 @@ struct tcb{
    long stack[STACKSIZE]; 
 };
 
+// Global variables for TCBs
 typedef struct tcb tcbType;
 tcbType tcbs[MAXTHREADS];
-tcbType *RunPt;
-tcbType *NextPt;
-
-unsigned long gTimeSlice;
+tcbType *RunPt = '\0';
+tcbType *NextPt = '\0';
 tcbType *Head = '\0';
 tcbType *Tail = '\0';
 
+unsigned long gTimeSlice;
 int NumThreads = 0; // global index to point to place to put new tcb in array
 
+// Global variables for background thread
 unsigned long gTimer2Count;      // global 32-bit counter incremented everytime Timer2 executes
 void (*gThread1p)(void);			 //	global function pointer for Thread1 function
+char gThreadValid = INVALID;
 
+// Global variables for button thread
 void (*gButtonThreadPt)(void);       // global function pointer for the thread to be launched on button pushes
 int gButtonThreadPriority;
 
+// Global variables for mailbox
+Sema4Type BoxFree;
+Sema4Type DataValid;
+unsigned long Mailbox;
+
+// Global variables for FIFO
+unsigned long OS_Fifo[FIFOSIZE];
+Sema4Type FifoMutex;
+Sema4Type CurrentSize;
+unsigned long *OS_PutPt, *OS_GetPt;
+
+// Interrupt Handlers
 void Select_Switch_Handler(void);
 void Timer2_Handler(void);
 void SysTick_Handler(void);
-
 
 
 // ********* Scheduler *************
@@ -89,44 +103,45 @@ void OS_Init(void) {
 	ADC_Open();
 	Output_Init();
 	
-	// initialize systick
-	// The period is set in OS_Launch and it should also be enabled there so....?
+	// Initialize systick
+	// The period is set in OS_Launch
 	SysTickIntRegister(SysTick_Handler);
 	SysTickIntEnable();	
 
-	// select switch
+	// Select switch
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_1);
+	GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
 	GPIOPortIntRegister(GPIO_PORTF_BASE, Select_Switch_Handler);
 	GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_FALLING_EDGE);
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
 	GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
 	
-	// initialize timer2
+	// Initialize Timer2
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
-    TimerDisable(TIMER2_BASE, TIMER_BOTH);
+    TimerDisable(TIMER2_BASE, TIMER_A);
     TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
-    TimerIntRegister(TIMER2_BASE, TIMER_BOTH, Timer2_Handler);
+    TimerIntRegister(TIMER2_BASE, TIMER_A, Timer2_Handler);
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
-    IntEnable(INT_TIMER2A);
-    // Timer2 is not currently enabled
+    TimerLoadSet(TIMER2_BASE, TIMER_A, TIME_1MS); // should be TIMER_A when configured for 32-bit
+	IntEnable(INT_TIMER2A);
 
 	// Setting priorities for all interrupts
 	// To add more look up correct names in inc\hw_ints.h
 	IntPrioritySet(FAULT_PENDSV, 7);
 	IntPrioritySet(FAULT_SYSTICK, 6);
-	IntPrioritySet(INT_UART0, 0);
-
-    IntPrioritySet(INT_ADC0SS3, 1);
+	
+	IntPrioritySet(INT_GPIOF, 0);
+	IntPrioritySet(INT_TIMER2A, 1);
+	IntPrioritySet(INT_UART0, 2);
+    IntPrioritySet(INT_ADC0SS3, 3);
+    
 	// TIMER2 priority set in OS_AddPeriodicThread
 	
-
 	// Initializing TCBs
 	for(i = 0; i < MAXTHREADS; i++) {
 	  tcbs[i].valid = INVALID;
 	}
-
-
 
 	RunPt = &tcbs[0];       // thread 0 will run first
 }
@@ -216,6 +231,7 @@ int OS_AddThread(void(*task)(void),
 	tcbs[index].prev = Tail; // Point back to current tail
 	(*Tail).next = &tcbs[index]; // Tail now points to new tcb
 	Tail = &tcbs[index]; // New tcb becomes the tail
+	(*Head).prev = &tcbs[index]; // Head now points backwards to new tcb
   }
 
 
@@ -245,10 +261,11 @@ void OS_Launch(unsigned long theTimeSlice){
   gTimeSlice = theTimeSlice;
   SysTickPeriodSet(theTimeSlice);
   SysTickEnable();
-  //TimerEnable(TIMER2_BASE, TIMER_BOTH);
+  TimerEnable(TIMER2_BASE, TIMER_A);
+
   StartOS(); // Assembly language function that initilizes stack for running
   OS_EnableInterrupts();
-  // not supposed to return?
+ 
   while(1) { }
 
 }
@@ -269,85 +286,37 @@ unsigned long OS_MsTime(void) {
    return gTimer2Count;
 }
 
-// ********** OS_AddPeriodicThread *********
-// Inputs: task is a pointer to the functino to execute every period
-// Inputs: period is number of milliseconds, priority is value specified for NVIC
-// Output: ??????
+//******** OS_AddPeriodicThread *************** 
+// add a background periodic task
+// typically this function receives the highest priority
+// Inputs: pointer to a void/void background function
+//         period given in system time units
+//         priority 0 is highest, 5 is lowest
+// Outputs: 1 if successful, 0 if this thread can not be added
+// It is assumed that the user task will run to completion and return
+// This task can not spin, block, loop, sleep, or kill
+// This task can call OS_Signal  OS_bSignal	 OS_AddThread
+// You are free to select the time resolution for this function
+// This task does not have a Thread ID
+// In lab 2, this command will be called 0 or 1 times
+// In lab 2, the priority field can be ignored
+// In lab 3, this command will be called 0 1 or 2 times
+// In lab 3, there will be up to four background threads, and this priority field 
+//           determines the relative priority of these four threads
 int OS_AddPeriodicThread(void(*task)(void),
    unsigned long period,
    unsigned long priority){
-   
-   IntPrioritySet (INT_TIMER2A, priority);
-   TimerLoadSet(TIMER2_BASE, TIMER_A, (period * TIME_1MS)); // should be TIMER_A when configured for 32-bit
+
    // Clear periodic counter
    OS_ClearMsTime();    
    // Set the global function pointer to the address of the provided function
    gThread1p = task;
-   TimerEnable(TIMER2_BASE, TIMER_BOTH);
+   gThreadValid = VALID;
+   // Sets new TIMER2 period
+   TimerLoadSet(TIMER2_BASE, TIMER_A, period); // should be TIMER_A when configured for 32-bit
 
    return 1;
 }
-
-
-//******** OS_Id *************** 
-// returns the thread ID for the currently running thread
-// Inputs: none
-// Outputs: Thread ID, number greater than zero 
-unsigned long OS_Id(void){
-  return (*RunPt).id;
-}
-
-// ******** OS_Fifo_Init ************
-// Initialize the Fifo to be empty
-// Inputs: size
-// Outputs: none 
-// In Lab 2, you can ignore the size field
-// In Lab 3, you should implement the user-defined fifo size
-// In Lab 3, you can put whatever restrictions you want on size
-//    e.g., 4 to 64 elements
-//    e.g., must be a power of 2,4,8,16,32,64,128
-void OS_Fifo_Init(unsigned long size) {
-  return;
-}
-
-// ******** OS_Fifo_Put ************
-// Enter one data sample into the Fifo
-// Called from the background, so no waiting 
-// Inputs:  data
-// Outputs: true if data is properly saved,
-//          false if data not saved, because it was full
-// Since this is called by interrupt handlers 
-//  this function can not disable or enable interrupts
-int OS_Fifo_Put(unsigned long data){
-  return 0;
-}  
-
-// ******** OS_Fifo_Get ************
-// Remove one data sample from the Fifo
-// Called in foreground, will spin/block if empty
-// Inputs:  none
-// Outputs: data 
-unsigned long OS_Fifo_Get(void){
-  return 0;
-}
-
-// ******** OS_Fifo_Size ************
-// Check the status of the Fifo
-// Inputs: none
-// Outputs: returns the number of elements in the Fifo
-//          greater than zero if a call to OS_Fifo_Get will return right away
-//          zero or less than zero if the Fifo is empty 
-//          zero or less than zero  if a call to OS_Fifo_Get will spin or block
-long OS_Fifo_Size(void);
-
-// ******** OS_InitSemaphore ************
-// initialize semaphore 
-// input:  pointer to a semaphore
-// output: none
-void OS_InitSemaphore(Sema4Type *semaPt, long value) {
-  (*semaPt).Value = value;
-  return;
-};
 
 //******** OS_AddButtonTask *************** 
 // add a background task to run whenever the Select button is pushed
@@ -390,6 +359,10 @@ void OS_Kill(void) {
   // Remove TCB from linked list
   temp = tcbs[id].prev;
   (*temp).next = tcbs[id].next;
+
+  temp = tcbs[id].next;
+  (*temp).prev = tcbs[id].prev;
+
   
   // Check if thread is Head or Tail
   if(&tcbs[id] == Head) {
@@ -397,16 +370,150 @@ void OS_Kill(void) {
   }	else if(&tcbs[id] == Tail) {
     Tail = tcbs[id].prev;
   }
-  
+
   EndCritical(status);
 
-  while(1){} // Never
+  // Trigger threadswitch
+  IntPendSet(FAULT_SYSTICK);
+  while(1){} // Never leave
 }
 
-// Global variables for mailbox
-Sema4Type BoxFree;
-Sema4Type DataValid;
-unsigned long Mailbox;
+// ******** OS_Sleep ************
+// place this thread into a dormant state
+// input:  number of msec to sleep
+// output: none
+// You are free to select the time resolution for this function
+// OS_Sleep(0) implements cooperative multitasking
+void OS_Sleep(unsigned long sleepTime) {
+  (*RunPt).sleepState = sleepTime;		  
+  IntPendSet(FAULT_SYSTICK); // Triger threadswitch
+  return;
+} 
+
+// ******** OS_Suspend ************
+// suspend execution of currently running thread
+// scheduler will choose another thread to execute
+// Can be used to implement cooperative multitasking 
+// Same function as OS_Sleep(0)
+// input:  none
+// output: none
+void OS_Suspend(void) {
+  IntPendSet(FAULT_SYSTICK); // Triger threadswitch
+  return;
+}
+
+// ******** OS_Time ************
+// reads a timer value 
+// Inputs:  none
+// Outputs: time in 20ns units, 0 to max
+// The time resolution should be at least 1us, and the precision at least 12 bits
+// It is ok to change the resolution and precision of this function as long as 
+//   this function and OS_TimeDifference have the same resolution and precision 
+unsigned long OS_Time() {
+  return 0;
+}
+
+// ******** OS_TimeDifference ************
+// Calculates difference between two times
+// Inputs:  two times measured with OS_Time
+// Outputs: time difference in 20ns units 
+// The time resolution should be at least 1us, and the precision at least 12 bits
+// It is ok to change the resolution and precision of this function as long as 
+//   this function and OS_Time have the same resolution and precision 
+unsigned long OS_TimeDifference(unsigned long start, unsigned long stop){
+  return 0;
+}
+
+//******** OS_Id *************** 
+// returns the thread ID for the currently running thread
+// Inputs: none
+// Outputs: Thread ID, number greater than zero 
+unsigned long OS_Id(void){
+  return (*RunPt).id;
+}
+
+// ******** OS_Fifo_Init ************
+// Initialize the Fifo to be empty
+// Inputs: size
+// Outputs: none 
+// In Lab 2, you can ignore the size field
+// In Lab 3, you should implement the user-defined fifo size
+// In Lab 3, you can put whatever restrictions you want on size
+//    e.g., 4 to 64 elements
+//    e.g., must be a power of 2,4,8,16,32,64,128
+void OS_Fifo_Init(unsigned long size) {
+  
+  OS_InitSemaphore(&FifoMutex, 1);
+  OS_InitSemaphore(&CurrentSize, 0);
+  OS_PutPt = &OS_Fifo[0];
+  OS_GetPt = &OS_Fifo[0];
+
+  return;
+}
+
+// ******** OS_Fifo_Put ************
+// Enter one data sample into the Fifo
+// Called from the background, so no waiting 
+// Inputs:  data
+// Outputs: true if data is properly saved,
+//          false if data not saved, because it was full
+// Since this is called by interrupt handlers 
+//  this function can not disable or enable interrupts
+int OS_Fifo_Put(unsigned long data) {
+  unsigned long *nextPutPt;
+  nextPutPt = OS_PutPt+1;
+
+  if(nextPutPt == &OS_Fifo[FIFOSIZE]) {
+    nextPutPt = &OS_Fifo[0]; //Wrap
+  }
+
+  if(nextPutPt == OS_GetPt) {
+    return FAILURE;
+  } else {
+    *(OS_PutPt) = data;
+	OS_PutPt = nextPutPt;
+	OS_Signal(&CurrentSize);
+	return SUCCESS;
+  }
+}  
+
+// ******** OS_Fifo_Get ************
+// Remove one data sample from the Fifo
+// Called in foreground, will spin/block if empty
+// Inputs:  none
+// Outputs: data 
+unsigned long OS_Fifo_Get(void){
+  unsigned long data;
+
+  OS_Wait(&CurrentSize);
+  OS_Wait(&FifoMutex);
+  data = *(OS_GetPt++);
+  
+  if(OS_GetPt == &OS_Fifo[FIFOSIZE]) {
+    OS_GetPt = &OS_Fifo[0];
+  }
+
+  OS_Signal(&FifoMutex);
+  return data;
+}
+
+// ******** OS_Fifo_Size ************
+// Check the status of the Fifo
+// Inputs: none
+// Outputs: returns the number of elements in the Fifo
+//          greater than zero if a call to OS_Fifo_Get will return right away
+//          zero or less than zero if the Fifo is empty 
+//          zero or less than zero  if a call to OS_Fifo_Get will spin or block
+long OS_Fifo_Size(void);
+
+// ******** OS_InitSemaphore ************
+// initialize semaphore 
+// input:  pointer to a semaphore
+// output: none
+void OS_InitSemaphore(Sema4Type *semaPt, long value) {
+  (*semaPt).Value = value;
+  return;
+};
 
 // ******** OS_MailBox_Init ************
 // Initialize communication channel
@@ -447,74 +554,32 @@ unsigned long OS_MailBox_Recv(void) {
   return mail;
 }
 
+// ******** Timer2_Handler ************
+// Updates sleep state and calls periodic function
+void Timer2_Handler(void) {
+  int i;
+  TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+  gTimer2Count++;
 
-// ******** OS_Sleep ************
-// place this thread into a dormant state
-// input:  number of msec to sleep
-// output: none
-// You are free to select the time resolution for this function
-// OS_Sleep(0) implements cooperative multitasking
-void OS_Sleep(unsigned long sleepTime) {
-  (*RunPt).sleepState = sleepTime;
-  IntPendSet(FAULT_SYSTICK);
-  return;
-} 
+   // Decrment sleepState of each TCB
+  for(i = 0; i < MAXTHREADS; i++) {
+    if(tcbs[i].sleepState != 0) {
+	  tcbs[i].sleepState--;
+    }
+  }
 
-// ******** OS_Suspend ************
-// suspend execution of currently running thread
-// scheduler will choose another thread to execute
-// Can be used to implement cooperative multitasking 
-// Same function as OS_Sleep(0)
-// input:  none
-// output: none
-void OS_Suspend(void) {
-  IntPendSet(FAULT_SYSTICK);
-  return;
+  if(gThreadValid == VALID) {
+    gThread1p();   // Call periodic function
+  }
+
 }
 
-// ******** OS_Time ************
-// reads a timer value 
-// Inputs:  none
-// Outputs: time in 20ns units, 0 to max
-// The time resolution should be at least 1us, and the precision at least 12 bits
-// It is ok to change the resolution and precision of this function as long as 
-//   this function and OS_TimeDifference have the same resolution and precision 
-unsigned long OS_Time() {
-  return 0;
-}
-
-// ******** OS_TimeDifference ************
-// Calculates difference between two times
-// Inputs:  two times measured with OS_Time
-// Outputs: time difference in 20ns units 
-// The time resolution should be at least 1us, and the precision at least 12 bits
-// It is ok to change the resolution and precision of this function as long as 
-//   this function and OS_Time have the same resolution and precision 
-unsigned long OS_TimeDifference(unsigned long start, unsigned long stop){
-  return 0;
-}
-
-
-void Timer2_Handler(void){
-   int i;
-   TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
-   gTimer2Count++;
-   for(i = 0; i < tcbIndex; i++) {
-    
-	if(tcbs[0].sleepState != 0) {
-	  tcbs[0].sleepState--;
-	}
-   }
-   gThread1p();   // Call periodic function
-}
-
-
-
+// ******** Select_Switch_Handler ************
+// Clears the interrupt and starts buttion function
 void Select_Switch_Handler(void){
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
-	OS_AddThread(gButtonThreadPt,STACKSIZE, gButtonThreadPriority);
+	gButtonThreadPt();	
 }
-
 
 // ******** SysTick_Handler ************
 // Resets its value to gTimeSlice and calls thread scheduler
