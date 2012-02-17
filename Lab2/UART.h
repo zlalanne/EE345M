@@ -64,10 +64,16 @@ void UART0_SendString(char *stringBuffer);
 // Output: none
 void UART0_OutChar(char data);
 
+//------------Interpreter--------------
+// Continuosly runs commands
+// Input: none
+// Output: none
+void Interpreter(void);
+
 //------------CMD_Run--------------
 // Runs the latest command entered 
 //   if no new command simply returns
 // Input: none
 // Output: none
-void Interpreter(void);
+void CMD_Run(void);
 

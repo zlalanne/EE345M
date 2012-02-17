@@ -94,12 +94,22 @@ void UART0_Init(void){
   UART0_SendString(CMDPROMPT);
 }
 
+//------------Interpreter--------------
+// Continuosly runs commands
+// Input: none
+// Output: none
+void Interpreter(void) {
+  while(1) {
+    CMD_Run();
+  }
+}
+
 //------------CMD_Run--------------
 // Runs the latest command entered 
 //   if no new command simply returns
 // Input: none
 // Output: none
-void Interpreter(void) {
+void CMD_Run(void) {
   
   unsigned long measurement;
   char buffer[BUFFERSIZE]; // Used for snprintf
