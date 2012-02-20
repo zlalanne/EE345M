@@ -410,7 +410,7 @@ void OS_Suspend(void) {
 // It is ok to change the resolution and precision of this function as long as 
 //   this function and OS_TimeDifference have the same resolution and precision 
 unsigned long OS_Time() {
-  return 0;
+  return TimerValueGet(TIMER_A,TIMER2_BASE);
 }
 
 // ******** OS_TimeDifference ************
@@ -421,7 +421,7 @@ unsigned long OS_Time() {
 // It is ok to change the resolution and precision of this function as long as 
 //   this function and OS_Time have the same resolution and precision 
 unsigned long OS_TimeDifference(unsigned long start, unsigned long stop){
-  return 0;
+  return (start - stop);
 }
 
 //******** OS_Id *************** 
