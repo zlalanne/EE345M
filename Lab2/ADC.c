@@ -19,7 +19,8 @@
 
 #include "ADC.h"
 
-unsigned long * Buffer;
+unsigned long *Buffer;
+void (*ADCTask) (unsigned short);
 unsigned char Status = FALSE;
 
 void ADC0_Handler(void);
@@ -69,13 +70,13 @@ unsigned long ADC_In(unsigned int channelNum){
 }
 
 int ADC_Collect(unsigned int channelNum, unsigned int fs, 
-  unsigned long buffer[], unsigned int numberOfSamples){
+  void (*task)(unsigned short)){
 
   int i;
   unsigned long config;
+  int numberOfSamples = 1;
 
-  // Setting global pointer to point at array passed by funciton
-  Buffer = buffer;
+  ADCTask = task;
 
   // Determine input channel
   switch(channelNum){
@@ -133,12 +134,14 @@ int ADC_Status(void){
 };
     
 void ADC0_Handler(void){
-
+  unsigned long data;
   // Clear flag
   ADCIntClear(ADC0_BASE, 0);
   
-  ADCSequenceDataGet(ADC0_BASE, 0, Buffer);
+  //ADCSequenceDataGet(ADC0_BASE, 0, &data);
+
+  ADCTask(0);
 	
-  Status = TRUE;
+  //Status = TRUE;
 }
 

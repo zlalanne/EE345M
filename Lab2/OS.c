@@ -504,7 +504,9 @@ unsigned long OS_Fifo_Get(void){
 //          greater than zero if a call to OS_Fifo_Get will return right away
 //          zero or less than zero if the Fifo is empty 
 //          zero or less than zero  if a call to OS_Fifo_Get will spin or block
-long OS_Fifo_Size(void);
+long OS_Fifo_Size(void) {
+  return CurrentSize.Value;
+}
 
 // ******** OS_InitSemaphore ************
 // initialize semaphore 
