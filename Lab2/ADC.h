@@ -26,5 +26,5 @@ void ADC_Open(void);
 int ADC_Status(void);
 unsigned long ADC_In(unsigned int channelNum);
 int ADC_Collect(unsigned int channelNum, unsigned int fs, 
-unsigned long buffer[], unsigned int numberOfSamples);
+  void (*task)(unsigned short));
 
