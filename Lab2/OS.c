@@ -119,11 +119,11 @@ void OS_Init(void) {
 	
 	// Initialize Timer2
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
-    TimerDisable(TIMER2_BASE, TIMER_A);
-    TimerConfigure(TIMER2_BASE, TIMER_CFG_PERIODIC);
-    TimerIntRegister(TIMER2_BASE, TIMER_A, Timer2_Handler);
+    TimerDisable(TIMER2_BASE, TIMER_BOTH);
+    TimerConfigure(TIMER2_BASE, TIMER_CFG_16_BIT_PAIR| TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
+    TimerIntRegister(TIMER2_BASE, TIMER_BOTH, Timer2_Handler);
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
-    TimerLoadSet(TIMER2_BASE, TIMER_A, TIME_1MS); // should be TIMER_A when configured for 32-bit
+    TimerLoadSet(TIMER2_BASE, TIMER_BOTH, TIME_1MS); // should be TIMER_A when configured for 32-bit
 	IntEnable(INT_TIMER2A);
 
 	// Setting priorities for all interrupts
@@ -262,7 +262,8 @@ void OS_Launch(unsigned long theTimeSlice){
   gTimeSlice = theTimeSlice;
   SysTickPeriodSet(theTimeSlice);
   SysTickEnable();
-  TimerEnable(TIMER2_BASE, TIMER_A);
+  SysTickIntEnable();
+  TimerEnable(TIMER2_BASE, TIMER_BOTH);
 
   StartOS(); // Assembly language function that initilizes stack for running
   OS_EnableInterrupts();
@@ -314,7 +315,7 @@ int OS_AddPeriodicThread(void(*task)(void),
    gThread1p = task;
    gThreadValid = VALID;
    // Sets new TIMER2 period
-   TimerLoadSet(TIMER2_BASE, TIMER_A, period); // should be TIMER_A when configured for 32-bit
+   TimerLoadSet(TIMER2_BASE, TIMER_BOTH, period); // should be TIMER_A when configured for 32-bit
 
    return 1;
 }
@@ -360,7 +361,6 @@ void OS_Kill(void) {
   // Remove TCB from linked list
   temp = tcbs[id].prev;
   (*temp).next = tcbs[id].next;
-
   temp = tcbs[id].next;
   (*temp).prev = tcbs[id].prev;
 
@@ -386,8 +386,12 @@ void OS_Kill(void) {
 // You are free to select the time resolution for this function
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
+  int i;
   (*RunPt).sleepState = (2*sleepTime);		  
   IntPendSet(FAULT_SYSTICK); // Triger threadswitch
+  
+  for(i = 0; i < 60000; i++) {} // Delay
+  
   return;
 } 
 
@@ -525,6 +529,7 @@ void OS_InitSemaphore(Sema4Type *semaPt, long value) {
 void OS_MailBox_Init(void) {
   OS_InitSemaphore(&BoxFree, 1);
   OS_InitSemaphore(&DataValid, 0);
+  Mailbox = 0;
   return;
 }
 
