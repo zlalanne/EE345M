@@ -154,7 +154,7 @@ void Consumer(void){
 unsigned long data,DCcomponent; // 10-bit raw ADC sample, 0 to 1023
 unsigned long t;  // time in ms
 unsigned long myId = OS_Id(); 
-//  ADC_Collect(0, 1000, &Producer); // start ADC sampling, channel 0, 1000 Hz
+  ADC_Collect(0, 1000, &Producer); // start ADC sampling, channel 0, 1000 Hz
   NumCreated += OS_AddThread(&Display,128,0); 
   while(NumSamples < RUNLENGTH) { 
     for(t = 0; t < 64; t++){   // collect 64 ADC samples
@@ -242,7 +242,7 @@ void Interpreter(void);    // just a prototype, link to your interpreter
 //--------------end of Task 5-----------------------------
 
 //*******************final user main DEMONTRATE THIS TO TA**********
-int mainDemo(void){ 
+int main(void){ 
   OS_Init();           // initialize, disable interrupts
 
   DataLost = 0;        // lost data between producer and consumer
@@ -469,7 +469,7 @@ void Thread4d(void){ int i;
 void BackgroundThread5d(void){   // called when Select button pushed
   NumCreated += OS_AddThread(&Thread4d,128,3); 
 }
-int main(void){   // Testmain4
+int testmain4(void){   // Testmain4
   Count4 = 0;          
   OS_Init();           // initialize, disable interrupts
   NumCreated = 0 ;

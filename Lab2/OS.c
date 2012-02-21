@@ -22,7 +22,7 @@
 
 #define MAXTHREADS 10    // maximum number of threads
 #define STACKSIZE  100  // number of 32-bit words in stack
-#define FIFOSIZE 64
+#define FIFOSIZE 256
 
 // TCB structure, assembly code depends on the order of variables
 // in this structure. Specifically sp, next and sleepState.
@@ -131,10 +131,11 @@ void OS_Init(void) {
 	IntPrioritySet(FAULT_PENDSV, 7);
 	IntPrioritySet(FAULT_SYSTICK, 6);
 	
-	IntPrioritySet(INT_GPIOF, 0);
+	IntPrioritySet(INT_GPIOF, 3);
 	IntPrioritySet(INT_TIMER2A, 1);
 	IntPrioritySet(INT_UART0, 2);
-    IntPrioritySet(INT_ADC0SS3, 3);
+    IntPrioritySet(INT_ADC0SS0, 0);
+	IntPrioritySet(INT_ADC0SS3, 0);
     
 	// TIMER2 priority set in OS_AddPeriodicThread
 	

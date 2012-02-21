@@ -86,6 +86,7 @@ int ADC_Collect(unsigned int channelNum, unsigned int fs,
 	case 3: config = ADC_CTL_CH3; break;
   }
 
+  ADCSequenceDisable(ADC0_BASE, 0);
   // Enable the ADC0 for interrupt Sequence 0 with lower priority then single shot
   ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 1);
 
@@ -95,7 +96,6 @@ int ADC_Collect(unsigned int channelNum, unsigned int fs,
   }
   ADCSequenceStepConfigure(ADC0_BASE, 0, numberOfSamples - 1, config | ADC_CTL_END | ADC_CTL_IE);
   ADCIntRegister(ADC0_BASE, 0, ADC0_Handler);
-  ADCSequenceEnable(ADC0_BASE, 0);
 
   // Disabling Timer0A for configuration
   TimerDisable(TIMER0_BASE, TIMER_A);
@@ -104,15 +104,16 @@ int ADC_Collect(unsigned int channelNum, unsigned int fs,
   TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC);
   TimerControlTrigger(TIMER0_BASE, TIMER_A, true);
 
-  //
-  //
   // TODO: configure this to calculate load value based on frequency inputed
-  //
-  //
-  TimerLoadSet(TIMER0_BASE, TIMER_A, 1000);
-  TimerEnable(TIMER0_BASE, TIMER_A);
+  TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet()/ fs);
 
+  TimerEnable(TIMER0_BASE, TIMER_A);
+ 
+  ADCSequenceOverflowClear(ADC0_BASE, 0);
+  ADCSequenceUnderflowClear(ADC0_BASE, 0);
   ADCIntClear(ADC0_BASE, 0);
+  ADCSequenceEnable(ADC0_BASE, 0);
+
   TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
   ADCIntEnable(ADC0_BASE, 0);
@@ -132,16 +133,34 @@ int ADC_Status(void){
     return FALSE;
   }
 };
-    
+ 
+#define NUMDEBUG 500
+char DebugSamples[NUMDEBUG];
+int DebugIndex = 0;   
 void ADC0_Handler(void){
-  unsigned long data;
+  
+  unsigned long data[8];
+  unsigned short average = 0;
+  char samples;
+  int i;
+
   // Clear flag
   ADCIntClear(ADC0_BASE, 0);
+  samples = ADCSequenceDataGet(ADC0_BASE, 0, data);
   
-  //ADCSequenceDataGet(ADC0_BASE, 0, &data);
+  if(DebugIndex < NUMDEBUG) {
+    DebugSamples[DebugIndex] = samples;
+	DebugIndex++;
+  }  
 
-  ADCTask(0);
+  // Get average of samples from FIFO
+  for(i = 0; i < samples; i++) {
+    average = average + data[i];
+  }
+
+  average = average / samples;
+  ADCTask(average);
 	
-  //Status = TRUE;
+  Status = TRUE;
 }
 
