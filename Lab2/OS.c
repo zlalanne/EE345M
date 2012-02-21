@@ -386,7 +386,7 @@ void OS_Kill(void) {
 // You are free to select the time resolution for this function
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
-  (*RunPt).sleepState = sleepTime;		  
+  (*RunPt).sleepState = (2*sleepTime);		  
   IntPendSet(FAULT_SYSTICK); // Triger threadswitch
   return;
 } 
@@ -559,6 +559,7 @@ unsigned long OS_MailBox_Recv(void) {
 
 // ******** Timer2_Handler ************
 // Updates sleep state and calls periodic function
+// For lab 2 this is executing at 2kHz
 void Timer2_Handler(void) {
   int i;
   TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);

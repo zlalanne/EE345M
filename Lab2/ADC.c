@@ -158,7 +158,7 @@ void ADC0_Handler(void){
     average = average + data[i];
   }
 
-  average = average / samples;
+  average = average / samples; 
   ADCTask(average);
 	
   Status = TRUE;

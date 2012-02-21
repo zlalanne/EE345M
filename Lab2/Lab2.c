@@ -59,7 +59,8 @@ static unsigned int n=3;   // 3, 4, or 5
 // inputs:  none
 // outputs: none
 unsigned short DASoutput;
-void DAS(void){ int index;
+void DAS(void){ 
+int index;
 unsigned short input;  
 unsigned static long LastTime;  // time at previous ADC sample
 unsigned long thisTime;         // time at current ADC sample
