@@ -570,9 +570,10 @@ unsigned long OS_MailBox_Recv(void) {
 // For lab 2 this is executing at 2kHz
 void Timer2A_Handler(void) {
   int i;
+ 
   TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
   gTimer2Count++;
-   
+
   if(gThreadValid == VALID) {
     gThread1p();   // Call periodic function
   }
@@ -583,9 +584,6 @@ void Timer2A_Handler(void) {
 	  tcbs[i].sleepState--;
     }
   }
-
-
-
 }
 
 // ******** Select_Switch_Handler ************
