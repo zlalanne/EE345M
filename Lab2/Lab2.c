@@ -52,7 +52,10 @@ static unsigned int n=3;   // 3, 4, or 5
   y[n] = (256*(x[n]+x[n-2])-503*x[1]+498*y[1]-251*y[n-2]+128)/256;
   y[n-3] = y[n];         // two copies of filter outputs too
   return y[n];
-} 
+}
+
+unsigned long JitterDebug[100];
+int JitterDebugIndex = 0;
 //******** DAS *************** 
 // background thread, calculates 60Hz notch filter
 // runs 2000 times/sec
@@ -66,11 +69,12 @@ unsigned static long LastTime;  // time at previous ADC sample
 unsigned long thisTime;         // time at current ADC sample
 long jitter;                    // time between measured and expected
   if(NumSamples < RUNLENGTH){   // finite time run
-    input = ADC_In(1);
-    thisTime = OS_Time();       // current time, 20 ns
-    DASoutput = Filter(input);
+	thisTime = OS_Time();       // current time, 20 ns
+	input = ADC_In(1);
+
+	DASoutput = Filter(input);
     FilterWork++;        // calculation finished
-    if(FilterWork>1){    // ignore timing of first interrupt
+    if(FilterWork > 10){    // ignore timing of first interrupt
       jitter = OS_TimeDifference(thisTime,LastTime)/50-PERIOD/50;  // in usec
       if(jitter > MaxJitter){
         MaxJitter = jitter;

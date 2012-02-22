@@ -81,7 +81,7 @@ __heap_limit
 
 		EXTERN PendSV_Handler
 		EXTERN SysTick_Handler
-		EXTERN Timer2_Handler
+		EXTERN Timer2A_Handler
 		EXTERN Select_Switch_Handler
 
 ;******************************************************************************
@@ -130,8 +130,8 @@ __Vectors
         DCD     IntDefaultHandler           ; Timer 0 subtimer B
         DCD     IntDefaultHandler           ; Timer 1 subtimer A
         DCD     IntDefaultHandler           ; Timer 1 subtimer B
-        DCD     Timer2_Handler              ; Timer 2 subtimer A
-        DCD     Timer2_Handler              ; Timer 2 subtimer B
+        DCD     Timer2A_Handler              ; Timer 2 subtimer A
+        DCD     IntDefaultHandler            ; Timer 2 subtimer B
         DCD     IntDefaultHandler           ; Analog Comparator 0
         DCD     IntDefaultHandler           ; Analog Comparator 1
         DCD     IntDefaultHandler           ; Analog Comparator 2

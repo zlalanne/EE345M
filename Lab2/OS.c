@@ -117,13 +117,14 @@ void OS_Init(void) {
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
 	GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
 	
-	// Initialize Timer2
+	// Initialize Timer2A and Timer2B
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
-    TimerDisable(TIMER2_BASE, TIMER_BOTH);
-    TimerConfigure(TIMER2_BASE, TIMER_CFG_16_BIT_PAIR| TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
-    TimerIntRegister(TIMER2_BASE, TIMER_BOTH, Timer2_Handler);
+    TimerDisable(TIMER2_BASE, TIMER_A | TIMER_B);
+    TimerConfigure(TIMER2_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
-    TimerLoadSet(TIMER2_BASE, TIMER_BOTH, TIME_1MS); // should be TIMER_A when configured for 32-bit
+	TimerIntDisable(TIMER2_BASE, TIMER_TIMB_TIMEOUT);
+    TimerLoadSet(TIMER2_BASE, TIMER_A, TIME_1MS); // should be TIMER_A when configured for 32-bit
+	TimerLoadSet(TIMER2_BASE, TIMER_B, 65535);
 	IntEnable(INT_TIMER2A);
 
 	// Setting priorities for all interrupts
@@ -133,8 +134,8 @@ void OS_Init(void) {
 	
 	IntPrioritySet(INT_GPIOF, 3);
 	IntPrioritySet(INT_TIMER2A, 1);
-	IntPrioritySet(INT_UART0, 2);
-    IntPrioritySet(INT_ADC0SS0, 0);
+	IntPrioritySet(INT_UART0, 4);
+    IntPrioritySet(INT_ADC0SS0, 2);
 	IntPrioritySet(INT_ADC0SS3, 0);
     
 	// TIMER2 priority set in OS_AddPeriodicThread
@@ -263,7 +264,7 @@ void OS_Launch(unsigned long theTimeSlice){
   SysTickPeriodSet(theTimeSlice);
   SysTickEnable();
   SysTickIntEnable();
-  TimerEnable(TIMER2_BASE, TIMER_BOTH);
+  TimerEnable(TIMER2_BASE, TIMER_A | TIMER_B);
 
   StartOS(); // Assembly language function that initilizes stack for running
   OS_EnableInterrupts();
@@ -315,7 +316,7 @@ int OS_AddPeriodicThread(void(*task)(void),
    gThread1p = task;
    gThreadValid = VALID;
    // Sets new TIMER2 period
-   TimerLoadSet(TIMER2_BASE, TIMER_BOTH, period); // should be TIMER_A when configured for 32-bit
+   TimerLoadSet(TIMER2_BASE, TIMER_A, period); // should be TIMER_A when configured for 32-bit
 
    return 1;
 }
@@ -415,7 +416,7 @@ void OS_Suspend(void) {
 // It is ok to change the resolution and precision of this function as long as 
 //   this function and OS_TimeDifference have the same resolution and precision 
 unsigned long OS_Time() {
-  return TimerValueGet(TIMER_A,TIMER2_BASE);
+  return TimerValueGet(TIMER2_BASE , TIMER_B);
 }
 
 // ******** OS_TimeDifference ************
@@ -426,7 +427,9 @@ unsigned long OS_Time() {
 // It is ok to change the resolution and precision of this function as long as 
 //   this function and OS_Time have the same resolution and precision 
 unsigned long OS_TimeDifference(unsigned long start, unsigned long stop){
-  return (start - stop);
+  unsigned long difference;
+  difference = (start - stop) & 0x0000FFFF;
+  return difference;
 }
 
 //******** OS_Id *************** 
@@ -562,24 +565,26 @@ unsigned long OS_MailBox_Recv(void) {
   return mail;
 }
 
-// ******** Timer2_Handler ************
+// ******** Timer2A_Handler ************
 // Updates sleep state and calls periodic function
 // For lab 2 this is executing at 2kHz
-void Timer2_Handler(void) {
+void Timer2A_Handler(void) {
   int i;
   TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
   gTimer2Count++;
+   
+  if(gThreadValid == VALID) {
+    gThread1p();   // Call periodic function
+  }
 
-   // Decrment sleepState of each TCB
+  // Decrment sleepState of each TCB
   for(i = 0; i < MAXTHREADS; i++) {
     if(tcbs[i].sleepState != 0) {
 	  tcbs[i].sleepState--;
     }
   }
 
-  if(gThreadValid == VALID) {
-    gThread1p();   // Call periodic function
-  }
+
 
 }
 
