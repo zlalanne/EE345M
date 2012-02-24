@@ -37,11 +37,11 @@
 #define CMDPROMPT ">> "
 
 #define MAXCMDSIZE 60       // Max size of a command entered
-#define BUFFERSIZE 30       // Max size of snprintf buffer
+#define BUFFERSIZE 40       // Max size of snprintf buffer
 #define MAXARGS 7
 #define MAXARGLENGTH 20
 
-#define FIFOSIZE   128      // size of the FIFOs (must be power of 2)
+#define FIFOSIZE   256      // size of the FIFOs (must be power of 2)
 #define FIFOSUCCESS 1       // return value on success
 #define FIFOFAIL    0       // return value on failure
 
@@ -84,10 +84,9 @@ void UART0_Init(void){
   UARTFIFOLevelSet(UART0_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8);
 												    
   // Enable UART0 and configure interupts
-  UARTIntRegister(UART0_BASE, UART0_Handler);
+  UARTIntEnable(UART0_BASE, UART_INT_TX | UART_INT_RX | UART_INT_RT);
   UARTEnable(UART0_BASE);
   IntEnable(INT_UART0);
-  UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT); 
 
   // Send string to show that UART is initialized
   UART0_SendString(STARTSTRING);
@@ -104,6 +103,7 @@ void Interpreter(void) {
   }
 }
 
+char buffer[BUFFERSIZE]; // Used for snprintf
 //------------CMD_Run--------------
 // Runs the latest command entered 
 //   if no new command simply returns
@@ -112,7 +112,7 @@ void Interpreter(void) {
 void CMD_Run(void) {
   
   unsigned long measurement;
-  char buffer[BUFFERSIZE]; // Used for snprintf
+  
 
   char arg[MAXARGS][MAXARGLENGTH] = {NULL, NULL};
   char letter;
@@ -187,17 +187,35 @@ void CMD_Run(void) {
 	  UART0_SendString("oLED On\n\r");
 	  break;
 	case 'p':
-	  // Print string to oLED, must include device/line
-	  // arg[1] is device number, arg[2] is line number
-	  // arg[3] - arg[5] are strings to print
-	  snprintf(buffer, BUFFERSIZE, "%s %s %s", arg[3], arg[4], arg[5]);
-	  oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
-      UART0_SendString("Message Printed\n\r");
+	  switch(arg[0][1]){
+	    case 'r':
+	      // Print string to oLED, must include device/line
+	      // arg[1] is device number, arg[2] is line number
+	      // arg[3] - arg[5] are strings to print
+	      snprintf(buffer, BUFFERSIZE, "%s %s %s", arg[3], arg[4], arg[5]);
+	      oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
+          UART0_SendString("Message Printed\n\r");
+	      break;
+		case 'e':
+		  // Print performance measurements to UART
+		  UART0_SendString("Performance Measurements:\n\r");
+		  snprintf(buffer, BUFFERSIZE, "NumCreated = %d\n\r", NumCreated);
+		  UART0_SendString(buffer);
+		  snprintf(buffer, BUFFERSIZE, "PIDWork = %d\n\r", PIDWork);
+		  UART0_SendString(buffer);
+		  snprintf(buffer, BUFFERSIZE, "NumSamples = %d\n\r", NumSamples);
+		  UART0_SendString(buffer);
+		  snprintf(buffer, BUFFERSIZE, "DataLost = %d\n\r", DataLost);
+		  UART0_SendString(buffer);
+		  snprintf(buffer, BUFFERSIZE, "Jitter = %d\n\r", MaxJitter-MinJitter);
+		  UART0_SendString(buffer);
+		  break;
+	  }
 	  break;
 	case 't':
 	  // Get Timer2 interrupt counter
 	  measurement = OS_MsTime();
-	  snprintf(buffer, BUFFERSIZE, "Timer2 Counter: %d\n\r", measurement);
+	  sprintf(buffer, "Timer2 Counter: %d\n\r", measurement);
 	  UART0_SendString(buffer);
 	  break;
 	case 'r':
@@ -207,6 +225,9 @@ void CMD_Run(void) {
 	  break;
 	case 'h':
 	  UART0_SendString("Available commands: adc, on, clear, print\n\r");
+	  break;
+	case 'n':
+	  UART0_SendString("Test\n\r");
 	  break;
 	default:
 	  UART0_SendString("Command not recgonized\n\r");

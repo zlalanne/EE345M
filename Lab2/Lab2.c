@@ -180,11 +180,11 @@ unsigned long myId = OS_Id();
 // outputs: none
 void Display(void){ 
 unsigned long data,voltage;
-  oLED_Message(0,0,"Run length is",(RUNLENGTH)/1000);   // top half used for Display
+  oLED_Message(0,0,"Run length is",(RUNLENGTH)/1000);  // top half used for Display
   while(NumSamples < RUNLENGTH) { 
     oLED_Message(0,1,"Time left is",(RUNLENGTH-NumSamples)/1000);   // top half used for Display
     data = OS_MailBox_Recv();
-    voltage = 3000*data/1024;               // calibrate your device so voltage is in mV
+    voltage = (3000*data)/1024;               // calibrate your device so voltage is in mV
     oLED_Message(0,2,"v(mV) =",voltage);  
   } 
   OS_Kill();  // done
@@ -266,11 +266,11 @@ int main(void){
 
   NumCreated = 0 ;
 // create initial foreground threads
-  NumCreated += OS_AddThread(&Interpreter,128,2); 
+ // NumCreated += OS_AddThread(&Interpreter,128,2); 
   NumCreated += OS_AddThread(&Consumer,128,1); 
   NumCreated += OS_AddThread(&PID,128,3); 
  
-  OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
+  OS_Launch(TIMESLICE*10); // doesn't return, interrupts enabled in here
   return 0;             // this never executes
 }
 
