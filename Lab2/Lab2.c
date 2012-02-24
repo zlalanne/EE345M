@@ -69,8 +69,8 @@ unsigned static long LastTime;  // time at previous ADC sample
 unsigned long thisTime;         // time at current ADC sample
 long jitter;                    // time between measured and expected
   if(NumSamples < RUNLENGTH){   // finite time run
-	
-	thisTime = OS_Time();       // current time, 20 ns
+
+	thisTime = OS_Time();       // current time, 20 ns	
 	input = ADC_In(1);
 
 	DASoutput = Filter(input);

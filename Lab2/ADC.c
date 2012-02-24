@@ -1,8 +1,8 @@
 // Modified By:
-// Thomas Brezinski
+// Thomas Brezinski	TCB567
 // Zachary Lalanne ZLL67
-// TA:
-// Date of last change: 1/25/2012
+// TA: Zahidul Haq
+// Date of last change: 2/24/2012
 
 // Written By:
 // Megan Ruthven MAR3939
@@ -12,16 +12,17 @@
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
+#include "inc/hw_ints.h"
 
 #include "driverlib/adc.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
+#include "driverlib/interrupt.h"
 
 #include "ADC.h"
 
 unsigned long *Buffer;
 void (*ADCTask) (unsigned short);
-unsigned char Status = FALSE;
 
 void ADC0_Handler(void);
 
@@ -72,9 +73,7 @@ unsigned long ADC_In(unsigned int channelNum){
 int ADC_Collect(unsigned int channelNum, unsigned int fs, 
   void (*task)(unsigned short)){
 
-  int i;
   unsigned long config;
-  int numberOfSamples = 1;
 
   ADCTask = task;
 
@@ -87,15 +86,13 @@ int ADC_Collect(unsigned int channelNum, unsigned int fs,
   }
 
   ADCSequenceDisable(ADC0_BASE, 0);
+
   // Enable the ADC0 for interrupt Sequence 0 with lower priority then single shot
   ADCSequenceConfigure(ADC0_BASE, 0, ADC_TRIGGER_TIMER, 1);
 
   // Configuring steps of sequence, last step contains ADC_CTL_END and ADC_CTL_IE config paramter
-  for(i = 0; i < (numberOfSamples - 1); i++){
-    ADCSequenceStepConfigure(ADC0_BASE, 0, i, config);
-  }
-  ADCSequenceStepConfigure(ADC0_BASE, 0, numberOfSamples - 1, config | ADC_CTL_END | ADC_CTL_IE);
-  ADCIntRegister(ADC0_BASE, 0, ADC0_Handler);
+  config |= ADC_CTL_END | ADC_CTL_IE;
+  ADCSequenceStepConfigure(ADC0_BASE, 0, 0, config);
 
   // Disabling Timer0A for configuration
   TimerDisable(TIMER0_BASE, TIMER_A);
@@ -104,40 +101,24 @@ int ADC_Collect(unsigned int channelNum, unsigned int fs,
   TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC);
   TimerControlTrigger(TIMER0_BASE, TIMER_A, true);
 
-  // TODO: configure this to calculate load value based on frequency inputed
   TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet()/ fs);
+  TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
-  TimerEnable(TIMER0_BASE, TIMER_A);
- 
   ADCSequenceOverflowClear(ADC0_BASE, 0);
   ADCSequenceUnderflowClear(ADC0_BASE, 0);
   ADCIntClear(ADC0_BASE, 0);
   ADCSequenceEnable(ADC0_BASE, 0);
-
-  TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
-
-  ADCIntEnable(ADC0_BASE, 0);
+ 
+  TimerEnable(TIMER0_BASE, TIMER_A);
   TimerIntEnable(TIMER0_BASE, TIMER_A);
+  ADCIntEnable(ADC0_BASE, 0);
 
-  // Claering Status flag
-  Status = FALSE;
+  IntEnable(INT_ADC0SS0);
   
   return 1; 
 }
 
-int ADC_Status(void){
-  if(Status == TRUE){
-    Status = FALSE;
-	return TRUE;
-  } else {
-    return FALSE;
-  }
-};
- 
-#define NUMDEBUG 500
-char DebugSamples[NUMDEBUG];
-int DebugIndex = 0;   
-void ADC0_Handler(void){
+void ADC0S0_Handler(void){
   
   unsigned long data[8];
   unsigned short average = 0;
@@ -148,11 +129,6 @@ void ADC0_Handler(void){
   ADCIntClear(ADC0_BASE, 0);
   samples = ADCSequenceDataGet(ADC0_BASE, 0, data);
   
-  if(DebugIndex < NUMDEBUG) {
-    DebugSamples[DebugIndex] = samples;
-	DebugIndex++;
-  }  
-
   // Get average of samples from FIFO
   for(i = 0; i < samples; i++) {
     average = average + data[i];
@@ -160,7 +136,5 @@ void ADC0_Handler(void){
 
   average = average / samples; 
   ADCTask(average);
-	
-  Status = TRUE;
 }
 

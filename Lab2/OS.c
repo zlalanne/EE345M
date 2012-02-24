@@ -1,8 +1,8 @@
 // Written By:
 // Thomas Brezinski	TCB567
 // Zachary Lalanne ZLL67
-// TA:
-// Date of last change: 1/25/2012
+// TA: Zahidul Haq
+// Date of last change: 2/24/2012
 
 #include "OS.h"
 #include "UART.h"	// defines UART0_Init for OS_Init
@@ -20,8 +20,8 @@
 #include "driverlib/interrupt.h"  // defines IntEnable
 #include "driverlib/systick.h"
 
-#define MAXTHREADS 10    // maximum number of threads
-#define STACKSIZE  100  // number of 32-bit words in stack
+#define MAXTHREADS 8    // maximum number of threads
+#define STACKSIZE  512  // number of 32-bit words in stack
 #define FIFOSIZE 256
 
 // TCB structure, assembly code depends on the order of variables
@@ -42,9 +42,10 @@ tcbType *RunPt = '\0';
 tcbType *NextPt = '\0';
 tcbType *Head = '\0';
 tcbType *Tail = '\0';
+int NumThreads = 0; // global index to point to place to put new tcb in array
 
 unsigned long gTimeSlice;
-int NumThreads = 0; // global index to point to place to put new tcb in array
+
 
 // Global variables for background thread
 unsigned long gTimer2Count;      // global 32-bit counter incremented everytime Timer2 executes
@@ -89,7 +90,7 @@ void Scheduler(void) {
 // output: non
 void OS_Init(void) {
 
-	int i;
+	int i; // Used for indexing
 
 	// Disable interrupts
 	OS_DisableInterrupts();
@@ -103,8 +104,7 @@ void OS_Init(void) {
 	ADC_Open();
 	Output_Init();
 	
-	// Initialize systick
-	// The period is set in OS_Launch
+	// Initialize systick - period is set in OS_Launch
 	SysTickIntRegister(SysTick_Handler);
 	SysTickIntEnable();	
 
@@ -123,7 +123,7 @@ void OS_Init(void) {
     TimerConfigure(TIMER2_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 	TimerIntDisable(TIMER2_BASE, TIMER_TIMB_TIMEOUT);
-    TimerLoadSet(TIMER2_BASE, TIMER_A, TIME_1MS); // should be TIMER_A when configured for 32-bit
+    TimerLoadSet(TIMER2_BASE, TIMER_A, TIME_1MS);
 	TimerLoadSet(TIMER2_BASE, TIMER_B, 65535);
 	IntEnable(INT_TIMER2A);
 
@@ -133,19 +133,17 @@ void OS_Init(void) {
 	IntPrioritySet(FAULT_SYSTICK, 6);
 	
 	IntPrioritySet(INT_GPIOF, 3);
-	IntPrioritySet(INT_TIMER2A, 1);
+	IntPrioritySet(INT_TIMER2A, 0);
 	IntPrioritySet(INT_UART0, 4);
     IntPrioritySet(INT_ADC0SS0, 2);
 	IntPrioritySet(INT_ADC0SS3, 0);
-    
-	// TIMER2 priority set in OS_AddPeriodicThread
 	
 	// Initializing TCBs
 	for(i = 0; i < MAXTHREADS; i++) {
 	  tcbs[i].valid = INVALID;
 	}
 
-	RunPt = &tcbs[0];       // thread 0 will run first
+	RunPt = &tcbs[0];       // Thread 0 will run first
 }
 
 // *********** OS_AddThreads **************
@@ -161,13 +159,17 @@ int OS_AddThreads(void(*task0)(void),
    result += OS_AddThread(task1, STACKSIZE, 0);
    result += OS_AddThread(task2, STACKSIZE, 0);
 
-   if (result == 3) {
+   if(result == 3) {
       return 1;
    } else {
       return 0;
    }
 }
 
+// *********** setInitialStack **************
+// Initializes the stack for easy debugging
+// Inputs: Index of tcbs array to initialize 
+// Outputs: None
 void setInitialStack(int i) {
   tcbs[i].sp = &tcbs[i].stack[STACKSIZE-16]; // thread stack pointer
   tcbs[i].stack[STACKSIZE-1] = 0x01000000;   // thumb bit
@@ -215,6 +217,7 @@ int OS_AddThread(void(*task)(void),
 	index = 0;
   } else {
     
+	// Look for open spot in tcbs array
 	for(i = 0; i < MAXTHREADS; i++) {
 	  if(tcbs[i].valid == INVALID) {
 	    index = i;
@@ -250,8 +253,8 @@ int OS_AddThread(void(*task)(void),
   NumThreads++;
   
   EndCritical(status);
-  return SUCCESS;
 
+  return SUCCESS;
 }
 
 // ******* OS_Launch *********************
@@ -270,7 +273,6 @@ void OS_Launch(unsigned long theTimeSlice){
   OS_EnableInterrupts();
  
   while(1) { }
-
 }
 
 // ********** OS_ClearMsTime ***************
@@ -311,12 +313,14 @@ int OS_AddPeriodicThread(void(*task)(void),
    unsigned long priority){
 
    // Clear periodic counter
-   OS_ClearMsTime();    
+   OS_ClearMsTime();
+       
    // Set the global function pointer to the address of the provided function
    gThread1p = task;
    gThreadValid = VALID;
+
    // Sets new TIMER2 period
-   TimerLoadSet(TIMER2_BASE, TIMER_A, period); // should be TIMER_A when configured for 32-bit
+   TimerLoadSet(TIMER2_BASE, TIMER_A, period);
 
    return 1;
 }
@@ -387,11 +391,9 @@ void OS_Kill(void) {
 // You are free to select the time resolution for this function
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
-  int i;
+
   (*RunPt).sleepState = (2*sleepTime);		  
   IntPendSet(FAULT_SYSTICK); // Triger threadswitch
-  
-  for(i = 0; i < 60000; i++) {} // Delay
   
   return;
 } 

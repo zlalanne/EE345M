@@ -3,10 +3,10 @@
 // for the interrupter modify CMD_Run()
 
 // Modified By:
-// Thomas Brezinski
+// Thomas Brezinski	TCB567
 // Zachary Lalanne ZLL67
-// TA:
-// Date of last change: 2/1/2012
+// TA: Zahidul Haq
+// Date of last change: 2/24/2012
 
 // Written By:
 // Megan Ruthven MAR3939
@@ -76,4 +76,13 @@ void Interpreter(void);
 // Input: none
 // Output: none
 void CMD_Run(void);
+
+// External variables from Lab2.c
+extern unsigned long NumCreated;   // number of foreground threads created
+extern unsigned long PIDWork;      // current number of PID calculations finished
+extern unsigned long FilterWork;   // number of digital filter calculations finished
+extern unsigned long NumSamples;   // incremented every sample
+extern unsigned long DataLost;     // data sent by Producer, but not received by Consumer
+extern long MaxJitter;             // largest time jitter between interrupts in usec
+extern long MinJitter;             // smallest time jitter between interrupts in usec
 

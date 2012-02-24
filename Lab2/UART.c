@@ -3,10 +3,10 @@
 // To add new commands for the interrupter modify CMD_Run()
 
 // Modified By:
-// Thomas Brezinski
+// Thomas Brezinski	TCB567
 // Zachary Lalanne ZLL67
-// TA:
-// Date of last change: 2/1/2012
+// TA: Zahidul Haq
+// Date of last change: 2/24/2012
 
 // Written By:
 // Megan Ruthven MAR3939
@@ -36,10 +36,10 @@
 #define STARTSTRING "\n\rUART0 Initilization Done!\n\r"
 #define CMDPROMPT ">> "
 
-#define MAXCMDSIZE 60       // Max size of a command entered
-#define BUFFERSIZE 30       // Max size of snprintf buffer
+#define MAXCMDSIZE 30       // Max size of a command entered
+#define BUFFERSIZE 20       // Max size of snprintf buffer
 #define MAXARGS 7
-#define MAXARGLENGTH 20
+#define MAXARGLENGTH 10
 
 #define FIFOSIZE   128      // size of the FIFOs (must be power of 2)
 #define FIFOSUCCESS 1       // return value on success
@@ -84,10 +84,9 @@ void UART0_Init(void){
   UARTFIFOLevelSet(UART0_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8);
 												    
   // Enable UART0 and configure interupts
-  UARTIntRegister(UART0_BASE, UART0_Handler);
+  UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT | UART_INT_TX);
   UARTEnable(UART0_BASE);
-  IntEnable(INT_UART0);
-  UARTIntEnable(UART0_BASE, UART_INT_RX | UART_INT_RT); 
+  IntEnable(INT_UART0); 
 
   // Send string to show that UART is initialized
   UART0_SendString(STARTSTRING);
@@ -113,6 +112,10 @@ void CMD_Run(void) {
   
   unsigned long measurement;
   char buffer[BUFFERSIZE]; // Used for snprintf
+  char buffer1[BUFFERSIZE]; // Used for snprintf
+  char buffer2[BUFFERSIZE]; // Used for snprintf
+  char buffer3[BUFFERSIZE]; // Used for snprintf
+  char buffer4[BUFFERSIZE]; // Used for snprintf
 
   char arg[MAXARGS][MAXARGLENGTH] = {NULL, NULL};
   char letter;
@@ -173,7 +176,7 @@ void CMD_Run(void) {
     case 'a':
 	  // ADC Measurement, arg[1] is channel number
 	  measurement = ADC_In(arg[1][0] - 0x30);
-	  snprintf(buffer, BUFFERSIZE, "ADC%c: %d\n\r", arg[1][0], measurement);
+	  snprintf(buffer1, BUFFERSIZE, "ADC%c: %d\n\r", arg[1][0], measurement);
 	  UART0_SendString(buffer);
 	  break;
 	case 'c':
@@ -187,17 +190,33 @@ void CMD_Run(void) {
 	  UART0_SendString("oLED On\n\r");
 	  break;
 	case 'p':
-	  // Print string to oLED, must include device/line
-	  // arg[1] is device number, arg[2] is line number
-	  // arg[3] - arg[5] are strings to print
-	  snprintf(buffer, BUFFERSIZE, "%s %s %s", arg[3], arg[4], arg[5]);
-	  oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
-      UART0_SendString("Message Printed\n\r");
+	  switch(arg[0][1]) {
+	    case 'r':
+	      // Print string to oLED, must include device/line
+	      // arg[1] is device number, arg[2] is line number
+	      // arg[3] - arg[5] are strings to print
+	      snprintf(buffer1, BUFFERSIZE, "%s %s %s", arg[3], arg[4], arg[5]);
+	      oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
+          UART0_SendString("Message Printed\n\r");
+	      break;
+	    case 'e':
+		  // Print performance measurements to UART
+		  UART0_SendString("Performance Measurements:\n\r");
+		  snprintf(buffer1, BUFFERSIZE, "NumCreated: %d\r\n", NumCreated);
+		  UART0_SendString(buffer1);
+		  snprintf(buffer2, BUFFERSIZE, "PIDWork: %d\r\n", PIDWork);
+		  UART0_SendString(buffer2);
+		  snprintf(buffer3, BUFFERSIZE, "DataLost: %d\r\n", DataLost);
+		  UART0_SendString(buffer3);
+		  snprintf(buffer4, BUFFERSIZE, "Jitter: %d\r\n", (MaxJitter-MinJitter));
+		  UART0_SendString(buffer4);
+		  break;
+	  }
 	  break;
 	case 't':
 	  // Get Timer2 interrupt counter
 	  measurement = OS_MsTime();
-	  snprintf(buffer, BUFFERSIZE, "Timer2 Counter: %d\n\r", measurement);
+	  snprintf(buffer1, BUFFERSIZE, "Timer2 Counter: %d\n\r", measurement);
 	  UART0_SendString(buffer);
 	  break;
 	case 'r':
@@ -249,7 +268,7 @@ void UART0_OutChar(char data){
   while(TxFifo_Put(data) == FIFOFAIL){};
   UARTIntDisable(UART0_BASE, UART_INT_TX);
   copySoftwareToHardware();
-  UARTIntEnable(UART0_BASE, UART_INT_TX | UART_INT_RX | UART_INT_RT);
+  UARTIntEnable(UART0_BASE, UART_INT_TX);
 }
 
 //--------UART0_SendString---------
@@ -279,8 +298,13 @@ void UART0_Handler(void){
 	  }
 	}
 
-    if((status == UART_INT_RX) || (status == UART_INT_RT)){
+    if(status == UART_INT_RX) {
 	  UARTIntClear(UART0_BASE, status); // Clearing interrupt flag
+	  copyHardwareToSoftware();
+	}
+
+	if(status == UART_INT_RT) {
+	  UARTIntClear(UART0_BASE, status);
 	  copyHardwareToSoftware();
 	}
 }
