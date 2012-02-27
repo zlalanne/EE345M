@@ -29,7 +29,8 @@
 struct tcb{
    long *sp;          // pointer to stack (valid for threads not running)
    struct tcb *next, *prev;  // linked-list pointer
-   long sleepState, blockedState;
+   long sleepState;
+   Sema4Type *blockedState;
    long id, priority;
    char valid;
    long stack[STACKSIZE]; 
@@ -42,7 +43,7 @@ tcbType *RunPt = '\0';
 tcbType *NextPt = '\0';
 tcbType *Head = '\0';
 tcbType *Tail = '\0';
-int NumThreads = 0; // global index to point to place to put new tcb in array
+int NumThreads = 0; // Global displaying number of threads
 
 unsigned long gTimeSlice;
 
@@ -52,9 +53,13 @@ unsigned long gTimer2Count;      // global 32-bit counter incremented everytime 
 void (*gThread1p)(void);			 //	global function pointer for Thread1 function
 char gThreadValid = INVALID;
 
-// Global variables for button thread
+// Global variables for select button thread
 void (*gButtonThreadPt)(void);       // global function pointer for the thread to be launched on button pushes
 int gButtonThreadPriority;
+
+// Global variables for down button thread
+void (*DownSwitchThreadTask)(void);
+int DownSwitchThreadPriority;
 
 // Global variables for mailbox
 Sema4Type BoxFree;
@@ -77,7 +82,7 @@ void SysTick_Handler(void);
 // Calculates next thread to be run and sets NextPt to it
 void Scheduler(void) {
    NextPt = (*RunPt).next;
-   while ((*NextPt).sleepState != 0) {
+   while ((*NextPt).sleepState != 0 && (*NextPt).blockedState != '\0') {
       NextPt = (*NextPt).next;
    }
    IntPendSet(FAULT_PENDSV); 
@@ -112,10 +117,16 @@ void OS_Init(void) {
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_1);
 	GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-	GPIOPortIntRegister(GPIO_PORTF_BASE, Select_Switch_Handler);
 	GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
-	GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
+
+	// Down switch
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+	GPIOPinTypeGPIOInput(GPIO_PORTE_BASE, GPIO_PIN_1);
+	GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+	GPIOIntTypeSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
+	GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
+	GPIOPinIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1);
 	
 	// Initialize Timer2A and Timer2B
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
@@ -141,6 +152,7 @@ void OS_Init(void) {
 	// Initializing TCBs
 	for(i = 0; i < MAXTHREADS; i++) {
 	  tcbs[i].valid = INVALID;
+	  tcbs[i].blockedState = '\0';
 	}
 
 	RunPt = &tcbs[0];       // Thread 0 will run first
@@ -341,6 +353,22 @@ int OS_AddPeriodicThread(void(*task)(void),
 int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
   gButtonThreadPt = task;
   gButtonThreadPriority = priority;
+  
+  // Enabling interrupts
+  GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
+  IntEnable(INT_GPIOF);
+
+  return 1;
+}
+
+int OS_AddDownTask(void(*task)(void), unsigned long priority) {
+  DownSwitchThreadTask = task;
+  DownSwitchThreadPriority = priority;
+    
+  // Enabling interrupts
+  GPIOPinIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1);
+  IntEnable(INT_GPIOE);
+
   return 1;
 }
 
@@ -588,11 +616,99 @@ void Timer2A_Handler(void) {
   }
 }
 
-// ******** Select_Switch_Handler ************
+// ******** OS_Wait ************
+// decrement semaphore and spin/block if less than zero
+// input:  pointer to a counting semaphore
+// output: none
+void OS_Wait(Sema4Type *semaPt) {
+	
+  long status;
+	
+  status = StartCritical();
+  (*semaPt).Value--;
+
+  if((*semaPt).Value < 0) {
+    (*RunPt).blockedState = semaPt;
+    EndCritical(status);
+    OS_Suspend();
+  }
+}
+
+// ******** OS_Signal ************
+// increment semaphore, wakeup blocked thread if appropriate 
+// input:  pointer to a counting semaphore
+// output: none   
+void OS_Signal(Sema4Type *semaPt) {
+  
+  int i;
+  long status;
+  tcbType *tempPt;
+  status = StartCritical();
+  (*semaPt).Value = (*semaPt).Value + 1;
+
+  if((*semaPt).Value <= 0) {
+
+	tempPt = (*RunPt).next;
+
+    for(i = 0; i < NumThreads; i++) {
+
+	  if((*tempPt).blockedState == semaPt) {
+	    (*tempPt).blockedState = '\0'; // Thread can now be switched to
+		i = NumThreads; // Done searching, exit for loop
+	  } else {
+	    tempPt = (*tempPt).next;
+	  }
+
+	}
+  }
+
+  EndCritical(status);
+}
+
+// ******** OS_bWait ************
+// if the semaphore is 0 then spin/block
+// if the semaphore is 1, then clear semaphore to 0
+// input:  pointer to a binary semaphore
+// output: none
+void OS_bWait(Sema4Type *semaPt) {
+
+	OS_DisableInterrupts();
+	
+	while((*semaPt).Value <= 0) {
+	  OS_EnableInterrupts();
+	  OS_DisableInterrupts();
+	}
+	
+	(*semaPt).Value = 0;
+	OS_EnableInterrupts();
+}
+
+// ******** OS_bSignal ************
+// set semaphore to 1, wakeup blocked thread if appropriate 
+// input:  pointer to a binary semaphore
+// output: none  
+void OS_bSignal(Sema4Type *semaPt) {
+  long status;
+
+  status = StartCritical();
+  (*semaPt).Value = 1;
+  
+  EndCritical(status);
+}
+
+
+// ******** SelectSwitch_Handler ************
 // Clears the interrupt and starts buttion function
-void Select_Switch_Handler(void){
+void SelectSwitch_Handler(void){
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
 	gButtonThreadPt();	
+}
+
+// ******** DownSwitch_Handler ************
+// Clears the interrupt and starts buttion function
+void DownSwitch_Handler(void){
+	GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
+	DownSwitchThreadTask();
 }
 
 // ******** SysTick_Handler ************
