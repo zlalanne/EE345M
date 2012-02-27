@@ -260,6 +260,8 @@ int OS_AddThread(void(*task)(void),
 
   // Set inital values for sleep status and id
   tcbs[index].sleepState = 0;
+  tcbs[index].priority = priority;
+  tcbs[index].blockedState = '\0';
   tcbs[index].id = index;
   tcbs[index].valid = VALID;
   NumThreads++;
