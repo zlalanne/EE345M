@@ -713,8 +713,26 @@ void DownSwitch_Handler(void){
 
 // ******** SysTick_Handler ************
 // Resets its value to gTimeSlice and calls thread scheduler
-void SysTick_Handler(void) {
-   SysTickPeriodSet(gTimeSlice);  
-   Scheduler();
+void SysTick_Handler(void) { 
+   
+  long curPriority;
+  unsigned long curTimeSlice;
+
+  // Determines NextPt and triggers PendSV
+  Scheduler();
+
+  // Get priority of next thread
+  curPriority = (*NextPt).priority;
+  
+  // Calculate timeslice for priority of next thread 
+  switch(curPriority) {
+     case 0: curTimeSlice = gTimeSlice; break;
+	 case 1: curTimeSlice = gTimeSlice / 2; break;
+	 case 2: curTimeSlice = gTimeSlice / 4; break;
+	 case 3: curTimeSlice = gTimeSlice / 8; break;
+	 case 4: curTimeSlice = gTimeSlice / 16; break;
+  } 
+  
+  SysTickPeriodSet(curTimeSlice); 
 }
 
