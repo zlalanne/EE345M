@@ -85,6 +85,8 @@ void Scheduler(void) {
    while ((*NextPt).sleepState != 0 && (*NextPt).blockedState != '\0') {
       NextPt = (*NextPt).next;
    }
+
+
 }
 
 // ************ OS_Init ******************
@@ -648,9 +650,14 @@ void OS_Wait(Sema4Type *semaPt) {
 
   if((*semaPt).Value < 0) {
     (*RunPt).blockedState = semaPt;
-    EndCritical(status);
+	EndCritical(status);
     OS_Suspend();
   }
+
+  
+
+
+
 }
 
 // ******** OS_Signal ************
@@ -663,7 +670,8 @@ void OS_Signal(Sema4Type *semaPt) {
   long status;
   tcbType *tempPt;
   status = StartCritical();
-  (*semaPt).Value = (*semaPt).Value + 1;
+  
+  (*semaPt).Value++;
 
   if((*semaPt).Value <= 0) {
 
@@ -730,6 +738,27 @@ void DownSwitch_Handler(void){
 	DownSwitchThreadTask();
 }
 
+// ******** calcTimeSLice ************
+// Caluclates the timeslice based on the priority
+// Input: Priority
+// Output: Timeslice length
+unsigned long calcTimeSlice(long priority) {
+  
+  unsigned long newTimeSlice;
+
+  // Calculate timeslice for priority of next thread 
+  switch(priority) {
+     case 0: newTimeSlice = gTimeSlice; break;
+	 case 1: newTimeSlice = gTimeSlice / 2; break;
+	 case 2: newTimeSlice = gTimeSlice / 4; break;
+	 case 3: newTimeSlice = gTimeSlice / 8; break;
+	 case 4: newTimeSlice = gTimeSlice / 16; break;
+	 default: newTimeSlice = gTimeSlice / 32; break;
+  }
+
+  return newTimeSlice;
+}
+
 // ******** SysTick_Handler ************
 // Resets its value to gTimeSlice and calls thread scheduler
 void SysTick_Handler(void) { 
@@ -740,20 +769,16 @@ void SysTick_Handler(void) {
   // Determines NextPt
   Scheduler();
 
-  // Get priority of next thread
+  // Get priority of next thread and calculate timeslice
   curPriority = (*NextPt).priority;
+  curTimeSlice = calcTimeSlice(curPriority); 
   
-  // Calculate timeslice for priority of next thread 
-  switch(curPriority) {
-     case 0: curTimeSlice = gTimeSlice; break;
-	 case 1: curTimeSlice = gTimeSlice / 2; break;
-	 case 2: curTimeSlice = gTimeSlice / 4; break;
-	 case 3: curTimeSlice = gTimeSlice / 8; break;
-	 case 4: curTimeSlice = gTimeSlice / 16; break;
-  } 
-  
+  // Sets next systick period, does not rest counting
   SysTickPeriodSet(curTimeSlice);
-  
+
+  // Write to register forces systick to reset counting
+  NVIC_ST_CURRENT_R = 0;  
+
   IntPendSet(FAULT_PENDSV); 
 }
 
