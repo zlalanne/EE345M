@@ -85,7 +85,6 @@ void Scheduler(void) {
    while ((*NextPt).sleepState != 0 && (*NextPt).blockedState != '\0') {
       NextPt = (*NextPt).next;
    }
-   IntPendSet(FAULT_PENDSV); 
 }
 
 // ************ OS_Init ******************
@@ -277,8 +276,26 @@ int OS_AddThread(void(*task)(void),
 //        ( Maximum of 24 bits)
 // Outputs: none (does not return)
 void OS_Launch(unsigned long theTimeSlice){
+  
+  long curPriority;
+  unsigned long curTimeSlice;
+
   gTimeSlice = theTimeSlice;
-  SysTickPeriodSet(theTimeSlice);
+  
+  // Get priority of next thread
+  curPriority = (*RunPt).priority;
+  
+  // Calculate timeslice for priority of next thread 
+  switch(curPriority) {
+     case 0: curTimeSlice = gTimeSlice; break;
+	 case 1: curTimeSlice = gTimeSlice / 2; break;
+	 case 2: curTimeSlice = gTimeSlice / 4; break;
+	 case 3: curTimeSlice = gTimeSlice / 8; break;
+	 case 4: curTimeSlice = gTimeSlice / 16; break;
+  } 
+
+  SysTickPeriodSet(curTimeSlice);
+  
   SysTickEnable();
   SysTickIntEnable();
   TimerEnable(TIMER2_BASE, TIMER_A | TIMER_B);
@@ -720,7 +737,7 @@ void SysTick_Handler(void) {
   long curPriority;
   unsigned long curTimeSlice;
 
-  // Determines NextPt and triggers PendSV
+  // Determines NextPt
   Scheduler();
 
   // Get priority of next thread
@@ -735,6 +752,8 @@ void SysTick_Handler(void) {
 	 case 4: curTimeSlice = gTimeSlice / 16; break;
   } 
   
-  SysTickPeriodSet(curTimeSlice); 
+  SysTickPeriodSet(curTimeSlice);
+  
+  IntPendSet(FAULT_PENDSV); 
 }
 
