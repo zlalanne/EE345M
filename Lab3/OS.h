@@ -60,6 +60,7 @@ unsigned long OS_Id(void);
 // add a background periodic task
 // typically this function receives the highest priority
 // Inputs: pointer to a void/void background function
+//         threadnumber is which background thread it is
 //         period given in system time units
 //         priority 0 is highest, 5 is lowest
 // Outputs: 1 if successful, 0 if this thread can not be added
@@ -73,7 +74,7 @@ unsigned long OS_Id(void);
 // In lab 3, this command will be called 0 1 or 2 times
 // In lab 3, there will be up to four background threads, and this priority field 
 //           determines the relative priority of these four threads
-int OS_AddPeriodicThread(void(*task)(void), 
+int OS_AddPeriodicThread(void(*task)(void), unsigned long threadnumber, 
    unsigned long period, unsigned long priority);
 
 //******** OS_AddButtonTask *************** 
@@ -207,18 +208,18 @@ unsigned long OS_Time(void);
 unsigned long OS_TimeDifference(unsigned long start, unsigned long stop);
 
 // ******** OS_ClearMsTime ************
-// sets the system time to zero from Lab 1)
-// Inputs:  none
+// sets the periodic thread counter to 0 for the specified thread number
+// Inputs:  thread number
 // Outputs: none
 // You are free to change how this works
-void OS_ClearMsTime(void);
+void OS_ClearMsTime(unsigned long threadnumber);
 
 // ******** OS_MsTime ************
-// reads the current time in msec (from Lab 1)
-// Inputs:  none
-// Outputs: time in ms units
+// reads the value of the counter for the specified thread
+// Inputs:  threadnumber
+// Outputs: current value of counter
 // You are free to select the time resolution for this function
-unsigned long OS_MsTime(void);
+unsigned long OS_MsTime(unsigned long threadnumber);
 
 //******** OS_Launch *************** 
 // start the scheduler, enable interrupts
@@ -261,6 +262,19 @@ void OS_bWait(Sema4Type *semaPt);
 // input:  pointer to a binary semaphore
 // output: none
 void OS_bSignal(Sema4Type *semaPt); 
+
+// ******** Jitter ****************
+// prints the jitter info for the first periodic background thread
+void Jitter(void);
+
+// ******** Jitter1 ***************
+// records the jitter for the first periodic background thread
+void Jitter1(void);
+
+// ******** Jitter2 ***************
+// records the jitter for the second periodic background thread
+void Jitter2(void);
+
 
 #endif
 
