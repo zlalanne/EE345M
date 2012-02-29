@@ -11,24 +11,28 @@
 #include <stdio.h>
 #include <string.h>
 #include "inc/hw_types.h"
-#include "serial.h"
+#include "UART.h"
 #include "rit128x96x4.h"
 #include "adc.h"
 #include "os.h"
 #include "lm3s8962.h"
+#include "Output.h"
 
 unsigned long NumCreated;   // number of foreground threads created
 unsigned long PIDWork;      // current number of PID calculations finished
 unsigned long FilterWork;   // number of digital filter calculations finished
 unsigned long NumSamples;   // incremented every sample
 unsigned long DataLost;     // data sent by Producer, but not received by Consumer
-extern long MaxJitter;    // largest time difference between interrupt trigger and running thread
-extern long MinJitter;    // smallest time difference between interrupt trigger and running thread
+extern long MaxJitter1;    // largest time difference between interrupt trigger and running thread
+extern long MinJitter1;    // smallest time difference between interrupt trigger and running thread
 extern unsigned long const JitterSize;
-extern unsigned long JitterHistogram[];
+extern unsigned long JitterHistogram1[];
+
 
 #define TIMESLICE 2*TIME_1MS  // thread switch time in system time units
 #define PERIOD TIME_1MS/2     // 2kHz sampling period in system time units
+unsigned long Period = PERIOD;
+
 // 10-sec finite time experiment duration 
 #define RUNLENGTH 10000   // display results and quit when NumSamples==RUNLENGTH
 long x[64],y[64];         // input and output arrays for FFT
@@ -83,7 +87,7 @@ unsigned long myId = OS_Id();
   }
   oLED_Message(1,1,"PIDWork    =",PIDWork);
   oLED_Message(1,2,"DataLost   =",DataLost);
-  oLED_Message(1,3,"0.1u Jitter=",MaxJitter-MinJitter);
+  oLED_Message(1,3,"0.1u Jitter=",MaxJitter1-MinJitter1);
   OS_Kill();  // done
 } 
 
@@ -244,7 +248,7 @@ int realmain(void){        // lab 3 real main
 //*******attach background tasks***********
   OS_AddButtonTask(&ButtonPush,2);
   OS_AddButtonTask(&DownPush,3);
-  OS_AddPeriodicThread(&DAS,PERIOD,1); // 2 kHz real time sampling
+  OS_AddPeriodicThread(&DAS,1,PERIOD,1); // 2 kHz real time sampling
 
   NumCreated = 0 ;
 // create initial foreground threads
@@ -374,7 +378,7 @@ void Thread2c(void){
   Count2 = 0;    
   Count5 = 0;    // Count2 + Count5 should equal Count1  
   NumCreated += OS_AddThread(&Thread5c,128,3); 
-  OS_AddPeriodicThread(&BackgroundThread1c,TIME_1MS,0); 
+  OS_AddPeriodicThread(&BackgroundThread1c,1,TIME_1MS,0); 
   for(;;){
     OS_Wait(&Readyc);
     Count2++;   // Count2 + Count5 should equal Count1, Count5 may be 0
@@ -464,7 +468,7 @@ int Testmain4(void){   // Testmain4
   Count4 = 0;          
   OS_Init();           // initialize, disable interrupts
   NumCreated = 0 ;
-  OS_AddPeriodicThread(&BackgroundThread1d,PERIOD,0); 
+  OS_AddPeriodicThread(&BackgroundThread1d,1,PERIOD,0); 
   OS_AddButtonTask(&BackgroundThread5d,2);
   NumCreated += OS_AddThread(&Thread2d,128,2); 
   NumCreated += OS_AddThread(&Thread3d,128,3); 
@@ -540,8 +544,8 @@ int Testmain5(void){       // Testmain5
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&Thread6,128,2); 
   NumCreated += OS_AddThread(&Thread7,128,1); 
-  OS_AddPeriodicThread(&TaskA,TIME_1MS,0);           // 1 ms, higher priority
-  OS_AddPeriodicThread(&TaskB,2*TIME_1MS,1);         // 2 ms, lower priority
+  OS_AddPeriodicThread(&TaskA,1,TIME_1MS,0);           // 1 ms, higher priority
+  OS_AddPeriodicThread(&TaskB,2,2*TIME_1MS,1);         // 2 ms, lower priority
  
   OS_Launch(TIMESLICE); // 2ms, doesn't return, interrupts enabled in here
   return 0;             // this never executes
@@ -640,8 +644,8 @@ int main(void){      // Testmain6
   WaitCount2 = 0;     // number of times s is successfully waited on
   WaitCount3 = 0;	  // number of times s is successfully waited on
   OS_InitSemaphore(&s,0);	 // this is the test semaphore
-  OS_AddPeriodicThread(&Signal1,(799*TIME_1MS)/1000,0);   // 0.799 ms, higher priority
-  OS_AddPeriodicThread(&Signal2,(1111*TIME_1MS)/1000,1);  // 1.111 ms, lower priority
+  OS_AddPeriodicThread(&Signal1,1,(799*TIME_1MS)/1000,0);   // 0.799 ms, higher priority
+  OS_AddPeriodicThread(&Signal2,2,(1111*TIME_1MS)/1000,1);  // 1.111 ms, lower priority
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&Thread6,128,6);    	// idle thread to keep from crashing
   NumCreated += OS_AddThread(&OutputThread,128,2); 	// results output thread
