@@ -28,7 +28,7 @@
 ; <o> Stack Size (in Bytes) <0x0-0xFFFFFFFF:8>
 ;
 ;******************************************************************************
-Stack   EQU     0x00000100
+Stack   EQU     0x00003000
 
 ;******************************************************************************
 ;
@@ -84,6 +84,10 @@ __heap_limit
 		EXTERN Timer2A_Handler
 		EXTERN Select_Switch_Handler
 		EXTERN UART0_Handler
+<<<<<<< HEAD
+=======
+		EXTERN ADC0S0_Handler
+>>>>>>> 4808a194f01c59feb1989d96b198028d287377f6
 
 ;******************************************************************************
 ;
@@ -122,7 +126,7 @@ __Vectors
         DCD     IntDefaultHandler           ; PWM Generator 1
         DCD     IntDefaultHandler           ; PWM Generator 2
         DCD     IntDefaultHandler           ; Quadrature Encoder 0
-        DCD     IntDefaultHandler           ; ADC Sequence 0
+        DCD     ADC0S0_Handler                ; ADC Sequence 0
         DCD     IntDefaultHandler           ; ADC Sequence 1
         DCD     IntDefaultHandler           ; ADC Sequence 2
         DCD     IntDefaultHandler           ; ADC Sequence 3
@@ -131,8 +135,8 @@ __Vectors
         DCD     IntDefaultHandler           ; Timer 0 subtimer B
         DCD     IntDefaultHandler           ; Timer 1 subtimer A
         DCD     IntDefaultHandler           ; Timer 1 subtimer B
-        DCD     Timer2A_Handler              ; Timer 2 subtimer A
-        DCD     IntDefaultHandler            ; Timer 2 subtimer B
+        DCD     Timer2A_Handler             ; Timer 2 subtimer A
+        DCD     IntDefaultHandler           ; Timer 2 subtimer B
         DCD     IntDefaultHandler           ; Analog Comparator 0
         DCD     IntDefaultHandler           ; Analog Comparator 1
         DCD     IntDefaultHandler           ; Analog Comparator 2

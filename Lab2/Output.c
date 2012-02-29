@@ -1,8 +1,8 @@
 // Modified By:
-// Thomas Brezinski
+// Thomas Brezinski	TCB567
 // Zachary Lalanne ZLL67
-// TA:
-// Date of last change: 1/24/2012
+// TA: Zahidul Haq
+// Date of last change: 2/24/2012
 
 // Modified By:
 // Megan Ruthven MAR3939

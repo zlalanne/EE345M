@@ -3,10 +3,10 @@
 // for the interrupter modify CMD_Run()
 
 // Modified By:
-// Thomas Brezinski
+// Thomas Brezinski	TCB567
 // Zachary Lalanne ZLL67
-// TA:
-// Date of last change: 2/1/2012
+// TA: Zahidul Haq
+// Date of last change: 2/24/2012
 
 // Written By:
 // Megan Ruthven MAR3939
@@ -77,7 +77,11 @@ void Interpreter(void);
 // Output: none
 void CMD_Run(void);
 
+<<<<<<< HEAD
 // Extern Variables from Lab2.c
+=======
+// External variables from Lab2.c
+>>>>>>> 4808a194f01c59feb1989d96b198028d287377f6
 extern unsigned long NumCreated;   // number of foreground threads created
 extern unsigned long PIDWork;      // current number of PID calculations finished
 extern unsigned long FilterWork;   // number of digital filter calculations finished

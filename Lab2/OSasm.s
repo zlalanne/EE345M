@@ -1,8 +1,9 @@
 ; Modified By:
-; Thomas Brezinski TCB567
+; Thomas Brezinski	TCB567
 ; Zachary Lalanne ZLL67
 ; TA: Zahidul Haq
-; Date of last change: 2/8/2012
+; Date of last change: 2/24/2012
+
 
 ;/*****************************************************************************/
 ;/* OSasm.s: low-level OS commands, written in assembly                       */
