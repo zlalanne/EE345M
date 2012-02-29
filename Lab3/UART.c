@@ -208,20 +208,20 @@ void CMD_Run(void) {
 		  UART0_SendString(buffer2);
 		  snprintf(buffer3, BUFFERSIZE, "DataLost: %d\r\n", DataLost);
 		  UART0_SendString(buffer3);
-		  snprintf(buffer4, BUFFERSIZE, "Jitter: %d\r\n", (MaxJitter-MinJitter));
+		  snprintf(buffer4, BUFFERSIZE, "Jitter: %d\r\n", (MaxJitter1-MinJitter1));
 		  UART0_SendString(buffer4);
 		  break;
 	  }
 	  break;
 	case 't':
 	  // Get Timer2 interrupt counter
-	  measurement = OS_MsTime();
+	  measurement = OS_MsTime(1);
 	  snprintf(buffer1, BUFFERSIZE, "Timer2 Counter: %d\n\r", measurement);
 	  UART0_SendString(buffer);
 	  break;
 	case 'r':
 	  // Reset Timer2 interurpt counter
-	  OS_ClearMsTime();
+	  OS_ClearMsTime(1);
 	  UART0_SendString("Timer2 Counter Cleared\n\r");
 	  break;
 	case 'h':

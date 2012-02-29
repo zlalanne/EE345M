@@ -4,6 +4,17 @@
 // TA: Zahidul Haq
 // Date of last change: 2/24/2012
 
+/*
+ *  TIMER SETUP
+ *	Timer0A is being used to trigger the ADC in ADC_Collect (all setup in ADC_Collect)
+ *	Timer0B is being used for OS_Time (all setup in OS_Init)
+ *	Timer2A is being used for periodic background thread 1 (Configured in OS_Init, started in OS_AddPeriodicThread)
+ *	Timer2B is being used for periodic background thread 2 (Configured in OS_Init, started in OS_AddPeriodicThread)
+ */
+
+
+
+
 #include "OS.h"
 #include "UART.h"	// defines UART0_Init for OS_Init
 #include "ADC.h"    // defines ADC_Open for OS_Init
@@ -23,6 +34,9 @@
 #define MAXTHREADS 8    // maximum number of threads
 #define STACKSIZE  512  // number of 32-bit words in stack
 #define FIFOSIZE 256
+#define JITTERSIZE 64
+
+extern unsigned long Period;
 
 // TCB structure, assembly code depends on the order of variables
 // in this structure. Specifically sp, next and sleepState.
@@ -47,19 +61,19 @@ int NumThreads = 0; // Global displaying number of threads
 
 unsigned long gTimeSlice;
 
-
 // Global variables for background thread
-unsigned long gTimer2Count;      // global 32-bit counter incremented everytime Timer2 executes
-void (*gThread1p)(void);			 //	global function pointer for Thread1 function
-char gThreadValid = INVALID;
+unsigned long gTimer1Count;      // global 32-bit counter incremented everytime background thread 1 executes
+unsigned long gTimer2Count;      // global 32-bit counter incremented everytime background thread 2 executes
+void (*gThread1p)(void);			 //	global function pointer for background Thread 1 function
+char gThread1Valid = INVALID;
+void (*gThread2p)(void);             // global function pointer for background Thread 2 function
+char gThread2Valid = INVALID;
 
-// Global variables for select button thread
-void (*gButtonThreadPt)(void);       // global function pointer for the thread to be launched on button pushes
-int gButtonThreadPriority;
-
-// Global variables for down button thread
-void (*DownSwitchThreadTask)(void);
-int DownSwitchThreadPriority;
+// Global variables for button threads
+void (*gButtonThreadSelectPt)(void);       // global function pointer for the thread to be launched on select button pushes
+int gButtonThreadSelectPriority;
+void (*gButtonThreadDownPt)(void);       // global function pointer for the thread to be launched on down button push
+int gButtonThreadDownPriority;
 
 // Global variables for mailbox
 Sema4Type BoxFree;
@@ -71,6 +85,15 @@ unsigned long OS_Fifo[FIFOSIZE];
 Sema4Type FifoMutex;
 Sema4Type CurrentSize;
 unsigned long *OS_PutPt, *OS_GetPt;
+
+// Global variables for JITTER
+long MaxJitter1;    // largest time difference between interrupt trigger and running thread
+long MinJitter1;    // smallest time difference between interrupt trigger and running thread
+unsigned long const JitterSize = JITTERSIZE;
+unsigned long JitterHistogram1[JITTERSIZE]={0,};
+long MaxJitter2;    // largest time difference between interrupt trigger and running thread
+long MinJitter2;    // smallest time difference between interrupt trigger and running thread
+unsigned long JitterHistogram2[JITTERSIZE]={0,};
 
 // Interrupt Handlers
 void Select_Switch_Handler(void);
@@ -84,12 +107,8 @@ void Scheduler(void) {
    NextPt = (*RunPt).next;
    while ((*NextPt).sleepState != 0 && (*NextPt).blockedState != '\0') {
       NextPt = (*NextPt).next;
-   }
-
-   
+  }
   IntPendSet(FAULT_PENDSV); 
-
-
 }
 
 // ************ OS_Init ******************
@@ -132,23 +151,26 @@ void OS_Init(void) {
 	GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
 	GPIOPinIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1);
 	
-	// Initialize Timer2A and Timer2B
+	// Initialize Timer0A, Timer2A and Timer2B
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+	TimerDisable(TIMER0_BASE, TIMER_B);
     TimerDisable(TIMER2_BASE, TIMER_A | TIMER_B);
+	TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_B_PERIODIC);
     TimerConfigure(TIMER2_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
-    TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
-	TimerIntDisable(TIMER2_BASE, TIMER_TIMB_TIMEOUT);
-    TimerLoadSet(TIMER2_BASE, TIMER_A, TIME_1MS);
-	TimerLoadSet(TIMER2_BASE, TIMER_B, 65535);
-	IntEnable(INT_TIMER2A);
+    TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
+	TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT | TIMER_TIMB_TIMEOUT);
+	TimerLoadSet(TIMER0_BASE, TIMER_B, 65535);
+	TimerEnable(TIMER0_BASE, TIMER_B);
+//    TimerLoadSet(TIMER2_BASE, TIMER_A, TIME_1MS);
+
 
 	// Setting priorities for all interrupts
-	// To add more look up correct names in inc\hw_ints.h
+	// To add more, look up correct names in inc\hw_ints.h
 	IntPrioritySet(FAULT_PENDSV, 7);
 	IntPrioritySet(FAULT_SYSTICK, 6);
 	
 	IntPrioritySet(INT_GPIOF, 3);
-	IntPrioritySet(INT_TIMER2A, 0);
+
 	IntPrioritySet(INT_UART0, 4);
     IntPrioritySet(INT_ADC0SS0, 2);
 	IntPrioritySet(INT_ADC0SS3, 0);
@@ -303,7 +325,7 @@ void OS_Launch(unsigned long theTimeSlice){
   
   SysTickEnable();
   SysTickIntEnable();
-  TimerEnable(TIMER2_BASE, TIMER_A | TIMER_B);
+
 
   StartOS(); // Assembly language function that initilizes stack for running
   OS_EnableInterrupts();
@@ -315,22 +337,31 @@ void OS_Launch(unsigned long theTimeSlice){
 // Resets the 32-bit global counter to 0
 // Inputs: none
 // Outputs: none
-void OS_ClearMsTime(void) {
-   gTimer2Count = 0;
+void OS_ClearMsTime(unsigned long threadnumber) {
+   if (threadnumber == 1) {
+      gTimer1Count = 0;
+   } else {
+      gTimer2Count = 0;
+   }
 }
 
 // ********** OS_MsTime *******************
 // Returns the current 32-bit global counter
 // Inputs: none
 // Outputs: Current 32-bit global counter value
-unsigned long OS_MsTime(void) {
-   return gTimer2Count;
+unsigned long OS_MsTime(unsigned long threadnumber) {
+   if (threadnumber == 1) {
+      return gTimer1Count;
+   } else {
+      return gTimer2Count;
+   }
 }
 
 //******** OS_AddPeriodicThread *************** 
 // add a background periodic task
 // typically this function receives the highest priority
 // Inputs: pointer to a void/void background function
+//         thread number to make the code simple
 //         period given in system time units
 //         priority 0 is highest, 5 is lowest
 // Outputs: 1 if successful, 0 if this thread can not be added
@@ -345,19 +376,36 @@ unsigned long OS_MsTime(void) {
 // In lab 3, there will be up to four background threads, and this priority field 
 //           determines the relative priority of these four threads
 int OS_AddPeriodicThread(void(*task)(void),
+   unsigned long threadnumber,
    unsigned long period,
    unsigned long priority){
 
    // Clear periodic counter
-   OS_ClearMsTime();
-       
-   // Set the global function pointer to the address of the provided function
-   gThread1p = task;
-   gThreadValid = VALID;
+   OS_ClearMsTime(threadnumber);
 
-   // Sets new TIMER2 period
-   TimerLoadSet(TIMER2_BASE, TIMER_A, period);
+   if (threadnumber == 1) {   
+      // Set the global function pointer to the address of the provided function
+      gThread1p = task;
+      gThread1Valid = VALID;
+	  
+	  IntPrioritySet(INT_TIMER2A, priority);
+      
+	  // Sets new TIMER2 period
+      TimerLoadSet(TIMER2_BASE, TIMER_A, period);
+	  IntEnable(INT_TIMER2A);
+	  TimerEnable(TIMER2_BASE, TIMER_A);
+   } else { 
+      // Set the global function pointer to the address of the provided function
+      gThread2p = task;
+      gThread2Valid = VALID;
 
+      IntPrioritySet(INT_TIMER2B, 0);
+
+      // Sets new TIMER2 period
+      TimerLoadSet(TIMER2_BASE, TIMER_B, period);
+      IntEnable(INT_TIMER2B);
+	  TimerEnable(TIMER2_BASE, TIMER_B);
+   }   
    return 1;
 }
 
@@ -375,9 +423,10 @@ int OS_AddPeriodicThread(void(*task)(void),
 // In lab 3, there will be up to four background threads, and this priority field 
 //           determines the relative priority of these four threads
 int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
-  gButtonThreadPt = task;
-  gButtonThreadPriority = priority;
   
+  gButtonThreadSelectPt = task;
+  gButtonThreadSelectPriority = priority;
+
   // Enabling interrupts
   GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
   IntEnable(INT_GPIOF);
@@ -385,16 +434,25 @@ int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
   return 1;
 }
 
+//******** OS_AddDownTask *************** 
+// add a background task to run whenever the Down arror button is pushed
+// Inputs: pointer to a void/void background function
+//         priority 0 is highest, 5 is lowest
+// Outputs: 1 if successful, 0 if this thread can not be added
+// It is assumed user task will run to completion and return
+// This task can not spin block loop sleep or kill
+// It can call issue OS_Signal, it can call OS_AddThread
+// This task does not have a Thread ID
+// In lab 2, this function can be ignored
+// In lab 3, this command will be called will be called 0 or 1 times
+// In lab 3, there will be up to four background threads, and this priority field 
+//           determines the relative priority of these four threads
 int OS_AddDownTask(void(*task)(void), unsigned long priority) {
-  DownSwitchThreadTask = task;
-  DownSwitchThreadPriority = priority;
-    
-  // Enabling interrupts
-  GPIOPinIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1);
-  IntEnable(INT_GPIOE);
-
+  gButtonThreadDownPt = task;
+  gButtonThreadDownPriority = priority;
   return 1;
 }
+
 
 // ******** OS_Kill ************
 // kill the currently running thread, release its TCB memory
@@ -627,9 +685,9 @@ void Timer2A_Handler(void) {
   int i;
  
   TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
-  gTimer2Count++;
+  gTimer1Count++;
 
-  if(gThreadValid == VALID) {
+  if(gThread1Valid == VALID) {
     gThread1p();   // Call periodic function
   }
 
@@ -662,6 +720,7 @@ void OS_Wait(Sema4Type *semaPt) {
 
   EndCritical(status);
 }
+
 
 // ******** OS_Signal ************
 // increment semaphore, wakeup blocked thread if appropriate 
@@ -702,44 +761,41 @@ void OS_Signal(Sema4Type *semaPt) {
 // output: none
 void OS_bWait(Sema4Type *semaPt) {
 
-	OS_DisableInterrupts();
+  OS_DisableInterrupts();
 	
-	while((*semaPt).Value <= 0) {
-	  OS_EnableInterrupts();
-	  OS_DisableInterrupts();
-	}
-	
-	(*semaPt).Value = 0;
+  while((*semaPt).Value <= 0) {
 	OS_EnableInterrupts();
+	OS_DisableInterrupts();
+  }
+	
+  (*semaPt).Value = 0;
+  OS_EnableInterrupts();
 }
 
-// ******** OS_bSignal ************
-// set semaphore to 1, wakeup blocked thread if appropriate 
-// input:  pointer to a binary semaphore
-// output: none  
-void OS_bSignal(Sema4Type *semaPt) {
-  long status;
+// ******** Timer2B_Handler ************
+// calls periodic function for background thread 2
+void Timer2B_Handler(void) {
+  TimerIntClear(TIMER2_BASE, TIMER_TIMB_TIMEOUT);
+  gTimer2Count++;
 
-  status = StartCritical();
-  (*semaPt).Value = 1;
-  
-  EndCritical(status);
+  if(gThread2Valid == VALID) {
+    gThread2p();   // Call periodic function
+  }
 }
 
-
-// ******** SelectSwitch_Handler ************
 // Clears the interrupt and starts buttion function
 void SelectSwitch_Handler(void){
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
-	gButtonThreadPt();	
+	gButtonThreadSelectPt();	
 }
 
-// ******** DownSwitch_Handler ************
+// ********** Down_Switch_Handler *************
 // Clears the interrupt and starts buttion function
-void DownSwitch_Handler(void){
+void Down_Switch_Handler(void){
 	GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
-	DownSwitchThreadTask();
+	gButtonThreadDownPt();	
 }
+
 
 // ******** calcTimeSLice ************
 // Caluclates the timeslice based on the priority
@@ -780,7 +836,56 @@ void SysTick_Handler(void) {
   SysTickPeriodSet(curTimeSlice);
 
   // Write to register forces systick to reset counting
-  //NVIC_ST_CURRENT_R = 0;  
+  //NVIC_ST_CURRENT_R = 0; 
 
 }
 
+// ******** Jitter ****************
+// prints the jitter info for the first periodic background thread
+void Jitter(void){
+  oLED_Message(1,3,"0.1u Jitter=",MaxJitter1-MinJitter1);
+}
+
+// ******** Jitter1 ***************
+// records the jitter for the first periodic background thread
+void Jitter1(void){
+  int index;
+  unsigned static long LastTime;
+  unsigned long thisTime;
+  long jitter;
+  thisTime = OS_Time();
+  jitter = OS_TimeDifference(thisTime,LastTime)/50 - Period/50; // in usec
+  if(jitter > MaxJitter1) {
+    MaxJitter1 = jitter;
+  }
+  if(jitter < MinJitter1) {
+    MinJitter1 = jitter;
+  }
+  index = jitter+JITTERSIZE/2;   // us units
+  if(index<0) index = 0;
+  if(index>=JitterSize) index = JITTERSIZE-1;
+  JitterHistogram1[index]++;
+  LastTime = thisTime;
+}
+
+// ******** Jitter2 ***************
+// records the jitter for the second periodic background thread
+void Jitter2(void){
+  int index;
+  unsigned static long LastTime;
+  unsigned long thisTime;
+  long jitter;
+  thisTime = OS_Time();
+  jitter = OS_TimeDifference(thisTime,LastTime)/50 - Period/50; // in usec
+  if(jitter > MaxJitter2) {
+    MaxJitter2 = jitter;
+  }
+  if(jitter < MinJitter2) {
+    MinJitter2 = jitter;
+  }
+  index = jitter+JITTERSIZE/2;   // us units
+  if(index<0) index = 0;
+  if(index>=JitterSize) index = JITTERSIZE-1;
+  JitterHistogram2[index]++;
+  LastTime = thisTime;
+}
