@@ -43,7 +43,8 @@ extern unsigned long Period;
 struct tcb{
    long *sp;          // pointer to stack (valid for threads not running)
    struct tcb *next, *prev;  // linked-list pointer
-   long sleepState, blockedState;
+   long sleepState;
+   Sema4Type *blockedState;
    long id, priority;
    char valid;
    long stack[STACKSIZE]; 
@@ -56,7 +57,7 @@ tcbType *RunPt = '\0';
 tcbType *NextPt = '\0';
 tcbType *Head = '\0';
 tcbType *Tail = '\0';
-int NumThreads = 0; // global index to point to place to put new tcb in array
+int NumThreads = 0; // Global displaying number of threads
 
 unsigned long gTimeSlice;
 
@@ -104,10 +105,10 @@ void SysTick_Handler(void);
 // Calculates next thread to be run and sets NextPt to it
 void Scheduler(void) {
    NextPt = (*RunPt).next;
-   while ((*NextPt).sleepState != 0) {
+   while ((*NextPt).sleepState != 0 && (*NextPt).blockedState != '\0') {
       NextPt = (*NextPt).next;
-   }
-   IntPendSet(FAULT_PENDSV); 
+  }
+  IntPendSet(FAULT_PENDSV); 
 }
 
 // ************ OS_Init ******************
@@ -139,10 +140,16 @@ void OS_Init(void) {
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
     GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_1);
 	GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-	GPIOPortIntRegister(GPIO_PORTF_BASE, Select_Switch_Handler);
 	GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
-	GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
+
+	// Down switch
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+	GPIOPinTypeGPIOInput(GPIO_PORTE_BASE, GPIO_PIN_1);
+	GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+	GPIOIntTypeSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
+	GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
+	GPIOPinIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1);
 	
 	// Initialize Timer0A, Timer2A and Timer2B
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
@@ -171,6 +178,7 @@ void OS_Init(void) {
 	// Initializing TCBs
 	for(i = 0; i < MAXTHREADS; i++) {
 	  tcbs[i].valid = INVALID;
+	  tcbs[i].blockedState = '\0';
 	}
 
 	RunPt = &tcbs[0];       // Thread 0 will run first
@@ -278,6 +286,8 @@ int OS_AddThread(void(*task)(void),
 
   // Set inital values for sleep status and id
   tcbs[index].sleepState = 0;
+  tcbs[index].priority = priority;
+  tcbs[index].blockedState = '\0';
   tcbs[index].id = index;
   tcbs[index].valid = VALID;
   NumThreads++;
@@ -293,8 +303,26 @@ int OS_AddThread(void(*task)(void),
 //        ( Maximum of 24 bits)
 // Outputs: none (does not return)
 void OS_Launch(unsigned long theTimeSlice){
+  
+  long curPriority;
+  unsigned long curTimeSlice;
+
   gTimeSlice = theTimeSlice;
-  SysTickPeriodSet(theTimeSlice);
+  
+  // Get priority of next thread
+  curPriority = (*RunPt).priority;
+  
+  // Calculate timeslice for priority of next thread 
+  switch(curPriority) {
+     case 0: curTimeSlice = gTimeSlice; break;
+	 case 1: curTimeSlice = gTimeSlice / 2; break;
+	 case 2: curTimeSlice = gTimeSlice / 4; break;
+	 case 3: curTimeSlice = gTimeSlice / 8; break;
+	 case 4: curTimeSlice = gTimeSlice / 16; break;
+  } 
+
+  SysTickPeriodSet(curTimeSlice);
+  
   SysTickEnable();
   SysTickIntEnable();
 
@@ -395,8 +423,14 @@ int OS_AddPeriodicThread(void(*task)(void),
 // In lab 3, there will be up to four background threads, and this priority field 
 //           determines the relative priority of these four threads
 int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
+  
   gButtonThreadSelectPt = task;
   gButtonThreadSelectPriority = priority;
+
+  // Enabling interrupts
+  GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
+  IntEnable(INT_GPIOF);
+
   return 1;
 }
 
@@ -467,7 +501,7 @@ void OS_Kill(void) {
 // You are free to select the time resolution for this function
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
-
+  OS_EnableInterrupts();
   (*RunPt).sleepState = (2*sleepTime);		  
   IntPendSet(FAULT_SYSTICK); // Triger threadswitch
   
@@ -482,6 +516,7 @@ void OS_Sleep(unsigned long sleepTime) {
 // input:  none
 // output: none
 void OS_Suspend(void) {
+  OS_EnableInterrupts();
   IntPendSet(FAULT_SYSTICK); // Triger threadswitch
   return;
 }
@@ -664,6 +699,79 @@ void Timer2A_Handler(void) {
   }
 }
 
+// ******** OS_Wait ************
+// decrement semaphore and spin/block if less than zero
+// input:  pointer to a counting semaphore
+// output: none
+void OS_Wait(Sema4Type *semaPt) {
+	
+  long status;
+  int i;	
+  status = StartCritical();
+  (*semaPt).Value--;
+
+  if((*semaPt).Value < 0) {
+    (*RunPt).blockedState = semaPt;
+
+    OS_Suspend();
+	
+	//for(i = 0; i < 20000; i++) {}
+  }
+
+  EndCritical(status);
+}
+
+
+// ******** OS_Signal ************
+// increment semaphore, wakeup blocked thread if appropriate 
+// input:  pointer to a counting semaphore
+// output: none   
+void OS_Signal(Sema4Type *semaPt) {
+  
+  int i;
+  long status; 
+  tcbType *tempPt;
+  status = StartCritical();
+  
+  (*semaPt).Value++;
+
+  if((*semaPt).Value <= 0) {
+
+	tempPt = (*RunPt).next;
+
+    for(i = 0; i < NumThreads; i++) {
+
+	  if((*tempPt).blockedState == semaPt) {
+	    (*tempPt).blockedState = '\0'; // Thread can now be switched to
+		break; // Done searching, exit for loop
+	  } else {
+	    tempPt = (*tempPt).next;
+	  }
+
+	}
+  }
+
+  EndCritical(status);
+}
+
+// ******** OS_bWait ************
+// if the semaphore is 0 then spin/block
+// if the semaphore is 1, then clear semaphore to 0
+// input:  pointer to a binary semaphore
+// output: none
+void OS_bWait(Sema4Type *semaPt) {
+
+  OS_DisableInterrupts();
+	
+  while((*semaPt).Value <= 0) {
+	OS_EnableInterrupts();
+	OS_DisableInterrupts();
+  }
+	
+  (*semaPt).Value = 0;
+  OS_EnableInterrupts();
+}
+
 // ******** Timer2B_Handler ************
 // calls periodic function for background thread 2
 void Timer2B_Handler(void) {
@@ -675,9 +783,8 @@ void Timer2B_Handler(void) {
   }
 }
 
-// ******** Select_Switch_Handler ************
 // Clears the interrupt and starts buttion function
-void Select_Switch_Handler(void){
+void SelectSwitch_Handler(void){
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
 	gButtonThreadSelectPt();	
 }
@@ -689,11 +796,48 @@ void Down_Switch_Handler(void){
 	gButtonThreadDownPt();	
 }
 
+
+// ******** calcTimeSLice ************
+// Caluclates the timeslice based on the priority
+// Input: Priority
+// Output: Timeslice length
+unsigned long calcTimeSlice(long priority) {
+  
+  unsigned long newTimeSlice;
+
+  // Calculate timeslice for priority of next thread 
+  switch(priority) {
+     case 0: newTimeSlice = gTimeSlice; break;
+	 case 1: newTimeSlice = gTimeSlice / 2; break;
+	 case 2: newTimeSlice = gTimeSlice / 4; break;
+	 case 3: newTimeSlice = gTimeSlice / 8; break;
+	 case 4: newTimeSlice = gTimeSlice / 16; break;
+	 default: newTimeSlice = gTimeSlice / 32; break;
+  }
+
+  return newTimeSlice;
+}
+
 // ******** SysTick_Handler ************
 // Resets its value to gTimeSlice and calls thread scheduler
-void SysTick_Handler(void) {
-   SysTickPeriodSet(gTimeSlice);  
-   Scheduler();
+void SysTick_Handler(void) { 
+   
+  long curPriority;
+  unsigned long curTimeSlice;
+
+  // Determines NextPt
+  Scheduler();
+
+  // Get priority of next thread and calculate timeslice
+  curPriority = (*NextPt).priority;
+  //curTimeSlice = calcTimeSlice(curPriority); 
+  curTimeSlice = gTimeSlice;
+  // Sets next systick period, does not rest counting
+  SysTickPeriodSet(curTimeSlice);
+
+  // Write to register forces systick to reset counting
+  //NVIC_ST_CURRENT_R = 0; 
+
 }
 
 // ******** Jitter ****************

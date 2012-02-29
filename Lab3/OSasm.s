@@ -40,11 +40,6 @@
         EXPORT  StartCritical
         EXPORT  EndCritical
         EXPORT  StartOS
-	    EXPORT  OS_bSignal
-		EXPORT  OS_bWait
-	    EXPORT  OS_Signal
-		EXPORT  OS_Wait
-
         EXPORT  PendSV_Handler
 
 
@@ -95,58 +90,6 @@ StartOS
     CPSIE   I                  ; Enable interrupts at processor level
     BX      LR                 ; start first thread
 
-
-; ******** OS_Wait ************
-; decrement semaphore and spin/block if less than zero
-; input:  pointer to a counting semaphore
-; output: none
-OS_Wait
-    LDREX R1, [R0]
-    SUBS R1, #1
-    ITT PL
-    STREXPL R2, R1, [R0]
-    CMPPL R2, #0
-    BNE OS_Wait
-	BX LR
-
-; ******** OS_Signal ************
-; increment semaphore, wakeup blocked thread if appropriate 
-; input:  pointer to a counting semaphore
-; output: none   
-OS_Signal
-    LDREX R1, [R0]
-    ADD R1, #1
-    STREX R2, R1, [R0]
-    CMP R2, #0
-    BNE OS_Signal
-    BX LR
-
-; ******** OS_bWait ************
-; if the semaphore is 0 then spin/block
-; if the semaphore is 1, then clear semaphore to 0
-; input:  pointer to a binary semaphore
-; output: none
-OS_bWait
-    MOV R1, #0
-    LDREX R2, [R0]
-    CMP R2, #1
-    ITT EQ
-    STREXEQ R2, R1, [R0]
-    CMPEQ R2, #0
-    BNE OS_bWait
-	BX LR
-
-; ******** OS_bSignal ************
-; set semaphore to 1, wakeup blocked thread if appropriate 
-; input:  pointer to a binary semaphore
-; output: none  
-OS_bSignal
-    LDREX R1, [R0]
-    MOV R1, #1
-    STREX R2, R1, [R0]
-    CMP R2, #0
-    BNE OS_bSignal
-    BX LR
 
 PendSV_Handler                 ; 1) Saves R0-R3,R12,LR,PC,PSR
     CPSID   I                  ; 2) Prevent interrupt during switch
