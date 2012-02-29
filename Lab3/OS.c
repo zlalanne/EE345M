@@ -86,6 +86,9 @@ void Scheduler(void) {
       NextPt = (*NextPt).next;
    }
 
+   
+  IntPendSet(FAULT_PENDSV); 
+
 
 }
 
@@ -440,7 +443,7 @@ void OS_Kill(void) {
 // You are free to select the time resolution for this function
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
-
+  OS_EnableInterrupts();
   (*RunPt).sleepState = (2*sleepTime);		  
   IntPendSet(FAULT_SYSTICK); // Triger threadswitch
   
@@ -455,6 +458,7 @@ void OS_Sleep(unsigned long sleepTime) {
 // input:  none
 // output: none
 void OS_Suspend(void) {
+  OS_EnableInterrupts();
   IntPendSet(FAULT_SYSTICK); // Triger threadswitch
   return;
 }
@@ -644,20 +648,19 @@ void Timer2A_Handler(void) {
 void OS_Wait(Sema4Type *semaPt) {
 	
   long status;
-	
+  int i;	
   status = StartCritical();
   (*semaPt).Value--;
 
   if((*semaPt).Value < 0) {
     (*RunPt).blockedState = semaPt;
-	EndCritical(status);
+
     OS_Suspend();
+	
+	//for(i = 0; i < 20000; i++) {}
   }
 
-  
-
-
-
+  EndCritical(status);
 }
 
 // ******** OS_Signal ************
@@ -667,7 +670,7 @@ void OS_Wait(Sema4Type *semaPt) {
 void OS_Signal(Sema4Type *semaPt) {
   
   int i;
-  long status;
+  long status; 
   tcbType *tempPt;
   status = StartCritical();
   
@@ -681,7 +684,7 @@ void OS_Signal(Sema4Type *semaPt) {
 
 	  if((*tempPt).blockedState == semaPt) {
 	    (*tempPt).blockedState = '\0'; // Thread can now be switched to
-		i = NumThreads; // Done searching, exit for loop
+		break; // Done searching, exit for loop
 	  } else {
 	    tempPt = (*tempPt).next;
 	  }
@@ -771,14 +774,13 @@ void SysTick_Handler(void) {
 
   // Get priority of next thread and calculate timeslice
   curPriority = (*NextPt).priority;
-  curTimeSlice = calcTimeSlice(curPriority); 
-  
+  //curTimeSlice = calcTimeSlice(curPriority); 
+  curTimeSlice = gTimeSlice;
   // Sets next systick period, does not rest counting
   SysTickPeriodSet(curTimeSlice);
 
   // Write to register forces systick to reset counting
-  NVIC_ST_CURRENT_R = 0;  
+  //NVIC_ST_CURRENT_R = 0;  
 
-  IntPendSet(FAULT_PENDSV); 
 }
 
