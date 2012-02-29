@@ -685,7 +685,7 @@ void Select_Switch_Handler(void){
 // ********** Down_Switch_Handler *************
 // Clears the interrupt and starts buttion function
 void Down_Switch_Handler(void){
-//	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);		 ?????? look up down button
+	GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
 	gButtonThreadDownPt();	
 }
 

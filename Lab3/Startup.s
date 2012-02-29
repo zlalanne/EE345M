@@ -83,6 +83,7 @@ __heap_limit
 		EXTERN SysTick_Handler
 		EXTERN Timer2A_Handler
 		EXTERN Select_Switch_Handler
+		EXTERN Down_Switch_Handler
 		EXTERN UART0_Handler
 		EXTERN ADC0S0_Handler
 
@@ -113,7 +114,7 @@ __Vectors
         DCD     IntDefaultHandler           ; GPIO Port B
         DCD     IntDefaultHandler           ; GPIO Port C
         DCD     IntDefaultHandler           ; GPIO Port D
-        DCD     IntDefaultHandler           ; GPIO Port E
+        DCD     Down_Switch_Handler           ; GPIO Port E
         DCD     UART0_Handler               ; UART0 Rx and Tx
         DCD     IntDefaultHandler           ; UART1 Rx and Tx
         DCD     IntDefaultHandler           ; SSI0 Rx and Tx
