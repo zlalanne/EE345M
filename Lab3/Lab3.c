@@ -403,7 +403,7 @@ void BackgroundThread5c(void){   // called when Select button pushed
   NumCreated += OS_AddThread(&Thread4c,128,3); 
 }
       
-int Testmain3(void){   // Testmain3
+int main(void){   // Testmain3
   Count4 = 0;          
   OS_Init();           // initialize, disable interrupts
 // Count2 + Count5 should equal Count1 (Count5 may be zero)
@@ -629,7 +629,7 @@ static long result;
   result = m+n;
   return result;
 }
-int main(void){      // Testmain6
+int testmain6(void){      // Testmain6
   volatile unsigned long delay;
   OS_Init();           // initialize, disable interrupts
   delay = add(3,4);

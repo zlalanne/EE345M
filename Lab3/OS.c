@@ -325,6 +325,7 @@ void OS_Launch(unsigned long theTimeSlice){
   
   SysTickEnable();
   SysTickIntEnable();
+  IntEnable(FAULT_SYSTICK);
 
 
   StartOS(); // Assembly language function that initilizes stack for running
@@ -704,9 +705,9 @@ void Timer2A_Handler(void) {
 // input:  pointer to a counting semaphore
 // output: none
 void OS_Wait(Sema4Type *semaPt) {
-	
+
   long status;
-  int i;	
+
   status = StartCritical();
   (*semaPt).Value--;
 
@@ -714,8 +715,9 @@ void OS_Wait(Sema4Type *semaPt) {
     (*RunPt).blockedState = semaPt;
 
     OS_Suspend();
-	
-	//for(i = 0; i < 20000; i++) {}
+
+	while((*RunPt).blockedState == semaPt){}
+
   }
 
   EndCritical(status);
@@ -761,15 +763,30 @@ void OS_Signal(Sema4Type *semaPt) {
 // output: none
 void OS_bWait(Sema4Type *semaPt) {
 
-  OS_DisableInterrupts();
-	
+  long status;
+
+  status = StartCritical();
+  	
   while((*semaPt).Value <= 0) {
 	OS_EnableInterrupts();
 	OS_DisableInterrupts();
   }
 	
   (*semaPt).Value = 0;
-  OS_EnableInterrupts();
+
+  EndCritical(status);
+}
+
+// ******** OS_bSignal ************
+// set semaphore to 1, wakeup blocked thread if appropriate 
+// input:  pointer to a binary semaphore
+// output: none
+void OS_bSignal(Sema4Type *semaPt) {
+	long status;
+
+	status = StartCritical();
+	(*semaPt).Value = 1; //free
+	EndCritical(status);
 }
 
 // ******** Timer2B_Handler ************
@@ -784,7 +801,7 @@ void Timer2B_Handler(void) {
 }
 
 // Clears the interrupt and starts buttion function
-void SelectSwitch_Handler(void){
+void Select_Switch_Handler(void){
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
 	gButtonThreadSelectPt();	
 }
