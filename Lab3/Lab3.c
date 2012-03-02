@@ -370,18 +370,23 @@ void Thread5c(void){
     OS_Wait(&Readyc);
     Count5++;   // Count2 + Count5 should equal Count1 
     Lost = Count1-Count5-Count2;
+	if(Lost == 1) {
+	  Lost = Lost;
+	}
+
   }
 }
 void Thread2c(void){
   OS_InitSemaphore(&Readyc,0);
   Count1 = 0;    // number of times signal is called      
   Count2 = 0;    
-  Count5 = 0;    // Count2 + Count5 should equal Count1  
-  NumCreated += OS_AddThread(&Thread5c,128,3); 
-  OS_AddPeriodicThread(&BackgroundThread1c,1,TIME_1MS,0); 
+  Count5 = 0;    // Count2 + Count5 should equal Count1 
+  NumCreated += OS_AddThread(&Thread5c,128,3);  
+  OS_AddPeriodicThread(&BackgroundThread1c,1,TIME_1MS,1); 
   for(;;){
     OS_Wait(&Readyc);
     Count2++;   // Count2 + Count5 should equal Count1, Count5 may be 0
+	//Lost = Count1-Count5-Count2;
   }
 }
 
@@ -403,13 +408,13 @@ void BackgroundThread5c(void){   // called when Select button pushed
   NumCreated += OS_AddThread(&Thread4c,128,3); 
 }
       
-int Testmain3(void){   // Testmain3
+int main(void){   // Testmain3
   Count4 = 0;          
   OS_Init();           // initialize, disable interrupts
 // Count2 + Count5 should equal Count1 (Count5 may be zero)
   NumCreated = 0 ;
   OS_AddButtonTask(&BackgroundThread5c,2);
-  NumCreated += OS_AddThread(&Thread2c,128,2); 
+  NumCreated += OS_AddThread(&Thread2c,128,3); 
   NumCreated += OS_AddThread(&Thread3c,128,3); 
   NumCreated += OS_AddThread(&Thread4c,128,3); 
   OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
@@ -629,7 +634,7 @@ static long result;
   result = m+n;
   return result;
 }
-int main(void){      // Testmain6
+int testmain6(void){      // Testmain6
   volatile unsigned long delay;
   OS_Init();           // initialize, disable interrupts
   delay = add(3,4);

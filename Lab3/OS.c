@@ -104,11 +104,13 @@ void SysTick_Handler(void);
 // ********* Scheduler *************
 // Calculates next thread to be run and sets NextPt to it
 void Scheduler(void) {
+   
    NextPt = (*RunPt).next;
+
    while ((*NextPt).sleepState != 0 && (*NextPt).blockedState != '\0') {
       NextPt = (*NextPt).next;
   }
-  IntPendSet(FAULT_PENDSV); 
+
 }
 
 // ************ OS_Init ******************
@@ -158,10 +160,10 @@ void OS_Init(void) {
 	TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_B_PERIODIC);
     TimerConfigure(TIMER2_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
     TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
-	TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT | TIMER_TIMB_TIMEOUT);
+	//TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT | TIMER_TIMB_TIMEOUT);
 	TimerLoadSet(TIMER0_BASE, TIMER_B, 65535);
 	TimerEnable(TIMER0_BASE, TIMER_B);
-//    TimerLoadSet(TIMER2_BASE, TIMER_A, TIME_1MS);
+    //TimerLoadSet(TIMER2_BASE, TIMER_A, TIME_1MS);
 
 
 	// Setting priorities for all interrupts
@@ -325,6 +327,9 @@ void OS_Launch(unsigned long theTimeSlice){
   
   SysTickEnable();
   SysTickIntEnable();
+  IntEnable(FAULT_SYSTICK);
+
+  NVIC_CFG_CTRL_R |= 0x00000002;
 
 
   StartOS(); // Assembly language function that initilizes stack for running
@@ -387,11 +392,14 @@ int OS_AddPeriodicThread(void(*task)(void),
       // Set the global function pointer to the address of the provided function
       gThread1p = task;
       gThread1Valid = VALID;
-	  
+
+	  TimerDisable(TIMER2_BASE, TIMER_A);
 	  IntPrioritySet(INT_TIMER2A, priority);
       
 	  // Sets new TIMER2 period
       TimerLoadSet(TIMER2_BASE, TIMER_A, period);
+	  TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+	  TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 	  IntEnable(INT_TIMER2A);
 	  TimerEnable(TIMER2_BASE, TIMER_A);
    } else { 
@@ -399,11 +407,14 @@ int OS_AddPeriodicThread(void(*task)(void),
       gThread2p = task;
       gThread2Valid = VALID;
 
+	  TimerDisable(TIMER2_BASE, TIMER_B);
       IntPrioritySet(INT_TIMER2B, 0);
 
       // Sets new TIMER2 period
       TimerLoadSet(TIMER2_BASE, TIMER_B, period);
-      IntEnable(INT_TIMER2B);
+	  TimerIntClear(TIMER2_BASE, TIMER_TIMB_TIMEOUT);
+      TimerIntEnable(TIMER2_BASE, TIMER_TIMB_TIMEOUT);
+	  IntEnable(INT_TIMER2B);
 	  TimerEnable(TIMER2_BASE, TIMER_B);
    }   
    return 1;
@@ -465,7 +476,7 @@ void OS_Kill(void) {
   tcbType *temp;
 
   // Starting critical section to delete TCB
-  status = StartCritical();
+  OS_DisableInterrupts();
   
   NumThreads--;
   id = (*RunPt).id;
@@ -487,10 +498,8 @@ void OS_Kill(void) {
     Tail = tcbs[id].prev;
   }
 
-  EndCritical(status);
-
   // Trigger threadswitch
-  IntPendSet(FAULT_SYSTICK);
+  OS_Suspend();
   while(1){} // Never leave
 }
 
@@ -501,10 +510,9 @@ void OS_Kill(void) {
 // You are free to select the time resolution for this function
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
-  OS_EnableInterrupts();
   (*RunPt).sleepState = (2*sleepTime);		  
-  IntPendSet(FAULT_SYSTICK); // Triger threadswitch
-  
+  //IntPendSet(FAULT_SYSTICK); // Triger threadswitch
+  OS_Suspend();
   return;
 } 
 
@@ -516,8 +524,30 @@ void OS_Sleep(unsigned long sleepTime) {
 // input:  none
 // output: none
 void OS_Suspend(void) {
-  OS_EnableInterrupts();
-  IntPendSet(FAULT_SYSTICK); // Triger threadswitch
+
+  long curPriority;
+  unsigned long curTimeSlice;
+  volatile int i;
+
+  //OS_DisableInterrupts();
+  IntMasterDisable();
+
+  // Determines NextPt
+  Scheduler();
+
+  // Get priority of next thread and calculate timeslice
+  //curPriority = (*NextPt).priority;
+  //curTimeSlice = calcTimeSlice(curPriority); 
+  //curTimeSlice = gTimeSlice;
+  // Sets next systick period, does not rest counting
+  SysTickPeriodSet(gTimeSlice);
+
+  // Write to register forces systick to reset counting
+  NVIC_ST_CURRENT_R = 0; 
+  
+  IntPendSet(FAULT_PENDSV);
+  IntMasterEnable();
+  //OS_EnableInterrupts();    
   return;
 }
 
@@ -704,21 +734,30 @@ void Timer2A_Handler(void) {
 // input:  pointer to a counting semaphore
 // output: none
 void OS_Wait(Sema4Type *semaPt) {
-	
-  long status;
-  int i;	
-  status = StartCritical();
+
+  //long status;
+
+  //status = StartCritical();
+  
+  tBoolean status;
+  
+  status = IntMasterDisable();
+
   (*semaPt).Value--;
 
   if((*semaPt).Value < 0) {
     (*RunPt).blockedState = semaPt;
 
     OS_Suspend();
-	
-	//for(i = 0; i < 20000; i++) {}
+
+	//while((*RunPt).blockedState == semaPt){}
+  }
+  
+  if(!status) {
+    IntMasterEnable();
   }
 
-  EndCritical(status);
+  //EndCritical(status);
 }
 
 
@@ -728,30 +767,35 @@ void OS_Wait(Sema4Type *semaPt) {
 // output: none   
 void OS_Signal(Sema4Type *semaPt) {
   
-  int i;
-  long status; 
+  //long status; 
   tcbType *tempPt;
-  status = StartCritical();
+  //status = StartCritical();
   
+  tBoolean status;
+  
+  status = IntMasterDisable();
+
   (*semaPt).Value++;
 
   if((*semaPt).Value <= 0) {
 
-	tempPt = (*RunPt).next;
+	tempPt = RunPt;
 
-    for(i = 0; i < NumThreads; i++) {
-
-	  if((*tempPt).blockedState == semaPt) {
-	    (*tempPt).blockedState = '\0'; // Thread can now be switched to
-		break; // Done searching, exit for loop
-	  } else {
-	    tempPt = (*tempPt).next;
+	while((*tempPt).blockedState != semaPt) {
+	  tempPt = (*tempPt).next;
+	  if(tempPt == Head) {
+	   status = status;
 	  }
-
 	}
-  }
 
-  EndCritical(status);
+	(*tempPt).blockedState = '\0';
+
+  }
+  
+  if(!status) {
+    IntMasterEnable();
+  }
+  //EndCritical(status);
 }
 
 // ******** OS_bWait ************
@@ -761,15 +805,30 @@ void OS_Signal(Sema4Type *semaPt) {
 // output: none
 void OS_bWait(Sema4Type *semaPt) {
 
-  OS_DisableInterrupts();
-	
+  long status;
+
+  status = StartCritical();
+  	
   while((*semaPt).Value <= 0) {
 	OS_EnableInterrupts();
 	OS_DisableInterrupts();
   }
 	
   (*semaPt).Value = 0;
-  OS_EnableInterrupts();
+
+  EndCritical(status);
+}
+
+// ******** OS_bSignal ************
+// set semaphore to 1, wakeup blocked thread if appropriate 
+// input:  pointer to a binary semaphore
+// output: none
+void OS_bSignal(Sema4Type *semaPt) {
+	long status;
+
+	status = StartCritical();
+	(*semaPt).Value = 1; //free
+	EndCritical(status);
 }
 
 // ******** Timer2B_Handler ************
@@ -784,7 +843,7 @@ void Timer2B_Handler(void) {
 }
 
 // Clears the interrupt and starts buttion function
-void SelectSwitch_Handler(void){
+void Select_Switch_Handler(void){
 	GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
 	gButtonThreadSelectPt();	
 }
@@ -825,19 +884,24 @@ void SysTick_Handler(void) {
   long curPriority;
   unsigned long curTimeSlice;
 
+  //OS_DisableInterrupts();
+  IntMasterDisable();
   // Determines NextPt
   Scheduler();
 
   // Get priority of next thread and calculate timeslice
-  curPriority = (*NextPt).priority;
+  //curPriority = (*NextPt).priority;
   //curTimeSlice = calcTimeSlice(curPriority); 
-  curTimeSlice = gTimeSlice;
-  // Sets next systick period, does not rest counting
-  SysTickPeriodSet(curTimeSlice);
+  //curTimeSlice = gTimeSlice;
+  // Sets next systick period, does not reset counting
+  SysTickPeriodSet(gTimeSlice);
 
   // Write to register forces systick to reset counting
-  //NVIC_ST_CURRENT_R = 0; 
+  NVIC_ST_CURRENT_R = 0; 
 
+  IntPendSet(FAULT_PENDSV); 
+  //OS_EnableInterrupts();
+  IntMasterEnable();
 }
 
 // ******** Jitter ****************
