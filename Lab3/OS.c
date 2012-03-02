@@ -782,14 +782,16 @@ void OS_Signal(Sema4Type *semaPt) {
 void OS_bWait(Sema4Type *semaPt) {
 
   long status;
+
   status = StartCritical();
-  	
-  while((*semaPt).Value <= 0) {
-	OS_EnableInterrupts();
-	OS_DisableInterrupts();
+
+  (*semaPt).Value--;
+
+  if((*semaPt).Value < 0) {
+    (*RunPt).blockedState = semaPt;
+
+    OS_Suspend();
   }
-	
-  (*semaPt).Value = 0;
 
   EndCritical(status);
 }
@@ -799,11 +801,30 @@ void OS_bWait(Sema4Type *semaPt) {
 // input:  pointer to a binary semaphore
 // output: none
 void OS_bSignal(Sema4Type *semaPt) {
-	long status;
 
-	status = StartCritical();
-	(*semaPt).Value = 1; //free
-	EndCritical(status);
+  long status;
+  tcbType (*tempPt);
+
+  status = StartCritical();
+  
+  if((*semaPt).Value != 1) {
+    
+	(*semaPt).Value++;
+
+    if((*semaPt).Value <= 0) {
+	  
+	  tempPt = RunPt;
+
+	  while((*tempPt).blockedState != semaPt) {
+	    tempPt = (*tempPt).next;
+	  }
+
+	  (*tempPt).blockedState = '\0';
+
+      }
+  }
+  
+  EndCritical(status);
 }
 
 // ******** Timer2B_Handler ************

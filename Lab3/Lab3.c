@@ -414,7 +414,7 @@ void BackgroundThread5c(void){   // called when Select button pushed
   NumCreated += OS_AddThread(&Thread4c,128,3); 
 }
       
-int main(void){   // Testmain3
+int testmain3(void){   // Testmain3
   Count4 = 0;          
   OS_Init();           // initialize, disable interrupts
 // Count2 + Count5 should equal Count1 (Count5 may be zero)
@@ -444,7 +444,7 @@ Sema4Type Readyd;        // set in background
 void BackgroundThread1d(void){   // called at 1000 Hz
 static int i=0;
   i++;
-  if(i==50){
+  if(i==500){
     i = 0;         //every 50 ms
     Count1++;
     OS_bSignal(&Readyd);
@@ -475,7 +475,7 @@ void Thread4d(void){ int i;
 void BackgroundThread5d(void){   // called when Select button pushed
   NumCreated += OS_AddThread(&Thread4d,128,3); 
 }
-int Testmain4(void){   // Testmain4
+int main(void){   // Testmain4
   Count4 = 0;          
   OS_Init();           // initialize, disable interrupts
   NumCreated = 0 ;
