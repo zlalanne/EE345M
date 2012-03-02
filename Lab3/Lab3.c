@@ -362,18 +362,20 @@ int testmain2(void){  // testmain2
 Sema4Type Readyc;        // set in background
 int Lost;
 void BackgroundThread1c(void){   // called at 1000 Hz
-  Count1++;
-  OS_Signal(&Readyc);
+  if(Count1 != 2000) { 
+    Count1++;
+	OS_Signal(&Readyc);
+  }
+  
 }
 void Thread5c(void){
   for(;;){
     OS_Wait(&Readyc);
     Count5++;   // Count2 + Count5 should equal Count1 
-    Lost = Count1-Count5-Count2;
-	if(Lost == 1) {
-	  Lost = Lost;
+    
+	if(Count5 == 1000) {
+	  OS_Kill();
 	}
-
   }
 }
 void Thread2c(void){
@@ -387,6 +389,9 @@ void Thread2c(void){
     OS_Wait(&Readyc);
     Count2++;   // Count2 + Count5 should equal Count1, Count5 may be 0
 	//Lost = Count1-Count5-Count2;
+	if(Count2 == 1000) {
+	  OS_Kill();
+	}
   }
 }
 
@@ -394,6 +399,7 @@ void Thread3c(void){
   Count3 = 0;          
   for(;;){
     Count3++;
+	Lost = Count1-Count5-Count2;
   }
 }
 void Thread4c(void){ int i;

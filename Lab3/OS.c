@@ -471,7 +471,6 @@ int OS_AddDownTask(void(*task)(void), unsigned long priority) {
 // output: none
 void OS_Kill(void) {
 
-  long status;
   int id;
   tcbType *temp;
 
@@ -529,8 +528,7 @@ void OS_Suspend(void) {
   unsigned long curTimeSlice;
   volatile int i;
 
-  //OS_DisableInterrupts();
-  IntMasterDisable();
+  OS_DisableInterrupts();
 
   // Determines NextPt
   Scheduler();
@@ -546,8 +544,8 @@ void OS_Suspend(void) {
   NVIC_ST_CURRENT_R = 0; 
   
   IntPendSet(FAULT_PENDSV);
-  IntMasterEnable();
-  //OS_EnableInterrupts();    
+
+  OS_EnableInterrupts();    
   return;
 }
 
@@ -735,13 +733,9 @@ void Timer2A_Handler(void) {
 // output: none
 void OS_Wait(Sema4Type *semaPt) {
 
-  //long status;
+  long status;
 
-  //status = StartCritical();
-  
-  tBoolean status;
-  
-  status = IntMasterDisable();
+  status = StartCritical();
 
   (*semaPt).Value--;
 
@@ -749,15 +743,9 @@ void OS_Wait(Sema4Type *semaPt) {
     (*RunPt).blockedState = semaPt;
 
     OS_Suspend();
-
-	//while((*RunPt).blockedState == semaPt){}
-  }
-  
-  if(!status) {
-    IntMasterEnable();
   }
 
-  //EndCritical(status);
+  EndCritical(status);
 }
 
 
@@ -767,13 +755,10 @@ void OS_Wait(Sema4Type *semaPt) {
 // output: none   
 void OS_Signal(Sema4Type *semaPt) {
   
-  //long status; 
-  tcbType *tempPt;
-  //status = StartCritical();
-  
-  tBoolean status;
-  
-  status = IntMasterDisable();
+  long status;
+  tcbType (*tempPt);
+
+  status = StartCritical();
 
   (*semaPt).Value++;
 
@@ -783,19 +768,13 @@ void OS_Signal(Sema4Type *semaPt) {
 
 	while((*tempPt).blockedState != semaPt) {
 	  tempPt = (*tempPt).next;
-	  if(tempPt == Head) {
-	   status = status;
-	  }
 	}
 
 	(*tempPt).blockedState = '\0';
 
   }
   
-  if(!status) {
-    IntMasterEnable();
-  }
-  //EndCritical(status);
+  EndCritical(status);
 }
 
 // ******** OS_bWait ************
