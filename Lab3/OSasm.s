@@ -100,6 +100,7 @@ PendSV_Handler                 ; 1) Saves R0-R3,R12,LR,PC,PSR
 	
 	LDR 	R1, =NextPt        ; 6) R1=pointer to NextPt, next thread
 	LDR		R1, [R1]		   ;    R1 = NextPt
+	
 	STR		R1, [R0] 		   ; 7) Update Runpt to NextPt
     LDR     SP, [R1]           ; 8) new thread SP; SP = RunPt->sp;
 

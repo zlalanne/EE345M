@@ -231,12 +231,12 @@ unsigned long OS_MsTime(unsigned long threadnumber);
 void OS_Launch(unsigned long theTimeSlice);
 
 // Assembly function protoypes
-void OS_DisableInterrupts(void); // Disable interrupts
-void OS_EnableInterrupts(void);  // Enable interrupts
-long StartCritical(void);
-void EndCritical(long primask);
-void StartOS(void);
-void PendSV_Handler(void);
+extern void OS_DisableInterrupts(void); // Disable interrupts
+extern void OS_EnableInterrupts(void);  // Enable interrupts
+extern long StartCritical(void);
+extern void EndCritical(long primask);
+extern void StartOS(void);
+extern void PendSV_Handler(void);
 
 // ******** OS_Wait ************
 // decrement semaphore and spin/block if less than zero
