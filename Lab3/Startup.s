@@ -86,6 +86,7 @@ __heap_limit
 		EXTERN Down_Switch_Handler
 		EXTERN UART0_Handler
 		EXTERN ADC0S0_Handler
+		EXTERN Timer2B_Handler
 
 ;******************************************************************************
 ;
@@ -111,7 +112,7 @@ __Vectors
         DCD     PendSV_Handler              ; PendSV Handler
         DCD     SysTick_Handler             ; SysTick Handler
         DCD     IntDefaultHandler           ; GPIO Port A
-        DCD     IntDefaultHandler           ; GPIO Port B
+        DCD     FindHandler                 ; GPIO Port B
         DCD     IntDefaultHandler           ; GPIO Port C
         DCD     IntDefaultHandler           ; GPIO Port D
         DCD     Down_Switch_Handler           ; GPIO Port E
@@ -134,7 +135,7 @@ __Vectors
         DCD     IntDefaultHandler           ; Timer 1 subtimer A
         DCD     IntDefaultHandler           ; Timer 1 subtimer B
         DCD     Timer2A_Handler             ; Timer 2 subtimer A
-        DCD     IntDefaultHandler           ; Timer 2 subtimer B
+        DCD     Timer2B_Handler           ; Timer 2 subtimer B
         DCD     IntDefaultHandler           ; Analog Comparator 0
         DCD     IntDefaultHandler           ; Analog Comparator 1
         DCD     IntDefaultHandler           ; Analog Comparator 2
@@ -303,6 +304,9 @@ FaultISR
 ;******************************************************************************
 IntDefaultHandler
         B       IntDefaultHandler
+
+FindHandler
+        B       FindHandler
 
 ;******************************************************************************
 ;

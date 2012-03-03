@@ -362,20 +362,13 @@ int testmain2(void){  // testmain2
 Sema4Type Readyc;        // set in background
 int Lost;
 void BackgroundThread1c(void){   // called at 1000 Hz
-  if(Count1 != 2000) { 
     Count1++;
 	OS_Signal(&Readyc);
-  }
-  
 }
 void Thread5c(void){
   for(;;){
     OS_Wait(&Readyc);
     Count5++;   // Count2 + Count5 should equal Count1 
-    
-	if(Count5 == 1000) {
-	  OS_Kill();
-	}
   }
 }
 void Thread2c(void){
@@ -388,10 +381,6 @@ void Thread2c(void){
   for(;;){
     OS_Wait(&Readyc);
     Count2++;   // Count2 + Count5 should equal Count1, Count5 may be 0
-	//Lost = Count1-Count5-Count2;
-	if(Count2 == 1000) {
-	  OS_Kill();
-	}
   }
 }
 
@@ -475,7 +464,7 @@ void Thread4d(void){ int i;
 void BackgroundThread5d(void){   // called when Select button pushed
   NumCreated += OS_AddThread(&Thread4d,128,3); 
 }
-int main(void){   // Testmain4
+int testmain4(void){   // Testmain4
   Count4 = 0;          
   OS_Init();           // initialize, disable interrupts
   NumCreated = 0 ;
@@ -484,7 +473,7 @@ int main(void){   // Testmain4
   NumCreated += OS_AddThread(&Thread2d,128,2); 
   NumCreated += OS_AddThread(&Thread3d,128,3); 
   NumCreated += OS_AddThread(&Thread4d,128,3); 
-  OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
+  OS_Launch(TIMESLICE/16); // doesn't return, interrupts enabled in here
   return 0;  // this never executes
 }
 
@@ -511,7 +500,7 @@ unsigned long Count1;   // number of times thread1 loops
 // Output: none
 void PseudoWork(unsigned short work){
 unsigned short startTime;
-  startTime = OS_Time();    // time in 100ns units
+  startTime = OS_Time();    // time in 20ns units
   while(OS_TimeDifference(startTime,OS_Time()) <= work){} 
 }
 void Thread6(void){  // foreground thread
@@ -523,21 +512,21 @@ void Thread6(void){  // foreground thread
 }
 extern void Jitter(void);   // prints jitter information (write this)
 void Thread7(void){  // foreground thread
-  printf("\n\rEE345M/EE380L, Lab 3 Preparation 2\n\r");
+  UART0_SendString("\n\rEE345M/EE380L, Lab 3 Preparation 2\n\r");
   OS_Sleep(5000);   // 10 seconds        
   Jitter();         // print jitter information
-  printf("\n\r\n\r");
+  UART0_SendString("\n\r\n\r");
   OS_Kill();
 }
-#define workA 500       // {5,50,500 us} work in Task A
-#define counts1us 10    // number of OS_Time counts per 1us
+#define workA 50       // {5,50,500 us} work in Task A
+#define counts1us 50    // number of OS_Time counts per 1us
 void TaskA(void){       // called every {1000, 2990us} in background
   GPIO_PB1 = 0x02;      // debugging profile  
   CountA++;
   PseudoWork(workA*counts1us); //  do work (100ns time resolution)
   GPIO_PB1 = 0x00;      // debugging profile  
 }
-#define workB 250       // 250 us work in Task B
+#define workB 25       // 250 us work in Task B
 void TaskB(void){       // called every pB in background
   GPIO_PB2 = 0x04;      // debugging profile  
   CountB++;
@@ -545,7 +534,7 @@ void TaskB(void){       // called every pB in background
   GPIO_PB2 = 0x00;      // debugging profile  
 }
 
-int Testmain5(void){       // Testmain5
+int main(void){       // Testmain5
   volatile unsigned long delay;
   SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOB; // activate port B
   delay = SYSCTL_RCGC2_R;     // allow time to finish activating
@@ -553,10 +542,11 @@ int Testmain5(void){       // Testmain5
   GPIO_PORTB_DEN_R |= 0x07;   // enable digital I/O on PB2, PB1, PB0
   OS_Init();           // initialize, disable interrupts
   NumCreated = 0 ;
-  NumCreated += OS_AddThread(&Thread6,128,2); 
   NumCreated += OS_AddThread(&Thread7,128,1); 
-  OS_AddPeriodicThread(&TaskA,1,TIME_1MS,0);           // 1 ms, higher priority
-  OS_AddPeriodicThread(&TaskB,2,2*TIME_1MS,1);         // 2 ms, lower priority
+  NumCreated += OS_AddThread(&Thread6,128,2); 
+  
+  OS_AddPeriodicThread(&TaskA,1,TIME_1MS/2,0);           // 1 ms, higher priority
+  OS_AddPeriodicThread(&TaskB,2,TIME_1MS,1);         // 2 ms, lower priority
  
   OS_Launch(TIMESLICE); // 2ms, doesn't return, interrupts enabled in here
   return 0;             // this never executes
