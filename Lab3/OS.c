@@ -150,9 +150,10 @@ void OS_Init(void) {
   
   // Initialize Timer0B
   TimerDisable(TIMER0_BASE, TIMER_B);
-  TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_B_PERIODIC);
+  TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
   TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
   TimerLoadSet(TIMER0_BASE, TIMER_B, 65535);
+  TimerPrescaleSet(TIMER0_BASE, TIMER_B, 5); // One unit is 100ns
   TimerEnable(TIMER0_BASE, TIMER_B);
 
   // Setting priorities for all interrupts
@@ -162,8 +163,8 @@ void OS_Init(void) {
   IntPrioritySet(FAULT_SYSTICK, (0x06 << 5));
 
   IntPrioritySet(INT_UART0, (0x03 << 5));
-  IntPrioritySet(INT_ADC0SS0, (0x02 << 5));
-  IntPrioritySet(INT_ADC0SS3, (0x02 << 5));
+  IntPrioritySet(INT_ADC0SS0, (0x00 << 5));
+  IntPrioritySet(INT_ADC0SS3, (0x00 << 5));
 
   // Initializing TCBs
   for(i = 0; i < MAXTHREADS; i++) {
@@ -426,6 +427,7 @@ int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
   gButtonThreadSelectPriority = priority;
 
   // Enabling interrupts
+  GPIOPinIntClear(GPIO_PORTF_BASE,GPIO_PIN_1);
   GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
   IntPrioritySet(INT_GPIOF, (priority << 5));
   IntEnable(INT_GPIOF);
@@ -457,6 +459,7 @@ int OS_AddDownTask(void(*task)(void), unsigned long priority) {
   gButtonThreadDownPriority = priority;
 
   // Enabling interrupts
+  GPIOPinIntClear(GPIO_PORTE_BASE,GPIO_PIN_1);
   GPIOPinIntEnable(GPIO_PORTE_BASE, GPIO_PIN_1);
   IntPrioritySet(INT_GPIOE, (priority << 5));
   IntEnable(INT_GPIOE);
@@ -551,7 +554,7 @@ void OS_Suspend(void) {
 // ******** OS_Time ************
 // reads a timer value
 // Inputs:  none
-// Outputs: time in 20ns units, 0 to max
+// Outputs: time in 100ns units, 0 to max
 // The time resolution should be at least 1us, and the precision at least 12 bits
 // It is ok to change the resolution and precision of this function as long as
 //   this function and OS_TimeDifference have the same resolution and precision
@@ -562,7 +565,7 @@ unsigned long OS_Time() {
 // ******** OS_TimeDifference ************
 // Calculates difference between two times
 // Inputs:  two times measured with OS_Time
-// Outputs: time difference in 20ns units
+// Outputs: time difference in 100ns units
 // The time resolution should be at least 1us, and the precision at least 12 bits
 // It is ok to change the resolution and precision of this function as long as
 //   this function and OS_Time have the same resolution and precision
@@ -754,57 +757,108 @@ void OS_Signal(Sema4Type *semaPt) {
   EndCritical(status);
 }
 
+//// ******** OS_bWait ************
+//// if the semaphore is 0 then spin/block
+//// if the semaphore is 1, then clear semaphore to 0
+//// input:  pointer to a binary semaphore
+//// output: none
+//void OS_bWait(Sema4Type *semaPt) {
+//
+//  long status;
+//
+//  status = StartCritical();
+//
+//  (*semaPt).Value--;
+//
+//  if((*semaPt).Value < 0) {
+//    (*RunPt).blockedState = semaPt;
+//
+//    OS_Suspend();
+//  }
+//
+//  EndCritical(status);
+//}
+//
+//// ******** OS_bSignal ************
+//// set semaphore to 1, wakeup blocked thread if appropriate
+//// input:  pointer to a binary semaphore
+//// output: none
+//void OS_bSignal(Sema4Type *semaPt) {
+//
+//  long status;
+//  tcbType (*tempPt);
+//
+//  status = StartCritical();
+//
+//  if((*semaPt).Value != 1) {
+//
+//	(*semaPt).Value++;
+//
+//    if((*semaPt).Value <= 0) {
+//
+//	  tempPt = RunPt;
+//
+//	  while((*tempPt).blockedState != semaPt) {
+//	    tempPt = (*tempPt).next;
+//	  }
+//
+//	  (*tempPt).blockedState = '\0';
+//
+//      }
+//  }
+//
+//  EndCritical(status);
+//}
+
 // ******** OS_bWait ************
 // if the semaphore is 0 then spin/block
 // if the semaphore is 1, then clear semaphore to 0
 // input:  pointer to a binary semaphore
 // output: none
-void OS_bWait(Sema4Type *semaPt) {
-
-  long status;
-
-  status = StartCritical();
-
-  (*semaPt).Value--;
-
-  if((*semaPt).Value < 0) {
-    (*RunPt).blockedState = semaPt;
-
-    OS_Suspend();
-  }
-
-  EndCritical(status);
-}
+void OS_bWait(Sema4Type *semaPt)
+{
+	tBoolean interruptsDisabled;
+	interruptsDisabled = IntMasterDisable();
+	if(semaPt->Value == 1) {
+		semaPt->Value = 0;
+	}
+	else {
+		RunPt->blockedState = semaPt;
+		OS_Suspend();
+	}
+	if(!interruptsDisabled) {
+		IntMasterEnable();
+	}
+} 
 
 // ******** OS_bSignal ************
-// set semaphore to 1, wakeup blocked thread if appropriate
+// set semaphore to 1, wakeup blocked thread if appropriate 
 // input:  pointer to a binary semaphore
 // output: none
-void OS_bSignal(Sema4Type *semaPt) {
-
-  long status;
-  tcbType (*tempPt);
-
-  status = StartCritical();
-
-  if((*semaPt).Value != 1) {
-
-	(*semaPt).Value++;
-
-    if((*semaPt).Value <= 0) {
-
-	  tempPt = RunPt;
-
-	  while((*tempPt).blockedState != semaPt) {
-	    tempPt = (*tempPt).next;
-	  }
-
-	  (*tempPt).blockedState = '\0';
-
-      }
-  }
-
-  EndCritical(status);
+void OS_bSignal(Sema4Type *semaPt)
+{
+	tBoolean interruptsDisabled;
+	interruptsDisabled = IntMasterDisable();
+	if(semaPt->Value == 0) {
+		tcbType* tempPt = Head;
+		tBoolean flag = false;
+		
+		do {
+			if(tempPt->blockedState == semaPt) {
+				tempPt->blockedState = 0;
+				flag = true;
+				break;
+			}
+			tempPt = tempPt->next;
+		} while(tempPt != Head);
+		
+		if(!flag) {
+			semaPt->Value = 1;
+		}
+	}
+	if(!interruptsDisabled) {
+		IntMasterEnable();
+	}
 }
 
 // ******** Timer2A_Handler ************
@@ -930,7 +984,7 @@ void Jitter1(void) {
   unsigned long thisTime;
   long jitter;
   thisTime = OS_Time();
-  jitter = OS_TimeDifference(thisTime, LastTime) / 50 - gThread1Period / 50; // in usec
+  jitter = (OS_TimeDifference(thisTime, LastTime) / 10) - (gThread1Period / 50); // in usec
   if(jitter > MaxJitter1) {
     MaxJitter1 = jitter;
   }
@@ -954,7 +1008,7 @@ void Jitter2(void) {
   unsigned long thisTime;
   long jitter;
   thisTime = OS_Time();
-  jitter = OS_TimeDifference(thisTime, LastTime) / 50 - gThread2Period / 50; // in usec
+  jitter = (OS_TimeDifference(thisTime, LastTime) / 10) - (gThread2Period / 50); // in usec
   if(jitter > MaxJitter2) {
     MaxJitter2 = jitter;
   }

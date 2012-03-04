@@ -87,7 +87,7 @@ unsigned long myId = OS_Id();
   }
   oLED_Message(1,1,"PIDWork    =",PIDWork);
   oLED_Message(1,2,"DataLost   =",DataLost);
-  oLED_Message(1,3,"0.1u Jitter=",MaxJitter1-MinJitter1);
+  oLED_Message(1,3,"0.1u Jitter1=",MaxJitter1-MinJitter1);
   OS_Kill();  // done
 } 
 
@@ -235,19 +235,20 @@ extern void Interpreter(void);    // just a prototype, link to your interpreter
 //--------------end of Task 5-----------------------------
 
 //*******************final user main DEMONTRATE THIS TO TA**********
-int realmain(void){        // lab 3 real main
+int main(void){        // lab 3 real main
   OS_Init();           // initialize, disable interrupts
 
   DataLost = 0;        // lost data between producer and consumer
   NumSamples = 0;
-
+  MaxJitter1 = 0;
+  MinJitter1 = 10000000;
 //********initialize communication channels
   OS_MailBox_Init();
   OS_Fifo_Init(32);    // ***note*** 4 is not big enough*****
 
 //*******attach background tasks***********
   OS_AddButtonTask(&ButtonPush,2);
-  OS_AddButtonTask(&DownPush,3);
+  OS_AddDownTask(&DownPush,3);
   OS_AddPeriodicThread(&DAS,1,PERIOD,1); // 2 kHz real time sampling
 
   NumCreated = 0 ;
@@ -500,7 +501,7 @@ unsigned long Count1;   // number of times thread1 loops
 // Output: none
 void PseudoWork(unsigned short work){
 unsigned short startTime;
-  startTime = OS_Time();    // time in 20ns units
+  startTime = OS_Time();    // time in 100ns units
   while(OS_TimeDifference(startTime,OS_Time()) <= work){} 
 }
 void Thread6(void){  // foreground thread
@@ -518,8 +519,8 @@ void Thread7(void){  // foreground thread
   UART0_SendString("\n\r\n\r");
   OS_Kill();
 }
-#define workA 50       // {5,50,500 us} work in Task A
-#define counts1us 50    // number of OS_Time counts per 1us
+#define workA 250       // {5,50,500 us} work in Task A
+#define counts1us 10    // number of OS_Time counts per 1us
 void TaskA(void){       // called every {1000, 2990us} in background
   GPIO_PB1 = 0x02;      // debugging profile  
   CountA++;
@@ -534,7 +535,7 @@ void TaskB(void){       // called every pB in background
   GPIO_PB2 = 0x00;      // debugging profile  
 }
 
-int main(void){       // Testmain5
+int testmain5(void){       // Testmain5
   volatile unsigned long delay;
   SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOB; // activate port B
   delay = SYSCTL_RCGC2_R;     // allow time to finish activating
@@ -571,13 +572,15 @@ unsigned long WaitCount2;     // number of times s is successfully waited on
 unsigned long WaitCount3;     // number of times s is successfully waited on
 #define MAXCOUNT 20000
 void OutputThread(void){  // foreground thread
-  printf("\n\rEE345M/EE380L, Lab 3 Preparation 4\n\r");
+  char buffer[60];
+  UART0_SendString("\n\rEE345M/EE380L, Lab 3 Preparation 4\n\r");
   while(SignalCount1+SignalCount2+SignalCount3<100*MAXCOUNT){
     OS_Sleep(1000);   // 1 second
-    printf(".");
+    UART0_SendString(".");
   }       
-  printf(" done\n\r");
-  printf("Signalled=%u, Waited=%u\n\r",SignalCount1+SignalCount2+SignalCount3,WaitCount1+WaitCount2+WaitCount3);
+  UART0_SendString(" done\n\r");
+  snprintf(buffer, 60, "Signalled=%u, Waited=%u\n\r",SignalCount1+SignalCount2+SignalCount3,WaitCount1+WaitCount2+WaitCount3);
+  UART0_SendString(buffer);
 
   OS_Kill();
 }
@@ -610,11 +613,11 @@ void Signal2(void){       // called every 1111us in background
   if(SignalCount2<MAXCOUNT){
     OS_Signal(&s);
     SignalCount2++;
-//    if((SignalCount2%1000)<500){
-//      TIMER2_TAILR_R += 3;  // increasing period
-//	} else{
-//	  TIMER2_TAILR_R -= 3;  // decreasing period
-//	}
+    if((SignalCount2%1000)<500){
+      TIMER2_TAILR_R += 3;  // increasing period
+	} else{
+	  TIMER2_TAILR_R -= 3;  // decreasing period
+	}
   }
 }
 void Signal3(void){       // foreground

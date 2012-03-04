@@ -98,7 +98,7 @@ int ADC_Collect(unsigned int channelNum, unsigned int fs,
   TimerDisable(TIMER0_BASE, TIMER_A);
 
   // Configure as 16 bit timer and trigger ADC conversion
-  TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC);
+  TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
   TimerControlTrigger(TIMER0_BASE, TIMER_A, true);
 
   TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet()/ fs);

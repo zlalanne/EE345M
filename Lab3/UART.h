@@ -43,7 +43,7 @@
 
 
 // UART Parameters
-#define BAUD 9600
+#define BAUD 115200
 
 //------------UART0_Init------------
 // Initilizes UART0 as interpreturer
