@@ -88,7 +88,6 @@ unsigned long myId = OS_Id();
   oLED_Message(1,1,"PIDWork    =",PIDWork);
   oLED_Message(1,2,"DataLost   =",DataLost);
   oLED_Message(1,3,"0.1u Jitter=",MaxJitter1-MinJitter1);
-  //Jitter();
 
   OS_Kill();  // done
 } 
@@ -149,7 +148,7 @@ void Consumer(void){
 unsigned long data,DCcomponent; // 10-bit raw ADC sample, 0 to 1023
 unsigned long t;  // time in ms
 unsigned long myId = OS_Id(); 
-  //ADC_Collect(0, 1000, &Producer); // start ADC sampling, channel 0, 1000 Hz
+  ADC_Collect(0, 1000, &Producer); // start ADC sampling, channel 0, 1000 Hz
   NumCreated += OS_AddThread(&Display,128,0); 
   while(NumSamples < RUNLENGTH) { 
     for(t = 0; t < 64; t++){   // collect 64 ADC samples

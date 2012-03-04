@@ -144,12 +144,12 @@ void OS_Init(void) {
   GPIOIntTypeSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
   GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
 
-  // Initialize Timer2A and Timer2B
+  // Initialize Timer2A and Timer2B: Periodic Background Threads
   SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
   TimerDisable(TIMER2_BASE, TIMER_A | TIMER_B);
   TimerConfigure(TIMER2_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
   
-  // Initialize Timer0B
+  // Initialize Timer0B: Used for time keeping
   TimerDisable(TIMER0_BASE, TIMER_B);
   TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
   TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
@@ -157,7 +157,7 @@ void OS_Init(void) {
   TimerPrescaleSet(TIMER0_BASE, TIMER_B, 5); // One unit is 100ns
   TimerEnable(TIMER0_BASE, TIMER_B);
 
-  // Initialize Timer1A
+  // Initialize Timer1A: Used for sleep decrementing
   SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
   TimerDisable(TIMER1_BASE, TIMER_A);
   TimerConfigure(TIMER1_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
@@ -312,17 +312,17 @@ void OS_Launch(unsigned long theTimeSlice) {
   curTimeSlice = calcTimeSlice(curPriority);
   SysTickPeriodSet(curTimeSlice);
 
-  // Enable and reset Systick
-  SysTickEnable();
-  SysTickIntEnable();
-  NVIC_ST_CURRENT_R = 0;
-  IntEnable(FAULT_SYSTICK);
-
   // Enable sleeping decrementer
   TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
   TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
   TimerEnable(TIMER1_BASE, TIMER_A);
   IntEnable(INT_TIMER1A);
+
+  // Enable and reset Systick
+  SysTickEnable();
+  SysTickIntEnable();
+  NVIC_ST_CURRENT_R = 0;
+  IntEnable(FAULT_SYSTICK);
 
   StartOS(); // Assembly language function that initilizes stack for running
 
@@ -942,12 +942,10 @@ void SysTick_Handler(void) {
 }
 
 // ******** Jitter ****************
-// prints the jitter info for the first periodic background thread
+// prints the jitter info for the both periodic background thread
 void Jitter(void) {
   oLED_Message(1, 2, "0.1u Jitter1=", MaxJitter1 - MinJitter1);
   oLED_Message(1, 3, "0.1u Jitter2=", MaxJitter2 - MinJitter2);
-  //oLED_Message(1,3,"0.1u Jitter=",MaxJitter1-MinJitter1);
-
 }
 
 // ******** Jitter1 ***************
@@ -965,30 +963,23 @@ void Jitter1(void) {
   
   thisTime = OS_Time();
 
-  if(DebugIndex < 100){
-    DebugDump[DebugIndex] = thisTime;
-	DebugIndex++;
-  }
-
   if(First == FALSE) {
-	  jitter = (OS_TimeDifference(thisTime, LastTime) / 10) - (gThread1Period / 50); // in usec
-	  if(jitter > MaxJitter1) {
-	    MaxJitter1 = jitter;
-	  }
-	  if(jitter < MinJitter1) {
-	    MinJitter1 = jitter;
-	  }
-	  index = jitter + JITTERSIZE / 2; // us units
-	  if(index < 0)
-	    index = 0;
-	  if(index >= JitterSize)
-	    index = JITTERSIZE - 1;
-	  JitterHistogram1[index]++;
+    jitter = (OS_TimeDifference(thisTime, LastTime) / 10) - (gThread1Period / 50); // in usec
+	if(jitter > MaxJitter1) {
+	  MaxJitter1 = jitter;
+	}
+	if(jitter < MinJitter1) {
+	  MinJitter1 = jitter;
+	}
+	index = jitter + JITTERSIZE / 2; // us units
+	if(index < 0)
+	  index = 0;
+	if(index >= JitterSize)
+	  index = JITTERSIZE - 1;
+	JitterHistogram1[index]++;
   } else {
     First = FALSE;
   }
-
-
 
   LastTime = thisTime;
 }
@@ -998,21 +989,29 @@ void Jitter1(void) {
 void Jitter2(void) {
   int index;
   unsigned static long LastTime;
+  static char First = TRUE;
   unsigned long thisTime;
   long jitter;
+
   thisTime = OS_Time();
-  jitter = (OS_TimeDifference(thisTime, LastTime) / 10) - (gThread2Period / 50); // in usec
-  if(jitter > MaxJitter2) {
-    MaxJitter2 = jitter;
+
+  if(First == FALSE) {
+    jitter = (OS_TimeDifference(thisTime, LastTime) / 10) - (gThread2Period / 50); // in usec
+    if(jitter > MaxJitter2) {
+      MaxJitter2 = jitter;
+    }
+    if(jitter < MinJitter2) {
+      MinJitter2 = jitter;
+    }
+    index = jitter + JITTERSIZE / 2; // us units
+    if(index < 0)
+      index = 0;
+    if(index >= JitterSize)
+      index = JITTERSIZE - 1;
+    JitterHistogram2[index]++;
+  } else {
+    First = FALSE;
   }
-  if(jitter < MinJitter2) {
-    MinJitter2 = jitter;
-  }
-  index = jitter + JITTERSIZE / 2; // us units
-  if(index < 0)
-    index = 0;
-  if(index >= JitterSize)
-    index = JITTERSIZE - 1;
-  JitterHistogram2[index]++;
+  
   LastTime = thisTime;
 }
