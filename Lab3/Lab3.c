@@ -81,13 +81,15 @@ unsigned long i;
 unsigned long myId = OS_Id(); 
   oLED_Message(1,0,"NumCreated =",NumCreated); 
   if(NumSamples < RUNLENGTH){   // finite time run
-    for(i=0;i<20;i++){  // runs for 2 seconds
-      OS_Sleep(50);     // set this to sleep for 0.1 sec
+    for(i=0;i<40;i++){  // runs for 2 seconds
+      OS_Sleep(50);     // sleep for 50ms
     }
   }
   oLED_Message(1,1,"PIDWork    =",PIDWork);
   oLED_Message(1,2,"DataLost   =",DataLost);
-  oLED_Message(1,3,"0.1u Jitter1=",MaxJitter1-MinJitter1);
+  oLED_Message(1,3,"0.1u Jitter=",MaxJitter1-MinJitter1);
+  //Jitter();
+
   OS_Kill();  // done
 } 
 
@@ -147,7 +149,7 @@ void Consumer(void){
 unsigned long data,DCcomponent; // 10-bit raw ADC sample, 0 to 1023
 unsigned long t;  // time in ms
 unsigned long myId = OS_Id(); 
-  ADC_Collect(0, 1000, &Producer); // start ADC sampling, channel 0, 1000 Hz
+  //ADC_Collect(0, 1000, &Producer); // start ADC sampling, channel 0, 1000 Hz
   NumCreated += OS_AddThread(&Display,128,0); 
   while(NumSamples < RUNLENGTH) { 
     for(t = 0; t < 64; t++){   // collect 64 ADC samples
@@ -240,8 +242,7 @@ int main(void){        // lab 3 real main
 
   DataLost = 0;        // lost data between producer and consumer
   NumSamples = 0;
-  MaxJitter1 = 0;
-  MinJitter1 = 10000000;
+
 //********initialize communication channels
   OS_MailBox_Init();
   OS_Fifo_Init(32);    // ***note*** 4 is not big enough*****
@@ -249,13 +250,14 @@ int main(void){        // lab 3 real main
 //*******attach background tasks***********
   OS_AddButtonTask(&ButtonPush,2);
   OS_AddDownTask(&DownPush,3);
-  OS_AddPeriodicThread(&DAS,1,PERIOD,1); // 2 kHz real time sampling
+  OS_AddPeriodicThread(&DAS,1,PERIOD,0); // 2 kHz real time sampling
 
   NumCreated = 0 ;
 // create initial foreground threads
   NumCreated += OS_AddThread(&Interpreter,128,2); 
   NumCreated += OS_AddThread(&Consumer,128,1); 
-  NumCreated += OS_AddThread(&PID,128,3); 
+  NumCreated += OS_AddThread(&PID,128,3);
+
  
   OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
   return 0;             // this never executes
@@ -519,7 +521,7 @@ void Thread7(void){  // foreground thread
   UART0_SendString("\n\r\n\r");
   OS_Kill();
 }
-#define workA 250       // {5,50,500 us} work in Task A
+#define workA 5       // {5,50,500 us} work in Task A
 #define counts1us 10    // number of OS_Time counts per 1us
 void TaskA(void){       // called every {1000, 2990us} in background
   GPIO_PB1 = 0x02;      // debugging profile  
@@ -546,7 +548,7 @@ int testmain5(void){       // Testmain5
   NumCreated += OS_AddThread(&Thread7,128,1); 
   NumCreated += OS_AddThread(&Thread6,128,2); 
   
-  OS_AddPeriodicThread(&TaskA,1,TIME_1MS/2,0);           // 1 ms, higher priority
+  OS_AddPeriodicThread(&TaskA,1,TIME_1MS/2,0);        // 1 ms, higher priority
   OS_AddPeriodicThread(&TaskB,2,TIME_1MS,1);         // 2 ms, lower priority
  
   OS_Launch(TIMESLICE); // 2ms, doesn't return, interrupts enabled in here

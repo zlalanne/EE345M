@@ -87,6 +87,7 @@ __heap_limit
 		EXTERN UART0_Handler
 		EXTERN ADC0S0_Handler
 		EXTERN Timer2B_Handler
+		EXTERN Timer1A_Handler
 
 ;******************************************************************************
 ;
@@ -115,7 +116,7 @@ __Vectors
         DCD     FindHandler                 ; GPIO Port B
         DCD     IntDefaultHandler           ; GPIO Port C
         DCD     IntDefaultHandler           ; GPIO Port D
-        DCD     Down_Switch_Handler           ; GPIO Port E
+        DCD     Down_Switch_Handler         ; GPIO Port E
         DCD     UART0_Handler               ; UART0 Rx and Tx
         DCD     IntDefaultHandler           ; UART1 Rx and Tx
         DCD     IntDefaultHandler           ; SSI0 Rx and Tx
@@ -125,17 +126,17 @@ __Vectors
         DCD     IntDefaultHandler           ; PWM Generator 1
         DCD     IntDefaultHandler           ; PWM Generator 2
         DCD     IntDefaultHandler           ; Quadrature Encoder 0
-        DCD     ADC0S0_Handler                ; ADC Sequence 0
+        DCD     ADC0S0_Handler              ; ADC Sequence 0
         DCD     IntDefaultHandler           ; ADC Sequence 1
         DCD     IntDefaultHandler           ; ADC Sequence 2
         DCD     IntDefaultHandler           ; ADC Sequence 3
         DCD     IntDefaultHandler           ; Watchdog timer
         DCD     IntDefaultHandler           ; Timer 0 subtimer A
         DCD     IntDefaultHandler           ; Timer 0 subtimer B
-        DCD     IntDefaultHandler           ; Timer 1 subtimer A
+        DCD     Timer1A_Handler             ; Timer 1 subtimer A
         DCD     IntDefaultHandler           ; Timer 1 subtimer B
         DCD     Timer2A_Handler             ; Timer 2 subtimer A
-        DCD     Timer2B_Handler           ; Timer 2 subtimer B
+        DCD     Timer2B_Handler             ; Timer 2 subtimer B
         DCD     IntDefaultHandler           ; Analog Comparator 0
         DCD     IntDefaultHandler           ; Analog Comparator 1
         DCD     IntDefaultHandler           ; Analog Comparator 2

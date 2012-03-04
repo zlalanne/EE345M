@@ -8,6 +8,7 @@
  *  TIMER SETUP
  *	Timer0A is being used to trigger the ADC in ADC_Collect (all setup in ADC_Collect)
  *	Timer0B is being used for OS_Time (all setup in OS_Init)
+ *  Timer1A is being used to decrement the sleep state, works at 1ms (1khz), initialized in OS_Init, enabled in OS_Launch
  *	Timer2A is being used for periodic background thread 1 (Configured in OS_Init, started in OS_AddPeriodicThread)
  *	Timer2B is being used for periodic background thread 2 (Configured in OS_Init, started in OS_AddPeriodicThread)
  */
@@ -156,15 +157,23 @@ void OS_Init(void) {
   TimerPrescaleSet(TIMER0_BASE, TIMER_B, 5); // One unit is 100ns
   TimerEnable(TIMER0_BASE, TIMER_B);
 
+  // Initialize Timer1A
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+  TimerDisable(TIMER1_BASE, TIMER_A);
+  TimerConfigure(TIMER1_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
+  TimerIntDisable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+  TimerLoadSet(TIMER1_BASE, TIMER_A, 50000); // Every interrupt is 1ms
+
   // Setting priorities for all interrupts
   // To add more, look up correct names in inc\hw_ints.h
 
   IntPrioritySet(FAULT_PENDSV, (0x07 << 5));
   IntPrioritySet(FAULT_SYSTICK, (0x06 << 5));
 
+  IntPrioritySet(INT_TIMER1A, (0x02 << 5));
   IntPrioritySet(INT_UART0, (0x03 << 5));
-  IntPrioritySet(INT_ADC0SS0, (0x00 << 5));
-  IntPrioritySet(INT_ADC0SS3, (0x00 << 5));
+  IntPrioritySet(INT_ADC0SS0, (0x01 << 5));
+  IntPrioritySet(INT_ADC0SS3, (0x01 << 5));
 
   // Initializing TCBs
   for(i = 0; i < MAXTHREADS; i++) {
@@ -307,8 +316,13 @@ void OS_Launch(unsigned long theTimeSlice) {
   SysTickEnable();
   SysTickIntEnable();
   NVIC_ST_CURRENT_R = 0;
-
   IntEnable(FAULT_SYSTICK);
+
+  // Enable sleeping decrementer
+  TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+  TimerIntEnable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+  TimerEnable(TIMER1_BASE, TIMER_A);
+  IntEnable(INT_TIMER1A);
 
   StartOS(); // Assembly language function that initilizes stack for running
 
@@ -512,7 +526,7 @@ void OS_Kill(void) {
 // You are free to select the time resolution for this function
 // OS_Sleep(0) implements cooperative multitasking
 void OS_Sleep(unsigned long sleepTime) {
-  (*RunPt).sleepState = (2 * sleepTime);
+  (*RunPt).sleepState = sleepTime;
   OS_Suspend();
   return;
 }
@@ -555,7 +569,7 @@ void OS_Suspend(void) {
 // reads a timer value
 // Inputs:  none
 // Outputs: time in 100ns units, 0 to max
-// The time resolution should be at least 1us, and the precision at least 12 bits
+// The time resolution should be at least 1us, and the precision at least 16 bits
 // It is ok to change the resolution and precision of this function as long as
 //   this function and OS_TimeDifference have the same resolution and precision
 unsigned long OS_Time() {
@@ -566,7 +580,7 @@ unsigned long OS_Time() {
 // Calculates difference between two times
 // Inputs:  two times measured with OS_Time
 // Outputs: time difference in 100ns units
-// The time resolution should be at least 1us, and the precision at least 12 bits
+// The time resolution should be at least 1us, and the precision at 16 bits
 // It is ok to change the resolution and precision of this function as long as
 //   this function and OS_Time have the same resolution and precision
 unsigned long OS_TimeDifference(unsigned long start, unsigned long stop) {
@@ -637,14 +651,14 @@ unsigned long OS_Fifo_Get(void) {
   unsigned long data;
 
   OS_Wait(&CurrentSize);
-  OS_Wait(&FifoMutex);
+  OS_bWait(&FifoMutex);
   data = *(OS_GetPt++);
 
   if(OS_GetPt == &OS_Fifo[FIFOSIZE]) {
     OS_GetPt = &OS_Fifo[0];
   }
 
-  OS_Signal(&FifoMutex);
+  OS_bSignal(&FifoMutex);
   return data;
 }
 
@@ -757,129 +771,88 @@ void OS_Signal(Sema4Type *semaPt) {
   EndCritical(status);
 }
 
-//// ******** OS_bWait ************
-//// if the semaphore is 0 then spin/block
-//// if the semaphore is 1, then clear semaphore to 0
-//// input:  pointer to a binary semaphore
-//// output: none
-//void OS_bWait(Sema4Type *semaPt) {
-//
-//  long status;
-//
-//  status = StartCritical();
-//
-//  (*semaPt).Value--;
-//
-//  if((*semaPt).Value < 0) {
-//    (*RunPt).blockedState = semaPt;
-//
-//    OS_Suspend();
-//  }
-//
-//  EndCritical(status);
-//}
-//
-//// ******** OS_bSignal ************
-//// set semaphore to 1, wakeup blocked thread if appropriate
-//// input:  pointer to a binary semaphore
-//// output: none
-//void OS_bSignal(Sema4Type *semaPt) {
-//
-//  long status;
-//  tcbType (*tempPt);
-//
-//  status = StartCritical();
-//
-//  if((*semaPt).Value != 1) {
-//
-//	(*semaPt).Value++;
-//
-//    if((*semaPt).Value <= 0) {
-//
-//	  tempPt = RunPt;
-//
-//	  while((*tempPt).blockedState != semaPt) {
-//	    tempPt = (*tempPt).next;
-//	  }
-//
-//	  (*tempPt).blockedState = '\0';
-//
-//      }
-//  }
-//
-//  EndCritical(status);
-//}
-
 // ******** OS_bWait ************
 // if the semaphore is 0 then spin/block
 // if the semaphore is 1, then clear semaphore to 0
 // input:  pointer to a binary semaphore
 // output: none
-void OS_bWait(Sema4Type *semaPt)
-{
-	tBoolean interruptsDisabled;
-	interruptsDisabled = IntMasterDisable();
-	if(semaPt->Value == 1) {
-		semaPt->Value = 0;
-	}
-	else {
-		RunPt->blockedState = semaPt;
-		OS_Suspend();
-	}
-	if(!interruptsDisabled) {
-		IntMasterEnable();
-	}
-} 
+void OS_bWait(Sema4Type *semaPt) {
 
-// ******** OS_bSignal ************
-// set semaphore to 1, wakeup blocked thread if appropriate 
-// input:  pointer to a binary semaphore
-// output: none
-void OS_bSignal(Sema4Type *semaPt)
-{
-	tBoolean interruptsDisabled;
-	interruptsDisabled = IntMasterDisable();
-	if(semaPt->Value == 0) {
-		tcbType* tempPt = Head;
-		tBoolean flag = false;
-		
-		do {
-			if(tempPt->blockedState == semaPt) {
-				tempPt->blockedState = 0;
-				flag = true;
-				break;
-			}
-			tempPt = tempPt->next;
-		} while(tempPt != Head);
-		
-		if(!flag) {
-			semaPt->Value = 1;
-		}
-	}
-	if(!interruptsDisabled) {
-		IntMasterEnable();
-	}
+  long status;
+
+  status = StartCritical();
+
+  (*semaPt).Value--;
+
+  if((*semaPt).Value < 0) {
+    (*RunPt).blockedState = semaPt;
+
+    OS_Suspend();
+  }
+
+  EndCritical(status);
 }
 
-// ******** Timer2A_Handler ************
-// Updates sleep state and calls periodic function
-// For lab 2 this is executing at 2kHz
-void Timer2A_Handler(void) {
+// ******** OS_bSignal ************
+// set semaphore to 1, wakeup blocked thread if appropriate
+// input:  pointer to a binary semaphore
+// output: none
+void OS_bSignal(Sema4Type *semaPt) {
+
+  long status;
+  tcbType (*tempPt);
+
+  status = StartCritical();
+
+  if((*semaPt).Value != 1) {
+
+	(*semaPt).Value++;
+
+    if((*semaPt).Value <= 0) {
+
+	  tempPt = RunPt;
+
+	  while((*tempPt).blockedState != semaPt) {
+	    tempPt = (*tempPt).next;
+	  }
+
+	  (*tempPt).blockedState = '\0';
+
+      }
+  }
+
+  EndCritical(status);
+}
+
+// ******** Timer1A_Handler ************
+// Updates sleep stat
+// Always running at 1KHz
+void Timer1A_Handler(void) {
   int i;
 
-  Jitter1();
-  TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
-  gTimer1Count++;
-
-  if(gThread1Valid == VALID) {
-    gThread1p(); // Call periodic function
-  }
+  TimerIntClear(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
 
   // Decrment sleepState of each TCB
   for(i = 0; i < MAXTHREADS; i++) {
     if(tcbs[i].sleepState != 0) {
       tcbs[i].sleepState--;
     }
+  }
+}
+
+
+// ******** Timer2A_Handler ************
+// Updates sleep state and calls periodic function
+// For lab 2 this is executing at 2kHz
+void Timer2A_Handler(void) {
+
+  Jitter1();
+  TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+  gTimer1Count++;
+
+  
+  if(gThread1Valid == VALID) {
+    gThread1p(); // Call periodic function
   }
 }
 
@@ -973,30 +946,50 @@ void SysTick_Handler(void) {
 void Jitter(void) {
   oLED_Message(1, 2, "0.1u Jitter1=", MaxJitter1 - MinJitter1);
   oLED_Message(1, 3, "0.1u Jitter2=", MaxJitter2 - MinJitter2);
+  //oLED_Message(1,3,"0.1u Jitter=",MaxJitter1-MinJitter1);
 
 }
 
 // ******** Jitter1 ***************
 // records the jitter for the first periodic background thread
+unsigned long DebugDump[100];
+int DebugIndex =0;
+
+
 void Jitter1(void) {
   int index;
   unsigned static long LastTime;
+  static char First = TRUE;
   unsigned long thisTime;
   long jitter;
+  
   thisTime = OS_Time();
-  jitter = (OS_TimeDifference(thisTime, LastTime) / 10) - (gThread1Period / 50); // in usec
-  if(jitter > MaxJitter1) {
-    MaxJitter1 = jitter;
+
+  if(DebugIndex < 100){
+    DebugDump[DebugIndex] = thisTime;
+	DebugIndex++;
   }
-  if(jitter < MinJitter1) {
-    MinJitter1 = jitter;
+
+  if(First == FALSE) {
+	  jitter = (OS_TimeDifference(thisTime, LastTime) / 10) - (gThread1Period / 50); // in usec
+	  if(jitter > MaxJitter1) {
+	    MaxJitter1 = jitter;
+	  }
+	  if(jitter < MinJitter1) {
+	    MinJitter1 = jitter;
+	  }
+	  index = jitter + JITTERSIZE / 2; // us units
+	  if(index < 0)
+	    index = 0;
+	  if(index >= JitterSize)
+	    index = JITTERSIZE - 1;
+	  JitterHistogram1[index]++;
+  } else {
+    First = FALSE;
   }
-  index = jitter + JITTERSIZE / 2; // us units
-  if(index < 0)
-    index = 0;
-  if(index >= JitterSize)
-    index = JITTERSIZE - 1;
-  JitterHistogram1[index]++;
+
+
+
   LastTime = thisTime;
 }
 
