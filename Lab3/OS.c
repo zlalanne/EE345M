@@ -33,6 +33,7 @@
 #define STACKSIZE  512  // number of 32-bit words in stack
 #define FIFOSIZE 256
 #define JITTERSIZE 64
+#define NUMEVENTS 100
 
 extern unsigned long Period;
 
@@ -55,6 +56,17 @@ tcbType *RunPt = '\0';
 tcbType *NextPt = '\0';
 tcbType *Head = '\0';
 tcbType *Tail = '\0';
+
+struct Event {
+  unsigned long time;
+  unsigned long thread;
+  unsigned long foreground;
+};
+
+typedef struct Event EventType;
+EventType events[NUMEVENTS];
+unsigned long EventsIndex = 0;	 // index for events[]
+
 int NumThreads = 0; // Global displaying number of threads
 
 unsigned long gTimeSlice;
@@ -559,6 +571,12 @@ void OS_Suspend(void) {
   // Write to register forces systick to reset counting
   NVIC_ST_CURRENT_R = 0;
 
+  if (EventsIndex < NUMEVENTS) {
+    events[EventsIndex].time = OS_Time();
+	events[EventsIndex].thread = NextPt->id;
+	events[EventsIndex].foreground = 1;
+    EventsIndex++;
+  }
   IntPendSet(FAULT_PENDSV);
   OS_EnableInterrupts();
 
@@ -852,7 +870,23 @@ void Timer2A_Handler(void) {
 
   
   if(gThread1Valid == VALID) {
-    gThread1p(); // Call periodic function
+    
+	if (EventsIndex < NUMEVENTS) {
+      events[EventsIndex].time = OS_Time();
+	  events[EventsIndex].thread = 1;
+	  events[EventsIndex].foreground = 0;
+      EventsIndex++;
+    }
+	
+	gThread1p(); // Call periodic function
+
+    if (EventsIndex < NUMEVENTS) {
+      events[EventsIndex].time = OS_Time();
+	  events[EventsIndex].thread = 1;
+	  events[EventsIndex].foreground = 0;
+      EventsIndex++;
+    }
+
   }
 }
 
@@ -865,7 +899,22 @@ void Timer2B_Handler(void) {
   gTimer2Count++;
 
   if(gThread2Valid == VALID) {
-    gThread2p(); // Call periodic function
+    
+	if (EventsIndex < NUMEVENTS) {
+      events[EventsIndex].time = OS_Time();
+	  events[EventsIndex].thread = 2;
+	  events[EventsIndex].foreground = 0;
+      EventsIndex++;
+    }
+	
+	gThread2p(); // Call periodic function
+	
+	if (EventsIndex < NUMEVENTS) {
+      events[EventsIndex].time = OS_Time();
+	  events[EventsIndex].thread = 2;
+	  events[EventsIndex].foreground = 0;
+      EventsIndex++;
+    }
   }
 }
 
@@ -936,6 +985,13 @@ void SysTick_Handler(void) {
 
   // Write to register forces systick to reset counting
   NVIC_ST_CURRENT_R = 0;
+  
+  if (EventsIndex < NUMEVENTS) {
+    events[EventsIndex].time = OS_Time();
+	events[EventsIndex].thread = NextPt->id;
+	events[EventsIndex].foreground = 1;
+    EventsIndex++;
+  }
 
   IntPendSet(FAULT_PENDSV);
   OS_EnableInterrupts();
