@@ -112,10 +112,6 @@ void CMD_Run(void) {
   
   unsigned long measurement;
   char buffer[BUFFERSIZE]; // Used for snprintf
-  char buffer1[BUFFERSIZE]; // Used for snprintf
-  char buffer2[BUFFERSIZE]; // Used for snprintf
-  char buffer3[BUFFERSIZE]; // Used for snprintf
-  char buffer4[BUFFERSIZE]; // Used for snprintf
 
   char arg[MAXARGS][MAXARGLENGTH] = {NULL, NULL};
   char letter;
@@ -176,7 +172,7 @@ void CMD_Run(void) {
     case 'a':
 	  // ADC Measurement, arg[1] is channel number
 	  measurement = ADC_In(arg[1][0] - 0x30);
-	  snprintf(buffer1, BUFFERSIZE, "ADC%c: %d\n\r", arg[1][0], measurement);
+	  snprintf(buffer, BUFFERSIZE, "ADC%c: %d\n\r", arg[1][0], measurement);
 	  UART0_SendString(buffer);
 	  break;
 	case 'c':
@@ -195,28 +191,28 @@ void CMD_Run(void) {
 	      // Print string to oLED, must include device/line
 	      // arg[1] is device number, arg[2] is line number
 	      // arg[3] - arg[5] are strings to print
-	      snprintf(buffer1, BUFFERSIZE, "%s %s %s", arg[3], arg[4], arg[5]);
+	      snprintf(buffer, BUFFERSIZE, "%s %s %s", arg[3], arg[4], arg[5]);
 	      oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
           UART0_SendString("Message Printed\n\r");
 	      break;
 	    case 'e':
 		  // Print performance measurements to UART
 		  UART0_SendString("Performance Measurements:\n\r");
-		  snprintf(buffer1, BUFFERSIZE, "NumCreated: %d\r\n", NumCreated);
-		  UART0_SendString(buffer1);
-		  snprintf(buffer2, BUFFERSIZE, "PIDWork: %d\r\n", PIDWork);
-		  UART0_SendString(buffer2);
-		  snprintf(buffer3, BUFFERSIZE, "DataLost: %d\r\n", DataLost);
-		  UART0_SendString(buffer3);
-		  snprintf(buffer4, BUFFERSIZE, "Jitter: %d\r\n", (MaxJitter1-MinJitter1));
-		  UART0_SendString(buffer4);
+		  snprintf(buffer, BUFFERSIZE, "NumCreated: %d\r\n", NumCreated);
+		  UART0_SendString(buffer);
+		  snprintf(buffer, BUFFERSIZE, "PIDWork: %d\r\n", PIDWork);
+		  UART0_SendString(buffer);
+		  snprintf(buffer, BUFFERSIZE, "DataLost: %d\r\n", DataLost);
+		  UART0_SendString(buffer);
+		  snprintf(buffer, BUFFERSIZE, "Jitter: %d\r\n", (MaxJitter1-MinJitter1));
+		  UART0_SendString(buffer);
 		  break;
 	  }
 	  break;
 	case 't':
 	  // Get Timer2 interrupt counter
 	  measurement = OS_MsTime(1);
-	  snprintf(buffer1, BUFFERSIZE, "Timer2 Counter: %d\n\r", measurement);
+	  snprintf(buffer, BUFFERSIZE, "Timer2 Counter: %d\n\r", measurement);
 	  UART0_SendString(buffer);
 	  break;
 	case 'r':
