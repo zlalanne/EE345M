@@ -180,6 +180,16 @@ void CMD_Run(void) {
 	  Output_Clear();
 	  UART0_SendString("oLED Cleared\n\r");
 	  break;
+	case 'd':
+	  // Digital filter enable/disable
+	  if(DigFiltEn == TRUE) {
+	    UART0_SendString("Turning off digital filter\n\r");
+		DigFiltEn = FALSE;
+	  } else {
+	    UART0_SendString("Turning on digital filter\n\r");
+		DigFiltEn = TRUE;
+	  }
+	  break;
 	case 'o':
 	  // Turn on oLED screen
 	  Output_On();

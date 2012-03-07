@@ -1263,7 +1263,7 @@ void RIT128x96x4PlotClear(long ymin, long ymax, long y0, long y1, long y2, long 
 // Inputs: y is the y coordinate of the point plotted
 // Outputs: none
 void RIT128x96x4PlotPoint(long y){
-long i,j;
+long i,j,k;
   if(y<Ymin) y=Ymin;
   if(y>Ymax) y=Ymax;
   // i goes from 0 to 55
@@ -1273,10 +1273,23 @@ long i,j;
   // j goes from 0 to 79
   // y=Ymax maps to j=0
   // y=Ymin maps to j=79
+
+  
+  // Clearing pervious Y value for this X coordinate
+  for(k = 0; k <= 79; k++) {
+    if(X&0x01) {
+      PlotImage[56*k+i] &= 0xF0;
+	} else {
+	  PlotImage[56*k+i] &= 0x0F;
+	}
+  }
+
+    
   j = (79*(Ymax-y)+YrangeDiv2)/Yrange;
   if(j<0) j = 0;
   if(j>79) j = 79;
   i = 56*j+i;
+  
   if(X&0x01){    // if X is odd,  set bits 3-0
     if(PlotImage[i]&0x0F){
       if((PlotImage[i]&0x0F)<14){
