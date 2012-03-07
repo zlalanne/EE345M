@@ -53,6 +53,12 @@
 #include "driverlib/sysctl.h"
 #include "rit128x96x4.h"
 
+#include "OS.h"
+
+// oLED Semaphore
+Sema4Type oLEDFree;
+
+
 //*****************************************************************************
 //
 // Macros that define the peripheral, port, and pin used for the OLEDDC
@@ -342,11 +348,15 @@ static const unsigned char g_pucRIT128x96x4Init[] =
 static void
 RITWriteCommand(const unsigned char *pucBuffer, unsigned long ulCount)
 {
+
+	OS_bWait(&oLEDFree);
+
     //
     // Return if SSI port is not enabled for RIT display.
     //
     if(!HWREGBITW(&g_ulSSIFlags, FLAG_SSI_ENABLED))
     {
+		OS_bSignal(&oLEDFree);
         return;
     }
 
@@ -385,6 +395,8 @@ RITWriteCommand(const unsigned char *pucBuffer, unsigned long ulCount)
         //
         ulCount--;
     }
+
+	OS_bSignal(&oLEDFree);
 }
 
 //*****************************************************************************
@@ -402,11 +414,15 @@ RITWriteCommand(const unsigned char *pucBuffer, unsigned long ulCount)
 static void
 RITWriteData(const unsigned char *pucBuffer, unsigned long ulCount)
 {
+
+	OS_bWait(&oLEDFree);
+
     //
     // Return if SSI port is not enabled for RIT display.
     //
     if(!HWREGBITW(&g_ulSSIFlags, FLAG_SSI_ENABLED))
     {
+		OS_bSignal(&oLEDFree);
         return;
     }
 
@@ -445,6 +461,8 @@ RITWriteData(const unsigned char *pucBuffer, unsigned long ulCount)
         //
         ulCount--;
     }
+
+	OS_bSignal(&oLEDFree);
 }
 
 //*****************************************************************************
@@ -825,6 +843,10 @@ RIT128x96x4Init(unsigned long ulFrequency)
 {
     unsigned long ulIdx;
 
+	
+    // Initialize the semaphore
+    OS_InitSemaphore(&oLEDFree, 1);
+
     //
     // Enable the SSI0 and GPIO port blocks as they are needed by this driver.
     //
@@ -1010,6 +1032,408 @@ RIT128x96x4DrawDot(unsigned long xpos, unsigned long ypos){
 	xpos--;
   }
   RIT128x96x4ImageDraw(pucRow, xpos, ypos, 2, 1);
+}
+/****************UInt2Str3***************
+ converts unsigned integer number to ASCII string
+ format unsigned 32-bit 
+ range 0 to 999
+ Input: unsigned 32-bit integer 
+ Output: null-terminated string exactly 3 characters plus null
+ Examples
+  821  to "821"
+  10   to " 10" 
+  3    to "  3" 
+   
+ */ 
+void UInt2Str3(unsigned long const num, char *string){
+  unsigned long n=num;
+
+  if(n>999){      // too big
+    string[0] = '*';
+    string[1] = '*';
+    string[2] = '*';
+    string[3] = 0;
+    return;
+  }
+
+  if(n>99){   // 100 to 999
+    string[0] = '0'+n/100;
+    n = n%100;
+    string[1] = '0'+n/10;
+    n = n%10;
+    string[2] = '0'+n;
+    string[3] = 0; 
+    return; 
+  } 
+  if(n>9){   // 10 to 99
+    string[0] = ' ';
+    string[1] = '0'+n/10;
+    n = n%10;
+    string[2] = '0'+n;
+    string[3] = 0; 
+    return; 
+  } 
+  // 0 to 9
+  string[0] = ' ';
+  string[1] = ' ';
+  string[2] = '0'+n;
+  string[3] = 0; 
+}
+/****************Int2Str2***************
+ converts signed integer number to ASCII string
+ format signed 32-bit 
+ range -9 to 99
+ Input: signed 32-bit integer 
+ Output: null-terminated string exactly 2 characters plus null
+ Examples
+  82  to "82"
+  1   to " 1" 
+ -3   to "-3" 
+ */ 
+void Int2Str2(long const n, char *string){
+  if((n>99)||(n<-9)){      // too big, too small
+    string[0] = ' ';
+    string[1] = ' ';
+    string[2] = 0;
+    return;
+  }
+
+  if(n>9){   // 10 to 99
+    string[0] = '0'+n/10;
+    string[1] = '0'+n%10;
+    string[2] = 0; 
+    return; 
+  } 
+  if(n>=0){   // 0 to 9
+    string[0] = ' ';
+    string[1] = '0'+n;
+    string[2] = 0; 
+    return; 
+  } 
+  // -9 to -1
+  string[0] = '-';
+  string[1] = '0'-n;
+  string[2] = 0; 
+}
+
+//*****************************************************************************
+//
+//! Displays an integer on the OLED display.
+//!
+//! \param num is the integer to display.
+//! \param ulX is the horizontal position to display the string, specified in
+//! columns from the left edge of the display.
+//! \param ulY is the vertical position to display the string, specified in
+//! rows from the top edge of the display.
+//! \param ucLevel is the 4-bit gray scale value to be used for displayed text.
+//!
+//! This function will display the number on the display.  
+//! The num should be between 0 and 999
+//!
+//! If the drawing of the string reaches the right edge of the display, no more
+//! characters will be drawn.  Therefore, special care is not required to avoid
+//! supplying a string that is ``too long'' to display.
+//!
+//! \note Because the OLED display packs 2 pixels of data in a single byte, the
+//! parameter \e ulX must be an even column number (for example, 0, 2, 4, and
+//! so on).
+//!
+//! \return None.
+//
+//*****************************************************************************
+void
+RIT128x96x4UDecOut3(unsigned long num, unsigned long ulX,
+                      unsigned long ulY, unsigned char ucLevel)  {
+char string[10];
+  UInt2Str3(num, string);
+  RIT128x96x4StringDraw(string, ulX, ulY, ucLevel);
+}
+/****************RIT128x96x4DecOut2***************
+ output 2 digit signed integer number to ASCII string
+ format signed 32-bit 
+ range -9 to 99
+ Input: signed 32-bit integer, position, level 
+ Output: none
+ Examples
+  82  to "82"
+  1   to " 1" 
+ -3   to "-3" 
+ */ 
+void RIT128x96x4DecOut2(unsigned long num, unsigned long ulX,
+                      unsigned long ulY, unsigned char ucLevel)  {
+char string[4];
+  Int2Str2(num, string);
+  RIT128x96x4StringDraw(string, ulX, ulY, ucLevel);
+}
+
+//! Graphics plot, an image 128 columns wide and 80 scan lines tall would
+//! be arranged as follows (showing how the twenty one bytes of the image would
+//! appear on the display):
+//!
+//!    
+//!     +-------------------+-------------------+  +-------------------+
+//!     |      Byte 0       |      Byte 1       |  |      Byte 55      |
+//!     +---------+---------+---------+---------+  +---------+---------+
+//!     | 7 6 5 4 | 3 2 1 0 | 7 6 5 4 | 3 2 1 0 |  | 7 6 5 4 | 3 2 1 0 |
+//!     +---------+---------+---------+---------+  +---------+---------+
+//!     |      Byte 56      |      Byte 57      |  |      Byte 111     |
+//!     +---------+---------+---------+---------+  +---------+---------+
+//!     | 7 6 5 4 | 3 2 1 0 | 7 6 5 4 | 3 2 1 0 |  | 7 6 5 4 | 3 2 1 0 |
+//!     +---------+---------+---------+---------+  +---------+---------+
+//! row j, j from 0 to 79   
+//!     +---------+---------+---------+---------+  +---------+---------+
+//!     |      Byte 56*j    |      Byte 56*j+1  |  |  Byte 56*j+127    |
+//!     +---------+---------+---------+---------+  +---------+---------+
+//!     | 7 6 5 4 | 3 2 1 0 | 7 6 5 4 | 3 2 1 0 |  | 7 6 5 4 | 3 2 1 0 |
+//!     +---------+---------+---------+---------+  +---------+---------+
+//!    
+//!     +---------+---------+---------+---------+  +---------+---------+
+//!     |    Byte 4424      |    Byte 4425      |  |   Byte 4479       |
+//!     +---------+---------+---------+---------+  +---------+---------+
+//!     | 7 6 5 4 | 3 2 1 0 | 7 6 5 4 | 3 2 1 0 |  | 7 6 5 4 | 3 2 1 0 |
+//!     +---------+---------+---------+---------+  +---------+---------+
+unsigned char PlotImage[4480];  // 112 wide by 80 tall plot
+// 0-12 have hashes
+// 3 is yaxis
+// 4 to 111 is data (108 points)
+long Ymax,Ymin,X;  // X goes from 4 to 111
+long Yrange,YrangeDiv2;
+long Y0 = 1; long Y1 = 2; long Y2 = 3; long Y3 = 4;
+void RIT128x96x4PlotReClear(void){
+unsigned long i;
+  for(i=0; i<4480; i++){
+    PlotImage[i] = 0; // clear, blank
+  }
+  X = 4;  // 4 to 111
+ 
+  for(i=0;i<80;i=i+13){        // 7 hashes at 0,13,26,39,52,65,78
+    PlotImage[0+56*i] = 0xAA;  // x=0,1
+    PlotImage[1+56*i] = 0xAA;  // x=2,3
+  }
+  for(i=0;i<79;i=i+1){          // y axis
+    PlotImage[1+56*i] |= 0x0A;  // x=3
+  }
+}
+// *************** RIT128x96x4PlotClear ********************
+// Clear the graphics buffer, set X coordinate to 0
+// It does not output to display until RIT128x96x4ShowPlot called
+// Inputs: ymin and ymax are range of the plot
+// four numbers are displayed along left edge of plot
+// y0,y1,y2,y3, can be -9 to 99, any number outside this range is skipped
+// y3 --          hash marks at number           Ymax
+//     |
+//    --          hash marks between numbers     Ymin+(5*Yrange)/6
+//     |
+// y2 --                                         Ymin+(4*Yrange)/6
+//     |
+//    --                                         Ymin+(3*Yrange)/6
+//     |
+// y1 --                                         Ymin+(2*Yrange)/6
+//     |
+//    --                                         Ymin+(1*Yrange)/6
+//     |
+// y0 --                                         Ymin
+// Outputs: none
+void RIT128x96x4PlotClear(long ymin, long ymax, long y0, long y1, long y2, long y3){
+  if(ymax>ymin){
+    Ymax = ymax;
+    Ymin = ymin;
+    Yrange = ymax-ymin;
+  } else{
+    Ymax = ymin;
+    Ymin = ymax;
+    Yrange = ymax-ymin;
+  }
+  YrangeDiv2 = Yrange/2;
+  Y0 = y0;
+  Y1 = y1;
+  Y2 = y2;
+  Y3 = y3;
+ 
+  RIT128x96x4PlotReClear();
+  RIT128x96x4DecOut2(Y0,0,84,10);
+  RIT128x96x4DecOut2(Y1,0,60,10);
+  RIT128x96x4DecOut2(Y2,0,34,10);
+  RIT128x96x4DecOut2(Y3,0,10,10);
+}
+
+// *************** RIT128x96x4PlotPoint ********************
+// Used in the voltage versus time plot, plot one point at y
+// It does not output to display until RIT128x96x4ShowPlot called
+// Inputs: y is the y coordinate of the point plotted
+// Outputs: none
+void RIT128x96x4PlotPoint(long y){
+long i,j;
+  if(y<Ymin) y=Ymin;
+  if(y>Ymax) y=Ymax;
+  // i goes from 0 to 55
+  i = X/2;  // X goes from to 111
+  // if X is even, set bits 7-4
+  // if X is odd,  set bits 3-0
+  // j goes from 0 to 79
+  // y=Ymax maps to j=0
+  // y=Ymin maps to j=79
+  j = (79*(Ymax-y)+YrangeDiv2)/Yrange;
+  if(j<0) j = 0;
+  if(j>79) j = 79;
+  i = 56*j+i;
+  if(X&0x01){    // if X is odd,  set bits 3-0
+    if(PlotImage[i]&0x0F){
+      if((PlotImage[i]&0x0F)<14){
+        PlotImage[i] += 2;  // 10,12,14
+      }
+    } else{
+      PlotImage[i] |= 0x08;
+    } 
+  } else{       // if X is even, set bits 7-4
+    if(PlotImage[i]&0xF0){
+      if((PlotImage[i]&0xF0)<0xE0){
+        PlotImage[i] += 0x20;  // 10,12,14
+      }
+    } else{
+      PlotImage[i] |= 0x80;
+    } 
+  }
+}
+// *************** RIT128x96x4PlotBar ********************
+// Used in the voltage versus time bar, plot one bar at y
+// It does not output to display until RIT128x96x4ShowPlot called
+// Inputs: y is the y coordinate of the bar plotted
+// Outputs: none
+void RIT128x96x4PlotBar(long y){
+long i,j;
+  if(y<Ymin) y=Ymin;
+  if(y>Ymax) y=Ymax;
+  // i goes from 0 to 55
+  i = X/2;  // X goes from to 111
+  // if X is even, set bits 7-4
+  // if X is odd,  set bits 3-0
+  // j goes from 0 to 79
+  // y=Ymax maps to j=0
+  // y=Ymin maps to j=79
+  j = (79*(Ymax-y)+YrangeDiv2)/Yrange;
+  if(j<0) j = 0;
+  if(j>79) j = 79;
+  if(X&0x01){    // if X is odd,  set bits 3-0
+    for(; j<80; j++){
+      PlotImage[56*j+i] |= 0x0C;
+    } 
+  } else{
+    for(; j<80; j++){
+      PlotImage[56*j+i] |= 0xC0;
+    } 
+  }
+}
+/*
+// full scale defined as 1.25V
+unsigned char const dBfs[512]={
+79, 79, 79, 79, 79, 79, 77, 75, 72, 70, 68, 67, 65, 64, 63, 61, 60, 59, 58, 57, 56, 55, 55, 54, 53, 52, 52, 51, 
+50, 50, 49, 49, 48, 48, 47, 47, 46, 46, 45, 45, 44, 44, 43, 43, 43, 42, 42, 41, 41, 41, 40, 40, 40, 39, 39, 39, 
+38, 38, 38, 38, 37, 37, 37, 36, 36, 36, 36, 35, 35, 35, 35, 34, 34, 34, 34, 33, 33, 33, 33, 32, 32, 32, 32, 32, 
+31, 31, 31, 31, 31, 30, 30, 30, 30, 30, 29, 29, 29, 29, 29, 29, 28, 28, 28, 28, 28, 28, 27, 27, 27, 27, 27, 27, 
+26, 26, 26, 26, 26, 26, 25, 25, 25, 25, 25, 25, 25, 24, 24, 24, 24, 24, 24, 24, 24, 23, 23, 23, 23, 23, 23, 23, 
+23, 22, 22, 22, 22, 22, 22, 22, 22, 21, 21, 21, 21, 21, 21, 21, 21, 21, 20, 20, 20, 20, 20, 20, 20, 20, 20, 19, 
+19, 19, 19, 19, 19, 19, 19, 19, 19, 18, 18, 18, 18, 18, 18, 18, 18, 18, 18, 17, 17, 17, 17, 17, 17, 17, 17, 17, 
+17, 17, 17, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 16, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 14, 
+14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 14, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 12, 12, 
+12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 
+10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 
+9, 9, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 
+7, 7, 7, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 
+5, 5, 5, 5, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 3, 3, 
+3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
+2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+*/
+// full scaled defined as 0.625V
+unsigned char const dBfs[512]={
+79,79,79,77,72,68,65,63,60,58,56,55,53,52,50,49,48,47,46,45,44,43,43,42,41,40,40,39,38,38,37,37,36,36,35,35,34,34,
+33,33,32,32,31,31,31,30,30,29,29,29,28,28,28,27,27,27,26,26,26,25,25,25,25,24,24,24,24,23,23,23,23,22,22,22,22,21,
+21,21,21,20,20,20,20,20,19,19,19,19,19,18,18,18,18,18,17,17,17,17,17,17,16,16,16,16,16,15,15,15,15,15,15,15,14,14,
+14,14,14,14,13,13,13,13,13,13,13,12,12,12,12,12,12,12,12,11,11,11,11,11,11,11,10,10,10,10,10,10,10,10,10,9,9,9,9,9,
+9,9,9,8,8,8,8,8,8,8,8,8,8,7,7,7,7,7,7,7,7,7,7,6,6,6,6,6,6,6,6,6,6,5,5,5,5,5,5,5,5,5,5,5,4,4,4,4,4,4,4,4,4,4,4,4,3,
+3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+};
+
+// *************** RIT128x96x4PlotdBfs ********************
+// Used in the amplitude versus frequency plot, plot bar point at y
+// 0 to 0.625V scaled on a log plot from min to max
+// It does not output to display until RIT128x96x4ShowPlot called
+// Inputs: y is the y ADC value of the bar plotted
+// Outputs: none
+void RIT128x96x4PlotdBfs(long y){
+long i,j;
+  if(y<0) y=0;
+  if(y>511) y=511;
+  // i goes from 0 to 63
+  i = X/2;  // X goes from to 128
+  // if X is even, set bits 7-4
+  // if X is odd,  set bits 3-0
+  // j goes from 0 to 79
+  // y=511 maps to j=0
+  // y=0 maps to j=79
+  j = dBfs[y];
+  if(X&0x01){    // if X is odd,  set bits 3-0
+    for(; j<80; j++){
+      PlotImage[64*j+i] |= 0x0C;
+    } 
+  } else{
+    for(; j<80; j++){
+      PlotImage[64*j+i] |= 0xC0;
+    } 
+  }
+}
+
+// *************** RIT128x96x4PlotNext ********************
+// Used in all the plots to step the X coordinate one pixel
+// X steps from 4 to 111, then back to 4 again
+// It does not output to display until RIT128x96x4ShowPlot called
+// Inputs: none
+// Outputs: none
+void RIT128x96x4PlotNext(void){
+  if(X==111){
+//    RIT128x96x4ImageDraw(PlotImage, 0, 10, 112, 80);
+//    RIT128x96x4PlotClear(Ymax,Ymin);
+    X = 4;  // start past axis
+  } else{
+    X++;
+  }
+}
+
+// *************** RIT128x96x4ShowPlot ********************
+// Used in all the plots to write buffer to LED
+// Example 1 Voltage versus time
+//    RIT128x96x4PlotClear(0,1023);  // range from 0 to 1023
+//    RIT128x96x4PlotPoint(data); RIT128x96x4PlotNext(); // called 108 times
+//    RIT128x96x4ShowPlot();
+// Example 2 Voltage versus time (N data points/pixel, time scale)
+//    RIT128x96x4PlotClear(0,1023);  // range from 0 to 1023
+//    {
+//        RIT128x96x4PlotPoint(data); // called N times
+//        RIT128x96x4PlotNext(); 
+//    }   // called 108 times
+//    RIT128x96x4ShowPlot();
+// Example 3 Voltage versus frequency (512 points)
+//    perform FFT to get 512 magnitudes
+//    RIT128x96x4PlotClear(0,511);  // parameters ignored
+//    {
+//        RIT128x96x4PlotPoint(mag); // called 4 times
+//        RIT128x96x4PlotPoint(mag); 
+//        RIT128x96x4PlotPoint(mag); 
+//        RIT128x96x4PlotPoint(mag); 
+//        RIT128x96x4PlotNext(); 
+//    }   // called 128 times
+//    RIT128x96x4ShowPlot();
+// Inputs: none
+// Outputs: none
+void RIT128x96x4ShowPlot(void){
+  RIT128x96x4ImageDraw(PlotImage, 16, 10, 112, 80);
 }
 
 
