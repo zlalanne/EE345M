@@ -54,10 +54,6 @@
 #define PIXELSPERCOLUMN 6 // number of pixels used by a character in each column
 #define BUFFERSIZE 5 // size of buffer allocated for the value printed in oLED_MESSAGE
 
-// oLED Semaphore
-Sema4Type oLEDFree;
-
-
 // Cursor x-position [0:126] of next character
 static unsigned short CursorX = 0;
 // Cursor y-position [0:88] of next character
@@ -198,8 +194,6 @@ void Output_Init(void){
   Color = 15;
   Status = 1;
 
-  // initialize the semaphore
-  OS_InitSemaphore(&oLEDFree, 1);
 }
 
 //------------Output_Clear------------
@@ -264,8 +258,6 @@ oLED_Message(int device, int line, char *string, long value){
   unsigned long level, spacing;
   char valueString [BUFFERSIZE];
 
-  OS_bWait(&oLEDFree);
-
   // Determing the space occupied by each device
   spacing = NUMROWS / NUMDEVICES;
   
@@ -281,8 +273,6 @@ oLED_Message(int device, int line, char *string, long value){
   snprintf(valueString, BUFFERSIZE, "%*d", (BUFFERSIZE - 1), value);  // snprintf is a overflow safe sprintf
 
   RIT128x96x4StringDraw(valueString, ((TOTALCHARCOLUMNS - (BUFFERSIZE - 1)) * PIXELSPERCOLUMN), level, Color);
-
-  OS_bSignal(&oLEDFree);
 }
 
 

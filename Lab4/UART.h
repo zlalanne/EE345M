@@ -85,4 +85,4 @@ extern unsigned long NumSamples;   // incremented every sample
 extern unsigned long DataLost;     // data sent by Producer, but not received by Consumer
 extern long MaxJitter1;             // largest time jitter between interrupts in usec
 extern long MinJitter1;             // smallest time jitter between interrupts in usec
-
+extern char DigFiltEn;				// Enable/disable digital filter

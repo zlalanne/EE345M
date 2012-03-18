@@ -1,0 +1,255 @@
+#include <stdio.h>
+#include <math.h>
+
+#include "OS.h"
+#include "UART.h"
+#include "ADC.h"
+#include "Output.h"
+#include "rit128x96x4.h"
+
+#define TIMESLICE TIME_1MS*2
+#define SAMPLESIZE 64
+
+#define FIRLENGTH 51
+#define FILTERARRAYLENGTH FIRLENGTH*2
+
+#define FREQ 0
+#define TIME 1
+
+
+// TODO: Need to remove refrences to these eventually
+unsigned long NumCreated;   // number of foreground threads created
+unsigned long PIDWork;      // current number of PID calculations finished
+unsigned long FilterWork;   // number of digital filter calculations finished
+unsigned long NumSamples;   // incremented every sample
+unsigned long DataLost;     // data sent by Producer, but not received by Consumer
+short IntTerm;     // accumulated error, RPM-sec
+short PrevError;   // previous error, RPM
+
+// Arrays used to store pre/post digital filter and post FFT
+unsigned long PreFilter[SAMPLESIZE] = {0,};
+unsigned long PostFilter[SAMPLESIZE] = {0,};
+unsigned long PostFFT[SAMPLESIZE] = {0,};
+char DigFiltEn = TRUE;
+
+// Variables used for oLED Display
+char PlotMode = FREQ;
+
+// Variables used to perform digital filter
+long Data[FILTERARRAYLENGTH];
+int FilterIndex = 0;
+
+// 64 Sample FFT
+void cr4_fft_64_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
+
+const long h[51]={0,0,0,0,0,0,0,0,0,0,0,
+     0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+     81920,0,0,0,0,0,0,0,0,0,0,0,0,0,
+     0,0,0,0,0,0,0,0,0,0,0,0};
+
+//     177,-722,-1388,-767,697,1115,-628,-2923,-2642,1025,4348,1820,-8027,-19790,
+ //   56862,-19790,-8027,1820,4348,1025,-2642,-2923,-628,1115,697,-767,-1388,-722,
+ // 177,329,-138,-482,-355,-46,78,5,-64,-45,-7,0};
+
+
+//******** Producer *************** 
+// The Producer in this lab will be called from your ADC ISR
+// A timer runs at 1 kHz, started by your ADC_Collect
+// The timer triggers the ADC, creating the 1 kHz sampling
+// Your ADC ISR runs when ADC data is ready
+// Your ADC ISR calls this function with a 10-bit sample 
+// sends data to the consumer, runs periodically at 1 kHz
+// inputs:  none
+// outputs: none
+void Producer(unsigned short data){  
+  if(OS_Fifo_Put(data) == 0){ // Send to consumer
+    DataLost++;
+  } 
+}
+
+//******** DisplayVoltage *************** 
+// Foreground thread, accepts data from consumer
+// Displays calculated results on the LCD
+// inputs:  none                            
+// outputs: none
+void Display(void) {
+
+  unsigned long voltage, mag;
+  long real, imag;
+  int i;
+  char buffer[30];
+  
+
+  Output_Init();
+  Output_On();
+
+  // Plot shows between 0.0V and 15.0V
+  // Max is 15 because ADC max = 3.0v and max gain is 5.0
+  //RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
+
+  while(1) {
+  
+    if(PlotMode == FREQ) {
+
+	  // Perform FFT
+      if(DigFiltEn == TRUE) {
+        cr4_fft_64_stm32(PostFFT,PostFilter,64);
+      } else {
+        cr4_fft_64_stm32(PostFFT,PreFilter,64);
+      }
+
+	  RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
+
+	  for(i = 0; i < SAMPLESIZE; i++) {
+	    real = PostFFT[i] & 0xFFFF;
+		imag = (PostFFT[i] & 0xFFFF0000) >> 16;
+		mag = sqrt(real*real + imag*imag);
+
+		// Calculate voltage
+		//voltage = (3000 * mag)/1024;
+	    //snprintf(buffer, 30, "Voltage: %d mV         ", voltage);
+		//voltage = voltage / 1000;
+
+		RIT128x96x4PlotdBfs(mag);
+		RIT128x96x4PlotNext();
+	  }
+	
+	} else {
+
+      RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
+
+	  for(i = 0; i < SAMPLESIZE; i++) {
+	
+	    if(DigFiltEn == TRUE) {
+		  voltage = PostFilter[i];
+		} else {
+		  voltage = PreFilter[i];
+		}
+
+		// Calculate voltage
+		voltage = (3000 * voltage)/1024;
+	    snprintf(buffer, 30, "Voltage: %d mV         ", voltage);
+		RIT128x96x4StringDraw(buffer, 0, 0, 15);
+		voltage = voltage / 1000;
+
+		RIT128x96x4PlotPoint(voltage);
+		RIT128x96x4PlotNext();
+	  }
+
+	}
+     RIT128x96x4ShowPlot();
+  }
+}
+
+//******** Filter_Init *************** 
+// Initialize filter
+// Input: None
+// Output: None
+long *DataPt;
+void Filter_Init(void) {
+  DataPt = &Data[0];
+}
+
+//******** Filter_Calc *************** 
+// Calculate one filter output
+// called at sampling rate
+// Input: New ADC data
+// Output: Filter output
+long Filter_Calc(short newdata) {
+  int i;
+  long sum;
+  long *calcPt;
+  const long *hPt;
+
+  // Checking bounds
+  if(DataPt == &Data[0]) {
+    DataPt = &Data[50];
+  } else {
+    DataPt--;
+  }
+
+  *DataPt = *(DataPt + 51) = newdata; // Storing two copies
+
+  calcPt = DataPt; // Copy of data pointer for calculations
+  hPt = h; // Coefficent pointer
+
+  // Performing filter
+  sum = 0;
+
+  for(i = 51; i ; i--) {
+    sum = sum + (*calcPt)*(*hPt);
+	calcPt++;
+	hPt++;
+  }
+
+  sum = sum / 16384;
+
+  return sum;
+}
+
+//******** Consumer *************** 
+// Foreground thread, accepts data from producer
+// Performs averaging filter
+// inputs:  none
+// outputs: none
+void Consumer(void){
+
+  unsigned long data;
+
+  Filter_Init();
+
+  // Start ADC sampling, channel 0, 1000 Hz
+  ADC_Collect(0,10000, &Producer); 
+  NumCreated += OS_AddThread(&Display,128,0);
+  
+  while(1) {
+    
+	data = OS_Fifo_Get();
+
+    PreFilter[FilterIndex] = data;
+    PostFilter[FilterIndex] = Filter_Calc(data);
+    FilterIndex++;
+	
+	// Wrap if end of sampling
+	if(FilterIndex == SAMPLESIZE) {
+	  FilterIndex = 0;
+	}
+  }
+}
+
+// Low priority, never blocks or sleeps
+void Dummy(void){
+  int dummy = 0;
+  while(1){
+    dummy++;
+  }
+}
+
+void DownButtonTask(void) {
+  //NumCreated += OS_AddThread
+}
+
+
+int main(void){
+  
+  OS_Init();           // initialize, disable interrupts
+
+  OS_MailBox_Init();
+  OS_Fifo_Init(32);
+
+  NumCreated = 0 ;
+  
+  // Create initial foreground threads
+  NumCreated += OS_AddThread(&Interpreter,128,2); 
+  NumCreated += OS_AddThread(&Consumer,128,1);
+
+  // Low priority thread, never sleeps or blocks
+  NumCreated += OS_AddThread(&Dummy,128,8);
+
+  // Creating down button task
+  OS_AddDownTask(&DownButtonTask, 1);
+ 
+  OS_Launch(TIMESLICE);
+  return 0;
+}
+
