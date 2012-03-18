@@ -1257,6 +1257,15 @@ void RIT128x96x4PlotClear(long ymin, long ymax, long y0, long y1, long y2, long 
   RIT128x96x4DecOut2(Y3,0,10,10);
 }
 
+void RIT128x96x4PlotClearFreq(void){
+  unsigned long i;
+  for(i=0; i<4480; i++){
+    PlotImage[i] = 0; // clear, blank
+  }
+
+  X = 4;  // 4 to 111
+}
+
 // *************** RIT128x96x4PlotPoint ********************
 // Used in the voltage versus time plot, plot one point at y
 // It does not output to display until RIT128x96x4ShowPlot called
@@ -1394,11 +1403,11 @@ long i,j;
   j = dBfs[y];
   if(X&0x01){    // if X is odd,  set bits 3-0
     for(; j<80; j++){
-      PlotImage[64*j+i] |= 0x0C;
+      PlotImage[56*j+i] |= 0x0C;
     } 
   } else{
     for(; j<80; j++){
-      PlotImage[64*j+i] |= 0xC0;
+      PlotImage[56*j+i] |= 0xC0;
     } 
   }
 }

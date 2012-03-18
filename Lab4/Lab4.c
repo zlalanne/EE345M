@@ -8,7 +8,7 @@
 #include "rit128x96x4.h"
 
 #define TIMESLICE TIME_1MS*2
-#define SAMPLESIZE 64
+#define SAMPLESIZE 1024
 
 #define FIRLENGTH 51
 #define FILTERARRAYLENGTH FIRLENGTH*2
@@ -33,14 +33,17 @@ unsigned long PostFFT[SAMPLESIZE] = {0,};
 char DigFiltEn = TRUE;
 
 // Variables used for oLED Display
-char PlotMode = FREQ;
+char PlotMode = TIME;
+char Freeze = FALSE;
+Sema4Type SampleDone;
 
 // Variables used to perform digital filter
 long Data[FILTERARRAYLENGTH];
 int FilterIndex = 0;
 
-// 64 Sample FFT
+// FFT
 void cr4_fft_64_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
+void cr4_fft_1024_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
 
 const long h[51]={0,0,0,0,0,0,0,0,0,0,0,
      0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -50,7 +53,6 @@ const long h[51]={0,0,0,0,0,0,0,0,0,0,0,
 //     177,-722,-1388,-767,697,1115,-628,-2923,-2642,1025,4348,1820,-8027,-19790,
  //   56862,-19790,-8027,1820,4348,1025,-2642,-2923,-628,1115,697,-767,-1388,-722,
  // 177,329,-138,-482,-355,-46,78,5,-64,-45,-7,0};
-
 
 //******** Producer *************** 
 // The Producer in this lab will be called from your ADC ISR
@@ -67,11 +69,13 @@ void Producer(unsigned short data){
   } 
 }
 
-//******** DisplayVoltage *************** 
+//******** Display *************** 
 // Foreground thread, accepts data from consumer
 // Displays calculated results on the LCD
 // inputs:  none                            
 // outputs: none
+
+unsigned long DebugMags[SAMPLESIZE / 2];
 void Display(void) {
 
   unsigned long voltage, mag;
@@ -83,42 +87,52 @@ void Display(void) {
   Output_Init();
   Output_On();
 
-  // Plot shows between 0.0V and 15.0V
-  // Max is 15 because ADC max = 3.0v and max gain is 5.0
-  //RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
-
   while(1) {
+
+    OS_bWait(&SampleDone);
   
     if(PlotMode == FREQ) {
 
 	  // Perform FFT
       if(DigFiltEn == TRUE) {
-        cr4_fft_64_stm32(PostFFT,PostFilter,64);
+        cr4_fft_1024_stm32(PostFFT,PostFilter,1024);
       } else {
-        cr4_fft_64_stm32(PostFFT,PreFilter,64);
+        cr4_fft_1024_stm32(PostFFT,PreFilter,1024);
       }
+	  
+	  RIT128x96x4PlotClearFreq();
 
-	  RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
-
-	  for(i = 0; i < SAMPLESIZE; i++) {
+	  for(i = 0; i < SAMPLESIZE / 2; i++) {
 	    real = PostFFT[i] & 0xFFFF;
-		imag = (PostFFT[i] & 0xFFFF0000) >> 16;
+		imag = PostFFT[i] >> 16;
 		mag = sqrt(real*real + imag*imag);
 
-		// Calculate voltage
-		//voltage = (3000 * mag)/1024;
-	    //snprintf(buffer, 30, "Voltage: %d mV         ", voltage);
-		//voltage = voltage / 1000;
-
+		mag = mag / 10;
 		RIT128x96x4PlotdBfs(mag);
-		RIT128x96x4PlotNext();
+
+		DebugMags[i] = mag;
+
+        if((i%4) == 3){
+		  RIT128x96x4PlotNext();
+		}
+
+	  }
+      
+	  // Check if still in frequency mode and plot
+	  if(PlotMode == FREQ) {
+	    snprintf(buffer, 30, "FFT  fs=10k         ");
+        RIT128x96x4StringDraw(buffer, 0, 0, 15);	    
+	    RIT128x96x4ShowPlot();
 	  }
 	
 	} else {
 
+	  // Range is from 0 to 15V because max input is 3V and max gain is 5
       RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
 
-	  for(i = 0; i < SAMPLESIZE; i++) {
+	  // TODO: Might want to change this, we have 1024 voltage samples but only
+	  // can display 128 samples across the screen
+	  for(i = 0; i < SAMPLESIZE / 8; i++) {
 	
 	    if(DigFiltEn == TRUE) {
 		  voltage = PostFilter[i];
@@ -129,15 +143,24 @@ void Display(void) {
 		// Calculate voltage
 		voltage = (3000 * voltage)/1024;
 	    snprintf(buffer, 30, "Voltage: %d mV         ", voltage);
-		RIT128x96x4StringDraw(buffer, 0, 0, 15);
 		voltage = voltage / 1000;
 
 		RIT128x96x4PlotPoint(voltage);
 		RIT128x96x4PlotNext();
 	  }
 
+	  // Check if still in time mode and plot
+	  if(PlotMode == TIME) {
+        RIT128x96x4StringDraw(buffer, 0, 0, 15);	    
+	    RIT128x96x4ShowPlot();
+	  }
+
 	}
-     RIT128x96x4ShowPlot();
+
+    
+	// Freeze current picture until select button pressed
+	while(Freeze){}
+
   }
 }
 
@@ -201,6 +224,7 @@ void Consumer(void){
   // Start ADC sampling, channel 0, 1000 Hz
   ADC_Collect(0,10000, &Producer); 
   NumCreated += OS_AddThread(&Display,128,0);
+  OS_InitSemaphore(&SampleDone, 0);
   
   while(1) {
     
@@ -213,6 +237,7 @@ void Consumer(void){
 	// Wrap if end of sampling
 	if(FilterIndex == SAMPLESIZE) {
 	  FilterIndex = 0;
+	  OS_bSignal(&SampleDone);
 	}
   }
 }
@@ -225,10 +250,15 @@ void Dummy(void){
   }
 }
 
-void DownButtonTask(void) {
-  //NumCreated += OS_AddThread
+void ChangeDisplay(void) {
+  PlotMode ^= 0x01;
+  RIT128x96x4Clear();
 }
 
+void ChangeMode(void) {
+  Freeze ^= 0x01;
+}
+  
 
 int main(void){
   
@@ -243,11 +273,13 @@ int main(void){
   NumCreated += OS_AddThread(&Interpreter,128,2); 
   NumCreated += OS_AddThread(&Consumer,128,1);
 
+
   // Low priority thread, never sleeps or blocks
   NumCreated += OS_AddThread(&Dummy,128,8);
 
-  // Creating down button task
-  OS_AddDownTask(&DownButtonTask, 1);
+  // Creating button tasks
+  OS_AddDownTask(&ChangeDisplay, 4);
+  OS_AddButtonTask(&ChangeMode, 3);
  
   OS_Launch(TIMESLICE);
   return 0;
