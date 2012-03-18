@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 
 #include "OS.h"
 #include "UART.h"
@@ -40,14 +41,14 @@ void Producer(unsigned short data){
   } 
 }
 
-//******** Display *************** 
+//******** DisplayVoltage *************** 
 // Foreground thread, accepts data from consumer
 // Displays calculated results on the LCD
 // inputs:  none                            
 // outputs: none
-void Display(void) {
+void DisplayVoltage(void) {
 
-  unsigned short data;
+  unsigned long data;
   unsigned long voltage;
   char buffer[30];
   
@@ -76,12 +77,46 @@ void Display(void) {
   }
 }
 
+//******** DisplayFrequency *************** 
+// Foreground thread, accepts data from consumer
+// Displays calculated results on the LCD
+// inputs:  none                            
+// outputs: none
+void DisplayFrequency(void) {
+
+  unsigned long data;
+  unsigned long frequency;
+  signed short real, imag;
+  int i;
+
+  Output_Init();
+  Output_On();
+
+  while(1) {
+
+    // Plot shows between 0.0V and 3.0V
+    RIT128x96x4PlotClear(0, 30, 0, 10, 20, 30);
+
+    for(i = 0; i < 64; i++) {
+	  data = OS_MailBox_Recv();
+	  real = data & 0xFFFF;
+	  imag = data >> 16;
+	   
+	  RIT128x96x4PlotdBfs(sqrt(real*real +imag*imag));
+	  RIT128x96x4PlotNext();
+
+	}
+
+	RIT128x96x4ShowPlot();
+  }
+}
+
 //******** Filter_Init *************** 
 // Initialize filter
 // Input: None
 // Output: None
-short Data[128];
-short *DataPt;
+long Data[128];
+long *DataPt;
 void Filter_Init(void) {
   DataPt = &Data[0];
 }
@@ -91,10 +126,10 @@ void Filter_Init(void) {
 // called at sampling rate
 // Input: New ADC data
 // Output: Filter output
-short Filter_Calc(short newdata) {
+long Filter_Calc(short newdata) {
   int i;
   long sum;
-  short *calcPt;
+  long *calcPt;
   const long *hPt;
 
   // Checking bounds
@@ -119,10 +154,39 @@ short Filter_Calc(short newdata) {
 
   sum = sum / 256;
 
-  if(sum < 0) {
-    return 0;
-  } else {
-    return sum;
+  return sum;
+}
+
+//******** Consumer *************** 
+// Foreground thread, accepts data from producer
+// Performs averaging filter
+// inputs:  none
+// outputs: none
+char DigFiltEn = FALSE; // Enables the digital filter
+void cr4_fft_64_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
+void ConsumerFrequency(void){
+
+  unsigned long data[64];
+  unsigned long result[64];
+  int i = 0;
+
+  Filter_Init();
+  // Start ADC sampling, channel 0
+  ADC_Collect(0,500, &Producer); 
+  NumCreated += OS_AddThread(&DisplayFrequency,128,0); 
+  
+  while(1) {
+    
+	for(i = 0; i < 64; i++) {
+	  data[i] = OS_Fifo_Get();
+	}
+
+    cr4_fft_64_stm32(result,data,64);
+
+	for(i = 0; i < 64; i++) {
+	  OS_MailBox_Send(result[i]);
+	}
+
   }
 }
 
@@ -131,8 +195,7 @@ short Filter_Calc(short newdata) {
 // Performs averaging filter
 // inputs:  none
 // outputs: none
-char DigFiltEn = TRUE; // Enables the digital filter
-void Consumer(void){
+void ConsumerVoltage(void){
 
   unsigned long data;
   unsigned short result;
@@ -140,12 +203,17 @@ void Consumer(void){
   Filter_Init();
   // Start ADC sampling, channel 0, 1000 Hz
   ADC_Collect(0,1000, &Producer); 
-  NumCreated += OS_AddThread(&Display,128,0); 
+  NumCreated += OS_AddThread(&DisplayVoltage,128,0); 
   
   while(1) {  
 	data = OS_Fifo_Get();
     result = Filter_Calc(data);
-	OS_MailBox_Send(result);
+	
+	if(DigFiltEn == FALSE) {
+	  OS_MailBox_Send(data);
+	} else {
+	  OS_MailBox_Send(result);
+	}
   }
 }
 
@@ -155,6 +223,10 @@ void Dummy(void){
   while(1){
     dummy++;
   }
+}
+
+void DownButtonTask(void) {
+  //NumCreated += OS_AddThread
 }
 
 
@@ -169,10 +241,13 @@ int main(void){
   
   // Create initial foreground threads
   NumCreated += OS_AddThread(&Interpreter,128,2); 
-  NumCreated += OS_AddThread(&Consumer,128,1);
+  NumCreated += OS_AddThread(&ConsumerVoltage,128,1);
 
   // Low priority thread, never sleeps or blocks
   NumCreated += OS_AddThread(&Dummy,128,8);
+
+  // Creating down button task
+  OS_AddDownTask(&DownButtonTask, 1);
  
   OS_Launch(TIMESLICE);
   return 0;
