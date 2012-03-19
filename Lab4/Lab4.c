@@ -16,7 +16,7 @@
 #define FREQ 0
 #define TIME 1
 
-
+							 
 // TODO: Need to remove refrences to these eventually
 unsigned long NumCreated;   // number of foreground threads created
 unsigned long PIDWork;      // current number of PID calculations finished
@@ -30,7 +30,7 @@ short PrevError;   // previous error, RPM
 unsigned long PreFilter[SAMPLESIZE] = {0,};
 unsigned long PostFilter[SAMPLESIZE] = {0,};
 unsigned long PostFFT[SAMPLESIZE] = {0,};
-char DigFiltEn = TRUE;
+char DigFiltEn = FALSE;
 
 // Variables used for oLED Display
 char PlotMode = TIME;
@@ -45,14 +45,10 @@ int FilterIndex = 0;
 void cr4_fft_64_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
 void cr4_fft_1024_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
 
-const long h[51]={0,0,0,0,0,0,0,0,0,0,0,
-     0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-     81920,0,0,0,0,0,0,0,0,0,0,0,0,0,
-     0,0,0,0,0,0,0,0,0,0,0,0};
-
-//     177,-722,-1388,-767,697,1115,-628,-2923,-2642,1025,4348,1820,-8027,-19790,
- //   56862,-19790,-8027,1820,4348,1025,-2642,-2923,-628,1115,697,-767,-1388,-722,
- // 177,329,-138,-482,-355,-46,78,5,-64,-45,-7,0};
+const long h[51]={0,-7,-45,-64,5,78,-46,-355,-482,-138,329,
+     177,-722,-1388,-767,697,1115,-628,-2923,-2642,1025,4348,1820,-8027,-19790,
+    56862,-19790,-8027,1820,4348,1025,-2642,-2923,-628,1115,697,-767,-1388,-722,
+ 177,329,-138,-482,-355,-46,78,5,-64,-45,-7,0};
 
 //******** Producer *************** 
 // The Producer in this lab will be called from your ADC ISR
