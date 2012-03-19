@@ -132,7 +132,8 @@ extern void RIT128x96x4PlotBar(long y);
 extern void RIT128x96x4PlotdBfs(long y);
 extern void RIT128x96x4PlotNext(void);
 extern void RIT128x96x4ShowPlot(void);
-void RIT128x96x4PlotClearFreq(void);
+extern void RIT128x96x4PlotClearFreq(void);
+extern void RIT128x96x4ShowPlotFreq(void);
 
 
 #endif // __RIT128X96X4_H__

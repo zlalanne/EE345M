@@ -78,6 +78,7 @@ void Producer(unsigned short data){
 unsigned long DebugMags[SAMPLESIZE / 2];
 void Display(void) {
 
+  long status;
   unsigned long voltage, mag;
   long real, imag;
   int i;
@@ -120,15 +121,22 @@ void Display(void) {
       
 	  // Check if still in frequency mode and plot
 	  if(PlotMode == FREQ) {
-	    snprintf(buffer, 30, "FFT  fs=10k         ");
-        RIT128x96x4StringDraw(buffer, 0, 0, 15);	    
-	    RIT128x96x4ShowPlot();
+		status = StartCritical();
+        RIT128x96x4StringDraw("FFT   fs = 10k       ", 0, 0, 15);	    
+	    RIT128x96x4ShowPlotFreq();
+		EndCritical(status);
 	  }
 	
 	} else {
 
-	  // Range is from 0 to 15V because max input is 3V and max gain is 5
-      RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
+	  
+	  if(DigFiltEn == TRUE) {
+        // Range is from 0 to 15V because max input is 3V and max gain is 5
+		RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
+	  } else {
+	    // Range is from 0 to 3.0V because max input is 3.0V 
+		RIT128x96x4PlotClear(0, 30, 0, 10, 20, 30);
+	  }
 
 	  // TODO: Might want to change this, we have 1024 voltage samples but only
 	  // can display 128 samples across the screen
@@ -143,7 +151,12 @@ void Display(void) {
 		// Calculate voltage
 		voltage = (3000 * voltage)/1024;
 	    snprintf(buffer, 30, "Voltage: %d mV         ", voltage);
-		voltage = voltage / 1000;
+
+		if(DigFiltEn == TRUE) {
+		  voltage = voltage / 1000;
+		} else {
+		  voltage = voltage / 100;
+		}
 
 		RIT128x96x4PlotPoint(voltage);
 		RIT128x96x4PlotNext();
@@ -151,13 +164,14 @@ void Display(void) {
 
 	  // Check if still in time mode and plot
 	  if(PlotMode == TIME) {
+	    status = StartCritical();
         RIT128x96x4StringDraw(buffer, 0, 0, 15);	    
 	    RIT128x96x4ShowPlot();
+		EndCritical(status);
 	  }
 
 	}
 
-    
 	// Freeze current picture until select button pressed
 	while(Freeze){}
 

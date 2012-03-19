@@ -1193,6 +1193,7 @@ char string[4];
 //!     | 7 6 5 4 | 3 2 1 0 | 7 6 5 4 | 3 2 1 0 |  | 7 6 5 4 | 3 2 1 0 |
 //!     +---------+---------+---------+---------+  +---------+---------+
 unsigned char PlotImage[4480];  // 112 wide by 80 tall plot
+unsigned char PlotFreqImag[5120]; // 128 wide by 80 tall plot
 // 0-12 have hashes
 // 3 is yaxis
 // 4 to 111 is data (108 points)
@@ -1259,11 +1260,11 @@ void RIT128x96x4PlotClear(long ymin, long ymax, long y0, long y1, long y2, long 
 
 void RIT128x96x4PlotClearFreq(void){
   unsigned long i;
-  for(i=0; i<4480; i++){
-    PlotImage[i] = 0; // clear, blank
+  for(i=0; i<5120; i++){
+    PlotFreqImag[i] = 0; // clear, blank
   }
 
-  X = 4;  // 4 to 111
+  X = 0;  // 4 to 111
 }
 
 // *************** RIT128x96x4PlotPoint ********************
@@ -1403,11 +1404,11 @@ long i,j;
   j = dBfs[y];
   if(X&0x01){    // if X is odd,  set bits 3-0
     for(; j<80; j++){
-      PlotImage[56*j+i] |= 0x0C;
+      PlotFreqImag[64*j+i] |= 0x0C;
     } 
   } else{
     for(; j<80; j++){
-      PlotImage[56*j+i] |= 0xC0;
+      PlotFreqImag[64*j+i] |= 0xC0;
     } 
   }
 }
@@ -1456,6 +1457,10 @@ void RIT128x96x4PlotNext(void){
 // Outputs: none
 void RIT128x96x4ShowPlot(void){
   RIT128x96x4ImageDraw(PlotImage, 16, 10, 112, 80);
+}
+
+void RIT128x96x4ShowPlotFreq(void){
+  RIT128x96x4ImageDraw(PlotFreqImag, 0, 10, 128, 80);
 }
 
 
