@@ -251,31 +251,124 @@ long Filter_Calc(short newdata) {
 // inputs:  none
 // outputs: none
 void Consumer(void){
-
+  int i;
   unsigned long data;
+  long status;
+  unsigned long voltage, mag;
+  unsigned long real, imag;
+  char buffer[30];
+  
+
+  Output_Init();
+  Output_On();
 
   Filter_Init();
 
   // Start ADC sampling, channel 0, 1000 Hz
   ADC_Collect(0,10000, &Producer); 
-  NumCreated += OS_AddThread(&Display,128,0);
-  OS_InitSemaphore(&SampleDone, 0);
-  OS_InitSemaphore(&FFTDone, 0);
+  //NumCreated += OS_AddThread(&Display,128,0);
+  //OS_InitSemaphore(&SampleDone, 0);
+  //OS_InitSemaphore(&FFTDone, 0);
   
   while(1) {
-    
-	data = OS_Fifo_Get();
 
-    PreFilter[FilterIndex] = data;
-    PostFilter[FilterIndex] = Filter_Calc(data);
-    FilterIndex++;
+   OS_Fifo_Init(64);
+    
+	for(i = 0; i < SAMPLESIZE; i++) {
+	  data = OS_Fifo_Get();
+
+      PreFilter[i] = data;
+      PostFilter[i] = Filter_Calc(data);
+    }
+
+	if(PlotMode == FREQ) {
+
+	  // Perform FFT
+      if(DigFiltEn == TRUE) {
+        cr4_fft_1024_stm32(PostFFT,PostFilter,1024);
+      } else {
+        cr4_fft_1024_stm32(PostFFT,PreFilter,1024);
+      }
+ 
+	  RIT128x96x4PlotClearFreq();
+
+	  for(i = 0; i < 512; i++) {
+	    real = PostFFT[i] & 0xFFFF;
+		imag = PostFFT[i] >> 16;
+		mag = sqrt(real*real + imag*imag);
+
+		if(DigFiltEn == TRUE) {
+		  // Max mag = 5*1024 = 5120, can only map to 512 
+		  mag = mag / 10;
+		} else {
+		  // Max mag = 1024, can only map to 512
+		  mag = mag / 2;
+		}
+		
+		RIT128x96x4PlotdBfs(mag);
+		DebugMags[i] = mag;
+
+        if((i%4) == 3){
+		  RIT128x96x4PlotNextFreq();
+		}
+
+	  }
+      
+	  // Check if still in frequency mode and plot
+	  if(PlotMode == FREQ) {
+		status = StartCritical();
+        RIT128x96x4StringDraw("FFT   fs = 10k       ", 0, 0, 15);	    
+	    RIT128x96x4ShowPlotFreq();
+		EndCritical(status);
+	  }
 	
-	// Wrap if end of sampling
-	if(FilterIndex == SAMPLESIZE) {
-	  FilterIndex = 0;
-	  OS_bSignal(&SampleDone); // Signal the sampling is done
-	  OS_bWait(&FFTDone); // Wait until FFT is done
+	} else {
+
+	  
+	  if(DigFiltEn == TRUE) {
+        // Range is from 0 to 15V because max input is 3V and max gain is 5
+		RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
+	  } else {
+	    // Range is from 0 to 3.0V because max input is 3.0V 
+		RIT128x96x4PlotClear(0, 30, 0, 10, 20, 30);
+	  }
+
+	  // TODO: Might want to change this, we have 1024 voltage samples but only
+	  // can display 128 samples across the screen
+	  for(i = 0; i < SAMPLESIZE / 8; i++) {
+	
+	    if(DigFiltEn == TRUE) {
+		  voltage = PostFilter[i];
+		} else {
+		  voltage = PreFilter[i];
+		}
+
+		// Calculate voltage
+		voltage = (3000 * voltage)/1024;
+	    snprintf(buffer, 30, "Voltage: %d mV         ", voltage);
+
+		if(DigFiltEn == TRUE) {
+		  voltage = voltage / 1000;
+		} else {
+		  voltage = voltage / 100;
+		}
+
+		RIT128x96x4PlotPoint(voltage);
+		RIT128x96x4PlotNext();
+	  }
+
+	  // Check if still in time mode and plot
+	  if(PlotMode == TIME) {
+	    status = StartCritical();
+        RIT128x96x4StringDraw(buffer, 0, 0, 15);	    
+	    RIT128x96x4ShowPlot();
+		EndCritical(status);
+	  }
+
 	}
+
+	// Freeze current picture until select button pressed
+	while(Freeze){}
   }
 }
 
@@ -302,7 +395,6 @@ int main(void){
   OS_Init();           // initialize, disable interrupts
 
   OS_MailBox_Init();
-  OS_Fifo_Init(32);
 
   NumCreated = 0 ;
   
