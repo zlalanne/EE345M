@@ -104,9 +104,15 @@ void Display(void) {
 		imag = PostFFT[i] >> 16;
 		mag = sqrt(real*real + imag*imag);
 
-		mag = mag / 10;
+		if(DigFiltEn == TRUE) {
+		  // Max mag = 5*1024 = 5120, can only map to 512 
+		  mag = mag / 10;
+		} else {
+		  // Max mag = 1024, can only map to 512
+		  mag = mag / 2;
+		}
+		
 		RIT128x96x4PlotdBfs(mag);
-
 		DebugMags[i] = mag;
 
         if((i%4) == 3){
