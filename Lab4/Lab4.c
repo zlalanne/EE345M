@@ -261,7 +261,7 @@ void Consumer(void){
 
   Output_Init();
   Output_On();
-
+  OS_Fifo_Init(64);
   Filter_Init();
 
   // Start ADC sampling, channel 0, 1000 Hz
@@ -271,8 +271,6 @@ void Consumer(void){
   //OS_InitSemaphore(&FFTDone, 0);
   
   while(1) {
-
-   OS_Fifo_Init(64);
     
 	for(i = 0; i < SAMPLESIZE; i++) {
 	  data = OS_Fifo_Get();
