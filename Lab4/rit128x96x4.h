@@ -134,6 +134,7 @@ extern void RIT128x96x4PlotNext(void);
 extern void RIT128x96x4ShowPlot(void);
 extern void RIT128x96x4PlotClearFreq(void);
 extern void RIT128x96x4ShowPlotFreq(void);
+extern void RIT128x96x4PlotNextFreq(void);
 
 
 #endif // __RIT128X96X4_H__

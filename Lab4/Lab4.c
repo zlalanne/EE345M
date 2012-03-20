@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <math.h>
 
 #include "OS.h"
 #include "UART.h"
@@ -36,6 +35,7 @@ char DigFiltEn = FALSE;
 char PlotMode = TIME;
 char Freeze = FALSE;
 Sema4Type SampleDone;
+Sema4Type FFTDone;
 
 // Variables used to perform digital filter
 long Data[FILTERARRAYLENGTH];
@@ -46,9 +46,9 @@ void cr4_fft_64_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
 void cr4_fft_1024_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
 
 const long h[51]={0,-7,-45,-64,5,78,-46,-355,-482,-138,329,
-     177,-722,-1388,-767,697,1115,-628,-2923,-2642,1025,4348,1820,-8027,-19790,
+    177,-722,-1388,-767,697,1115,-628,-2923,-2642,1025,4348,1820,-8027,-19790,
     56862,-19790,-8027,1820,4348,1025,-2642,-2923,-628,1115,697,-767,-1388,-722,
- 177,329,-138,-482,-355,-46,78,5,-64,-45,-7,0};
+    177,329,-138,-482,-355,-46,78,5,-64,-45,-7,0};
 
 //******** Producer *************** 
 // The Producer in this lab will be called from your ADC ISR
@@ -59,11 +59,27 @@ const long h[51]={0,-7,-45,-64,5,78,-46,-355,-482,-138,329,
 // sends data to the consumer, runs periodically at 1 kHz
 // inputs:  none
 // outputs: none
-void Producer(unsigned short data){  
-  if(OS_Fifo_Put(data) == 0){ // Send to consumer
-    DataLost++;
+void Producer(unsigned short data){
+  if(FFTDone.Value == 0) { 
+    if(OS_Fifo_Put(data) == 0){ // Send to consumer
+      DataLost++;
+    }
   } 
 }
+
+// Newton's method
+// s is an integer
+// sqrt(s) is an integer
+unsigned long sqrt(unsigned long s){
+unsigned long t;         // t*t will become s
+int n;                   // loop counter to make sure it stops running
+  t = s/10+1;            // initial guess 
+  for(n = 16; n; --n){   // guaranteed to finish
+    t = ((t*t+s)/t)/2;  
+  }
+  return t; 
+}
+
 
 //******** Display *************** 
 // Foreground thread, accepts data from consumer
@@ -86,8 +102,8 @@ void Display(void) {
 
   while(1) {
 
-    OS_bWait(&SampleDone);
-  
+    OS_bWait(&SampleDone); // Wait until sampling done
+
     if(PlotMode == FREQ) {
 
 	  // Perform FFT
@@ -96,7 +112,7 @@ void Display(void) {
       } else {
         cr4_fft_1024_stm32(PostFFT,PreFilter,1024);
       }
-	  
+ 
 	  RIT128x96x4PlotClearFreq();
 
 	  for(i = 0; i < SAMPLESIZE / 2; i++) {
@@ -116,7 +132,7 @@ void Display(void) {
 		DebugMags[i] = mag;
 
         if((i%4) == 3){
-		  RIT128x96x4PlotNext();
+		  RIT128x96x4PlotNextFreq();
 		}
 
 	  }
@@ -174,7 +190,10 @@ void Display(void) {
 
 	}
 
+    OS_bSignal(&FFTDone); // Signal FFT Done
+
 	// Freeze current picture until select button pressed
+
 	while(Freeze){}
 
   }
@@ -241,6 +260,7 @@ void Consumer(void){
   ADC_Collect(0,10000, &Producer); 
   NumCreated += OS_AddThread(&Display,128,0);
   OS_InitSemaphore(&SampleDone, 0);
+  OS_InitSemaphore(&FFTDone, 0);
   
   while(1) {
     
@@ -253,7 +273,8 @@ void Consumer(void){
 	// Wrap if end of sampling
 	if(FilterIndex == SAMPLESIZE) {
 	  FilterIndex = 0;
-	  OS_bSignal(&SampleDone);
+	  OS_bSignal(&SampleDone); // Signal the sampling is done
+	  OS_bWait(&FFTDone); // Wait until FFT is done
 	}
   }
 }
