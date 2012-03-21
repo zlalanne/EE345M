@@ -88,6 +88,7 @@ __heap_limit
 		EXTERN ADC0S0_Handler
 		EXTERN Timer2B_Handler
 		EXTERN Timer1A_Handler
+		EXTERN Timer1B_Handler
 
 ;******************************************************************************
 ;
@@ -134,7 +135,7 @@ __Vectors
         DCD     IntDefaultHandler           ; Timer 0 subtimer A
         DCD     IntDefaultHandler           ; Timer 0 subtimer B
         DCD     Timer1A_Handler             ; Timer 1 subtimer A
-        DCD     IntDefaultHandler           ; Timer 1 subtimer B
+        DCD     Timer1B_Handler             ; Timer 1 subtimer B
         DCD     Timer2A_Handler             ; Timer 2 subtimer A
         DCD     Timer2B_Handler             ; Timer 2 subtimer B
         DCD     IntDefaultHandler           ; Analog Comparator 0
