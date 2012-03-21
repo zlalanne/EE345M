@@ -30,13 +30,6 @@
 
 //*****************************************************************************
 //
-// Defines the size of the buffer that holds the command line.
-//
-//*****************************************************************************
-#define CMD_BUF_SIZE    64
-
-//*****************************************************************************
-//
 // This buffer holds the full path to the current working directory.
 // Initially it is root ("/").
 //
@@ -53,14 +46,6 @@ static char g_cTmpBuf[PATH_BUF_SIZE];
 
 //*****************************************************************************
 //
-// The buffer that holds the command line.
-//
-//*****************************************************************************
-static char g_cCmdBuf[CMD_BUF_SIZE];
-
-
-//*****************************************************************************
-//
 // The following are data structures used by FatFs.
 //
 //*****************************************************************************
@@ -69,7 +54,7 @@ static DIR g_sDirObject;
 static FILINFO g_sFileInfo;
 static FIL g_sFileObject;
 
-int StreamToFile=0;                // 0=UART, 1=stream to file 
+int StreamToFile = 0;  // 0=UART, 1=stream to file 
 
 //---------- eFile_Init-----------------
 // Activate the file system, without formating
@@ -90,11 +75,14 @@ int eFile_Init(void){
   TimerDisable(TIMER1_BASE, TIMER_B);
   TimerIntDisable(TIMER1_BASE, TIMER_TIMB_TIMEOUT);
   TimerPrescaleSet(TIMER1_BASE, TIMER_B, 16); 
-  TimerLoadSet(TIMER1_BASE, TIMER_B, 31250); // Every interrupt is 1ms
+  TimerLoadSet(TIMER1_BASE, TIMER_B, 31250); // Every interrupt is 10ms
   TimerIntClear(TIMER1_BASE, TIMER_TIMB_TIMEOUT);
   TimerIntEnable(TIMER1_BASE, TIMER_TIMB_TIMEOUT);
   TimerEnable(TIMER1_BASE, TIMER_B);
   IntEnable(INT_TIMER1B);
+
+  // Priority 2	interrupt
+  IntPrioritySet(INT_TIMER1B, (0x02 <<5));
 
   return 0;
 
@@ -238,7 +226,8 @@ int eFile_RClose(void){
 // Output: characters returned by reference
 //         0 if successful and 1 on failure (e.g., trouble reading from flash)
 int eFile_Directory(void(*fp)(unsigned char)){
-    unsigned long ulTotalSize;
+    
+	unsigned long ulTotalSize;
     unsigned long ulFileCount;
     unsigned long ulDirCount;
     FRESULT fresult;

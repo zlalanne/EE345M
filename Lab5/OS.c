@@ -176,6 +176,7 @@ void OS_Init(void) {
   IntPrioritySet(INT_ADC0SS0, (0x01 << 5));
   IntPrioritySet(INT_ADC0SS3, (0x01 << 5));
 
+
   // Initializing TCBs
   for(i = 0; i < MAXTHREADS; i++) {
     tcbs[i].valid = INVALID;

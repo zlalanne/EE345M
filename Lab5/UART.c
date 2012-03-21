@@ -6,7 +6,7 @@
 // Thomas Brezinski	TCB567
 // Zachary Lalanne ZLL67
 // TA: Zahidul Haq
-// Date of last change: 2/24/2012
+// Date of last change: 3/21/2012
 
 // Written By:
 // Megan Ruthven MAR3939
@@ -180,7 +180,7 @@ void CMD_Run(void) {
 	  Output_Clear();
 	  UART0_SendString("oLED Cleared\n\r");
 	  break;
-/*	case 'd':
+    /* case 'd':
 	  // Digital filter enable/disable
 	  if(DigFiltEn == SUCCESS) {
 	    UART0_SendString("Turning off digital filter\n\r");
@@ -205,7 +205,7 @@ void CMD_Run(void) {
 	      oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
           UART0_SendString("Message Printed\n\r");
 	      break;
-	   /* case 'e':
+	    /* case 'e':
 		  // Print performance measurements to UART
 		  UART0_SendString("Performance Measurements:\n\r");
 		  snprintf(buffer, BUFFERSIZE, "NumCreated: %d\r\n", NumCreated);
