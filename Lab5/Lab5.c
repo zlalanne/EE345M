@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "inc/hw_types.h"
-#include "serial.h"
+#include "uart.h"
 #include "adc.h"
 #include "os.h"
 #include "lm3s8962.h"
@@ -46,14 +46,14 @@ unsigned long data;      // ADC sample, 0 to 1023
 unsigned long voltage;   // in mV,      0 to 3000
 unsigned long time;      // in 10msec,  0 to 1000 
 unsigned long t=0;
-  OS_ClearMsTime();    
+  OS_ClearMsTime(1);    
   DataLost = 0;          // new run with no lost data 
   printf("Robot running...");
   eFile_RedirectToFile("Robot");
   printf("time(sec)\tdata(volts)\n\r");
   do{
     t++;
-    time=OS_MsTime();            // 10ms resolution in this OS
+    time=OS_MsTime(1);            // 10ms resolution in this OS
     data = OS_Fifo_Get();        // 1000 Hz sampling get from producer
     voltage = (300*data)/1024;   // in mV
     printf("%0u.%02u\t%0u.%03u\n\r",time/100,time%100,voltage/1000,voltage%1000);
@@ -142,7 +142,7 @@ int realmain(void){        // lab 5 real main
 //*******attach background tasks***********
   OS_AddButtonTask(&ButtonPush,2);
   OS_AddButtonTask(&DownPush,3);
-  OS_AddPeriodicThread(disk_timerproc,10*TIME_1MS,5);
+  OS_AddPeriodicThread(disk_timerproc,1,10*TIME_1MS,5);
 
   NumCreated = 0 ;
 // create initial foreground threads
@@ -205,7 +205,7 @@ int main(void){   // testmain1
   OS_Init();           // initialize, disable interrupts
 
 //*******attach background tasks***********
-  OS_AddPeriodicThread(&disk_timerproc,10*TIME_1MS,0);   // time out routines for disk
+  OS_AddPeriodicThread(&disk_timerproc,1,10*TIME_1MS,0);   // time out routines for disk
   OS_AddButtonTask(&RunTest,2);
   
   NumCreated = 0 ;
@@ -222,7 +222,7 @@ void TestFile(void){   int i; char data;
   // simple test of eFile
   if(eFile_Init())              diskError("eFile_Init",0); 
   if(eFile_Format())            diskError("eFile_Format",0); 
-  eFile_Directory(&Serial_OutChar);
+  eFile_Directory(&UART0_OutChar);
   if(eFile_Create("file1"))     diskError("eFile_Create",0);
   if(eFile_WOpen("file1"))      diskError("eFile_WOpen",0);
   for(i=0;i<1000;i++){
@@ -233,14 +233,14 @@ void TestFile(void){   int i; char data;
     }
   }
   if(eFile_WClose())            diskError("eFile_Close",0);
-  eFile_Directory(&Serial_OutChar);
+  eFile_Directory(&UART0_OutChar);
   if(eFile_ROpen("file1"))      diskError("eFile_ROpen",0);
   for(i=0;i<1000;i++){
     if(eFile_ReadNext(&data))   diskError("eFile_ReadNext",i);
-    Serial_OutChar(data);
+    UART0_OutChar(data);
   }
   if(eFile_Delete("file1"))     diskError("eFile_Delete",0);
-  eFile_Directory(&Serial_OutChar);
+  eFile_Directory(&UART0_OutChar);
   printf("Successful test of creating a file\n\r");
   OS_Kill();
 }
@@ -252,7 +252,7 @@ int testmain2(void){
   OS_Init();           // initialize, disable interrupts
 
 //*******attach background tasks***********
-  OS_AddPeriodicThread(&disk_timerproc,10*TIME_1MS,0);   // time out routines for disk
+  OS_AddPeriodicThread(&disk_timerproc,1,10*TIME_1MS,0);   // time out routines for disk
   
   NumCreated = 0 ;
 // create initial foreground threads
