@@ -1769,6 +1769,41 @@ FRESULT f_mkfs (
     return (disk_ioctl(drv, CTRL_SYNC, NULL) == RES_OK) ? FR_OK : FR_RW_ERROR;
 }
 
+//*****************************************************************************
+//
+// This function returns a string representation of an error code
+// that was returned from a function call to FatFs.  It can be used
+// for printing human readable error messages.
+//
+//*****************************************************************************
+const char *
+StringFromFresult(FRESULT fresult)
+{
+    unsigned int uIdx;
+
+    //
+    // Enter a loop to search the error code table for a matching
+    // error code.
+    //
+    for(uIdx = 0; uIdx < NUM_FRESULT_CODES; uIdx++)
+    {
+        //
+        // If a match is found, then return the string name of the
+        // error code.
+        //
+        if(g_sFresultStrings[uIdx].fresult == fresult)
+        {
+            return(g_sFresultStrings[uIdx].pcResultStr);
+        }
+    }
+
+    //
+    // At this point no matching code was found, so return a
+    // string indicating unknown error.
+    //
+    return("UNKNOWN ERROR CODE");
+}
+
 #endif /* _USE_MKFS */
 #endif /* !_FS_READONLY */
 #endif /* _FS_MINIMIZE == 0 */

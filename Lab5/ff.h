@@ -324,6 +324,15 @@ DWORD get_fattime (void);    /* 31-25: Year(0-127 org.1980), 24-21: Month(1-12),
 #endif
 #endif
 
+//*****************************************************************************
+//
+// This function returns a string representation of an error code
+// that was returned from a function call to FatFs.  It can be used
+// for printing human readable error messages.
+//
+//*****************************************************************************
+const char *
+StringFromFresult(FRESULT fresult);
 
 #define _FATFS
 #endif /* _FATFS */

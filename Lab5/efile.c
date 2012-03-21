@@ -3,18 +3,61 @@
 // Thomas Brezinski & Zack Lalanne 3/20/12
 
 #include "edisk.h"
+#include "ff.h"
+#include "UART.h"
+#include "diskio.h"
+#include "uartstdio.h"
 
-#define DIRENTRYSIZE 16
-#define DIRNAMESIZE 12
+//*****************************************************************************
+//
+// Defines the size of the buffers that hold the path, or temporary
+// data from the SD card.  There are two buffers allocated of this size.
+// The buffer size must be large enough to hold the longest expected
+// full path name, including the file name, and a trailing null character.
+//
+//*****************************************************************************
+#define PATH_BUF_SIZE   80
 
-struct DirEntry {
-   char Name[12];
-   unsigned long Sector;
-};	// each entry is 16 bytes so there can be 32 entries
+//*****************************************************************************
+//
+// Defines the size of the buffer that holds the command line.
+//
+//*****************************************************************************
+#define CMD_BUF_SIZE    64
 
-typedef struct DirEntry DirEntryType;
+//*****************************************************************************
+//
+// This buffer holds the full path to the current working directory.
+// Initially it is root ("/").
+//
+//*****************************************************************************
+static char g_cCwdBuf[PATH_BUF_SIZE] = "/";
 
-// the last 32 bits of each sector will be a pointer to the next sector linked, or 0 if it is the last sector in that list
+//*****************************************************************************
+//
+// A temporary data buffer used when manipulating file paths, or reading data
+// from the SD card.
+//
+//*****************************************************************************
+static char g_cTmpBuf[PATH_BUF_SIZE];
+
+//*****************************************************************************
+//
+// The buffer that holds the command line.
+//
+//*****************************************************************************
+static char g_cCmdBuf[CMD_BUF_SIZE];
+
+
+//*****************************************************************************
+//
+// The following are data structures used by FatFs.
+//
+//*****************************************************************************
+static FATFS g_sFatFs;
+static DIR g_sDirObject;
+static FILINFO g_sFileInfo;
+static FIL g_sFileObject;
 
 
 //---------- eFile_Init-----------------
@@ -24,9 +67,11 @@ typedef struct DirEntry DirEntryType;
 // since this program initializes the disk, it must run with 
 //    the disk periodic task operating
 int eFile_Init(void){
-   DSTATUS result = eDisk_Init(0); // init drive 0, only drive 0 supported
-   if (result) {
-      return 1;
+   FRESULT fresult;
+   fresult = f_mount(0, &g_sFatFs);
+   if(fresult != FR_OK){
+      UARTprintf("Init Error: %s\n", StringFromFresult(fresult));
+	  return(1);
    }
    return 0;
 }
@@ -36,21 +81,11 @@ int eFile_Init(void){
 // Input: none
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
 int eFile_Format(void) {
-   int i;
-   DSTATUS result;
-   BYTE block[512] = {0};
-   DirEntryType FreeMem = {"Free", 1};
-   // write the directory block of the sd card to all 0's because there are currently no entries
-   for (i = 0; i < DIRNAMESIZE; i++) {
-      block[495 + i] = FreeMem.Name[i];
-   }
-   block[495 + DIRNAMESIZE] = (BYTE)((FreeMem.Sector && 0xFF000000) >> 24);
-   block[495 + DIRNAMESIZE + 1] = (BYTE)((FreeMem.Sector && 0x00FF0000) >> 16);
-   block[495 + DIRNAMESIZE + 2] = (BYTE)((FreeMem.Sector && 0x0000FF00) >> 8);
-   block[495 + DIRNAMESIZE + 3] = (BYTE)(FreeMem.Sector && 0x000000FF);
-   result = eDisk_WriteBlock(block, 0);
-   if (result) {
-      return 1;
+   FRESULT fresult;
+   fresult = f_mkfs(0,0,255);	// !!! all arguments must be bytes, so smaller sectors?
+   if(fresult != FR_OK){
+      UARTprintf("Format Error: %s\n", StringFromFresult(fresult));
+      return(1);
    }
    return 0;
 }
@@ -59,65 +94,263 @@ int eFile_Format(void) {
 // Create a new, empty file with one allocated block
 // Input: file name is an ASCII string up to seven characters 
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
-int eFile_Create( char name[]);  // create new file, make it empty 
-
+int eFile_Create( char name[]){
+   FRESULT fresult;
+   fresult = f_open(&g_sFileObject, name, FA_CREATE_NEW);
+   if(fresult != FR_OK){
+      UARTprintf("Create Error: %s\n", StringFromFresult(fresult));
+	  return 1;
+   }
+   return 0;
+}
 
 //---------- eFile_WOpen-----------------
 // Open the file, read into RAM last block
 // Input: file name is a single ASCII letter
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
-int eFile_WOpen(char name[]);      // open a file for writing 
+int eFile_WOpen(char name[]){
+   FRESULT fresult;
+   fresult = f_open(&g_sFileObject, name, FA_WRITE);
+   if (fresult != FR_OK){
+      UARTprintf("WOpen Error: %s\n", StringFromFresult(fresult));;
+	  return 1;
+   }
+   return 0;
+}
 
 //---------- eFile_Write-----------------
 // save at end of the open file
 // Input: data to be saved
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
-int eFile_Write( char data);  
+int eFile_Write( char data){
+   unsigned	short BytesWritten;
+   FRESULT fresult;
+   fresult = f_write(&g_sFileObject, (const void *)data, 1, &BytesWritten);
+   if (fresult != FR_OK){
+      UARTprintf("Write Error: %s\n", StringFromFresult(fresult));
+	  return 1;
+   }
+   return 0;  
+}
 
 //---------- eFile_Close-----------------
 // Deactivate the file system
 // Input: none
 // Output: 0 if successful and 1 on failure (not currently open)
-int eFile_Close(void); 
+int eFile_Close(void){
+   FRESULT fresult;
+   fresult = f_mount(0, '\0');
+   if (fresult != FR_OK){
+      UARTprintf("Close Error: %s\n", StringFromFresult(fresult));
+	  return 1;
+   }
+   return 0;  
+}
+
 
 
 //---------- eFile_WClose-----------------
 // close the file, left disk in a state power can be removed
 // Input: none
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
-int eFile_WClose(void); // close the file for writing
+int eFile_WClose(void){
+   FRESULT fresult;
+   fresult = f_close(&g_sFileObject);
+   if (fresult != FR_OK){
+      UARTprintf("WClose Error: %s\n", StringFromFresult(fresult));
+	  return 1;
+   }
+   return 0;  
+}
 
 //---------- eFile_ROpen-----------------
 // Open the file, read first block into RAM 
 // Input: file name is a single ASCII letter
 // Output: 0 if successful and 1 on failure (e.g., trouble read to flash)
-int eFile_ROpen( char name[]);      // open a file for reading 
+int eFile_ROpen( char name[]){
+   FRESULT fresult;
+   fresult = f_open(&g_sFileObject, name, FA_READ);
+   if (fresult != FR_OK) {
+      UARTprintf("ROpen Error: %s\n", StringFromFresult(fresult));
+	  return 1;
+   }
+   return 0;
+}
    
 //---------- eFile_ReadNext-----------------
 // retreive data from open file
 // Input: none
 // Output: return by reference data
 //         0 if successful and 1 on failure (e.g., end of file)
-int eFile_ReadNext( char *pt);       // get next byte 
+int eFile_ReadNext( char *pt){
+   unsigned short BytesRead;
+   FRESULT fresult;
+   fresult = f_read(&g_sFileObject, pt, 1, &BytesRead);
+   if (fresult != FR_OK){
+      UARTprintf("ReadNext Error: %s\n", StringFromFresult(fresult));
+	  return 1;
+   }
+   return 0;  
+}
+
                               
 //---------- eFile_RClose-----------------
 // close the reading file
 // Input: none
 // Output: 0 if successful and 1 on failure (e.g., wasn't open)
-int eFile_RClose(void); // close the file for writing
+int eFile_RClose(void){
+   FRESULT fresult;
+   fresult = f_close(&g_sFileObject);
+   if (fresult != FR_OK){
+      UARTprintf("RClose Error: %s\n", StringFromFresult(fresult));
+	  return 1;
+   }
+   return 0; 
+}
 
 //---------- eFile_Directory-----------------
 // Display the directory with filenames and sizes
 // Input: pointer to a function that outputs ASCII characters to display
 // Output: characters returned by reference
 //         0 if successful and 1 on failure (e.g., trouble reading from flash)
-int eFile_Directory(void(*fp)(unsigned char));   
+int eFile_Directory(void(*fp)(unsigned char)){
+    unsigned long ulTotalSize;
+    unsigned long ulFileCount;
+    unsigned long ulDirCount;
+    FRESULT fresult;
+    FATFS *pFatFs;
+
+    //
+    // Open the current directory for access.
+    //
+    fresult = f_opendir(&g_sDirObject, g_cCwdBuf);
+
+    //
+    // Check for error and return if there is a problem.
+    //
+    if(fresult != FR_OK)
+    {
+        return(fresult);
+    }
+
+    ulTotalSize = 0;
+    ulFileCount = 0;
+    ulDirCount = 0;
+
+    //
+    // Give an extra blank line before the listing.
+    //
+    UARTprintf("\n");
+
+    //
+    // Enter loop to enumerate through all directory entries.
+    //
+    for(;;)
+    {
+        //
+        // Read an entry from the directory.
+        //
+        fresult = f_readdir(&g_sDirObject, &g_sFileInfo);
+
+        //
+        // Check for error and return if there is a problem.
+        //
+        if(fresult != FR_OK)
+        {
+            return(fresult);
+        }
+
+        //
+        // If the file name is blank, then this is the end of the
+        // listing.
+        //
+        if(!g_sFileInfo.fname[0])
+        {
+            break;
+        }
+
+        //
+        // If the attribue is directory, then increment the directory count.
+        //
+        if(g_sFileInfo.fattrib & AM_DIR)
+        {
+            ulDirCount++;
+        }
+
+        //
+        // Otherwise, it is a file.  Increment the file count, and
+        // add in the file size to the total.
+        //
+        else
+        {
+            ulFileCount++;
+            ulTotalSize += g_sFileInfo.fsize;
+        }
+
+        //
+        // Print the entry information on a single line with formatting
+        // to show the attributes, date, time, size, and name.
+        //
+        UARTprintf("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
+                    (g_sFileInfo.fattrib & AM_DIR) ? 'D' : '-',
+                    (g_sFileInfo.fattrib & AM_RDO) ? 'R' : '-',
+                    (g_sFileInfo.fattrib & AM_HID) ? 'H' : '-',
+                    (g_sFileInfo.fattrib & AM_SYS) ? 'S' : '-',
+                    (g_sFileInfo.fattrib & AM_ARC) ? 'A' : '-',
+                    (g_sFileInfo.fdate >> 9) + 1980,
+                    (g_sFileInfo.fdate >> 5) & 15,
+                     g_sFileInfo.fdate & 31,
+                    (g_sFileInfo.ftime >> 11),
+                    (g_sFileInfo.ftime >> 5) & 63,
+                     g_sFileInfo.fsize,
+                     g_sFileInfo.fname);
+    }   // endfor
+
+    //
+    // Print summary lines showing the file, dir, and size totals.
+    //
+    UARTprintf("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
+                ulFileCount, ulTotalSize, ulDirCount);
+
+    //
+    // Get the free space.
+    //
+    fresult = f_getfree("/", &ulTotalSize, &pFatFs);
+
+    //
+    // Check for error and return if there is a problem.
+    //
+    if(fresult != FR_OK)
+    {
+        return(fresult);
+    }
+
+    //
+    // Display the amount of free space that was calculated.
+    //
+    UARTprintf(", %10uK bytes free\n", ulTotalSize * pFatFs->sects_clust / 2);
+
+    //
+    // Made it to here, return with no errors.
+    //
+    return(0);
+}   
 
 //---------- eFile_Delete-----------------
 // delete this file
 // Input: file name is a single ASCII letter
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
-int eFile_Delete( char name[]);  // remove this file 
+int eFile_Delete( char name[]){
+   FRESULT fresult;
+   fresult = f_unlink(name);
+   if(fresult != FR_OK){
+      UART0_SendString("Error deleting file: ");
+	  UART0_SendString((char *)StringFromFresult(fresult));
+	  UART0_SendString("\n");
+	  return 1;
+   }
+   return 0;
+}
 
 //---------- eFile_RedirectToFile-----------------
 // open a file for writing 
