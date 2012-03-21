@@ -289,6 +289,22 @@ void UART0_SendString(char *stringBuffer){
   }
 }
 
+//--------UART0_SendStringLength---------
+// Outputs a string to UART0
+// Input: String, Length of string
+// Output: Number of chracters written
+int UART0_SendStringLength(const char *stringBuffer, unsigned long length){
+  // Loop while there are more characters to send.
+  int i;
+
+  for(i = 0; i < length; i++) {
+    UART0_OutChar(stringBuffer[i]);
+  } 
+  
+  return i + 1;
+}
+
+
 // Interrupt on recieve or transmit FIFO getting too full
 void UART0_Handler(void){
 

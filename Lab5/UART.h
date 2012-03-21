@@ -56,6 +56,12 @@ void UART0_Init(void);
 // Output: none
 void UART0_SendString(char *stringBuffer);
 
+//--------UART0_SendStringLength---------
+// Outputs a string to UART0
+// Input: String, Length of string
+// Output: Number of chracters written
+int UART0_SendStringLength(const char *stringBuffer, unsigned long length);
+
 //--------UART0_OutChar------------
 // Outputs a character to UART0, spin
 //   if TxFifo is full

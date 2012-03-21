@@ -1,3 +1,13 @@
+// Modified By:
+// Thomas Brezinski	TCB567
+// Zachary Lalanne ZLL67
+// TA: Zahidul Haq
+// Date of last change: 3/21/2012
+
+// Note: The only function modifed is the UARTprintf function that now uses
+// our UART0SendStringLength to print to UART, do not expect other functions
+// besides UARTprintf to currently work.
+						 
 //*****************************************************************************
 //
 // uartstdio.c - Utility driver to provide simple UART console functions.
@@ -34,6 +44,8 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/uart.h"
 #include "utils/uartstdio.h"
+
+#include "UART.h"// Our UART0 Driver
 
 //*****************************************************************************
 //
@@ -465,6 +477,7 @@ UARTStdioInitExpClk(unsigned long ulPortNum, unsigned long ulBaud)
 //! \return Returns the count of characters written.
 //
 //*****************************************************************************
+
 int
 UARTwrite(const char *pcBuf, unsigned long ulLen)
 {
@@ -922,7 +935,7 @@ UARTprintf(const char *pcString, ...)
         //
         // Write this portion of the string.
         //
-        UARTwrite(pcString, ulIdx);
+        UART0_SendStringLength(pcString, ulIdx);
 
         //
         // Skip the portion of the string that was written.
@@ -1006,7 +1019,7 @@ again:
                     //
                     // Print out the character.
                     //
-                    UARTwrite((char *)&ulValue, 1);
+                    UART0_SendStringLength((char *)&ulValue, 1);
 
                     //
                     // This command has been handled.
@@ -1085,7 +1098,7 @@ again:
                     //
                     // Write the string.
                     //
-                    UARTwrite(pcStr, ulIdx);
+                    UART0_SendStringLength(pcStr, ulIdx);
 
                     //
                     // Write any required padding spaces
@@ -1095,7 +1108,7 @@ again:
                         ulCount -= ulIdx;
                         while(ulCount--)
                         {
-                            UARTwrite(" ", 1);
+                            UART0_SendStringLength(" ", 1);
                         }
                     }
                     //
@@ -1241,7 +1254,7 @@ convert:
                     //
                     // Write the string.
                     //
-                    UARTwrite(pcBuf, ulPos);
+                    UART0_SendStringLength(pcBuf, ulPos);
 
                     //
                     // This command has been handled.
@@ -1257,7 +1270,7 @@ convert:
                     //
                     // Simply write a single %.
                     //
-                    UARTwrite(pcString - 1, 1);
+                    UART0_SendStringLength(pcString - 1, 1);
 
                     //
                     // This command has been handled.
@@ -1273,7 +1286,7 @@ convert:
                     //
                     // Indicate an error.
                     //
-                    UARTwrite("ERROR", 5);
+                    UART0_SendStringLength("ERROR", 5);
 
                     //
                     // This command has been handled.
