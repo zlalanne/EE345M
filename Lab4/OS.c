@@ -31,7 +31,7 @@
 
 #define MAXTHREADS 8    // maximum number of threads
 #define STACKSIZE  512  // number of 32-bit words in stack
-#define FIFOSIZE 256
+#define FIFOSIZE 512
 #define JITTERSIZE 64
 
 extern unsigned long Period;
