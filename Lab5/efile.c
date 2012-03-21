@@ -2,6 +2,7 @@
 // Middle-level routines to implement a solid-state disk 
 // Thomas Brezinski & Zack Lalanne 3/20/12
 
+#include <stdio.h>
 #include "edisk.h"
 #include "ff.h"
 #include "UART.h"
@@ -59,6 +60,7 @@ static DIR g_sDirObject;
 static FILINFO g_sFileInfo;
 static FIL g_sFileObject;
 
+int StreamToFile=0;                // 0=UART, 1=stream to file 
 
 //---------- eFile_Init-----------------
 // Activate the file system, without formating
@@ -357,10 +359,34 @@ int eFile_Delete( char name[]){
 // Input: file name is a single ASCII letter
 // stream printf data into file
 // Output: 0 if successful and 1 on failure (e.g., trouble read/write to flash)
-int eFile_RedirectToFile(char *name);
+int eFile_RedirectToFile(char *name){ 
+  eFile_Create(name);              // ignore error if file already exists 
+  if(eFile_WOpen(name)) return 1;  // cannot open file 
+  StreamToFile = 1; 
+  return 0; 
+}
 
 //---------- eFile_EndRedirectToFile-----------------
 // close the previously open file
 // redirect printf data back to UART
 // Output: 0 if successful and 1 on failure (e.g., wasn't open)
-int eFile_EndRedirectToFile(void);
+int eFile_EndRedirectToFile(void){ 
+  StreamToFile = 0; 
+  if(eFile_WClose()) return 1;    // cannot close file 
+  return 0; 
+}
+ 
+int fputc (int ch, FILE *f) {  
+  if(StreamToFile){ 
+    if(eFile_Write(ch)){          // close file on error 
+       eFile_EndRedirectToFile(); // cannot write to file 
+       return 1;                  // failure 
+    } 
+    return 0; // success writing 
+  }
+   
+  // regular UART output 
+  UART0_OutChar(ch); 
+  return 0;  
+}
+ 
