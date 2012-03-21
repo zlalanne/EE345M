@@ -29,7 +29,7 @@ short PrevError;   // previous error, RPM
 unsigned long PreFilter[SAMPLESIZE] = {0,};
 unsigned long PostFilter[SAMPLESIZE] = {0,};
 unsigned long PostFFT[SAMPLESIZE] = {0,};
-char DigFiltEn = FALSE;
+char DigFiltEn = TRUE;
 
 // Variables used for oLED Display
 char PlotMode = TIME;
@@ -45,10 +45,10 @@ int FilterIndex = 0;
 void cr4_fft_64_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
 void cr4_fft_1024_stm32(void *pssOUT, void *pssIN, unsigned short Nbin);
 
-const long h[51]={0,-7,-45,-64,5,78,-46,-355,-482,-138,329,
-    177,-722,-1388,-767,697,1115,-628,-2923,-2642,1025,4348,1820,-8027,-19790,
-    56862,-19790,-8027,1820,4348,1025,-2642,-2923,-628,1115,697,-767,-1388,-722,
-    177,329,-138,-482,-355,-46,78,5,-64,-45,-7,0};
+const long h[51]={4,-2,-5,-3,2,1,-3,-7,-8,-6,-5,
+     -5,-8,-15,-19,-13,-3,-7,-27,-39,-19,17,12,-66,-175,
+     798,-175,-66,12,17,-19,-39,-27,-7,-3,-13,-19,-15,-8,
+     -5,-5,-6,-8,-7,-3,1,2,-3,-5,-2,4};
 
 //******** Producer *************** 
 // The Producer in this lab will be called from your ADC ISR
@@ -108,7 +108,7 @@ void Display(void) {
 
 	  // Perform FFT
       if(DigFiltEn == TRUE) {
-        cr4_fft_1024_stm32(PostFFT,PostFilter,1024);
+        cr4_fft_1024_stm32(PostFFT,PreFilter,1024);
       } else {
         cr4_fft_1024_stm32(PostFFT,PreFilter,1024);
       }
@@ -121,8 +121,8 @@ void Display(void) {
 		mag = sqrt(real*real + imag*imag);
 
 		if(DigFiltEn == TRUE) {
-		  // Max mag = 5*1024 = 5120, can only map to 512 
-		  mag = mag / 10;
+		  // Max mag = 2*1024 = 2048, can only map to 512 
+		  mag = mag / 4;
 		} else {
 		  // Max mag = 1024, can only map to 512
 		  mag = mag / 2;
@@ -150,7 +150,7 @@ void Display(void) {
 	  
 	  if(DigFiltEn == TRUE) {
         // Range is from 0 to 15V because max input is 3V and max gain is 5
-		RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
+		RIT128x96x4PlotClear(0, 60, 0, 20, 40, 60);
 	  } else {
 	    // Range is from 0 to 3.0V because max input is 3.0V 
 		RIT128x96x4PlotClear(0, 30, 0, 10, 20, 30);
@@ -212,7 +212,8 @@ void Filter_Init(void) {
 // Calculate one filter output
 // called at sampling rate
 // Input: New ADC data
-// Output: Filter output
+// Output: Filter output	 
+/*
 long Filter_Calc(short newdata) {
   int i;
   long sum;
@@ -243,6 +244,41 @@ long Filter_Calc(short newdata) {
   sum = sum / 16384;
 
   return sum;
+}							   */
+
+
+long DebugFilter[200];
+int DebugFilterIndex = 0;
+
+static unsigned int n = 50;
+
+unsigned long Filter_Calc(unsigned short newdata) {
+  static unsigned long x[102] = {0,};
+  int k;
+  long y;
+  
+  n++;
+  if(n==102) n = 51;
+
+  x[n]=x[n-51]=newdata;
+
+  y=0;
+
+  for(k=0;k<51;k++){
+    y = y + h[k]*x[n-k];
+  }
+
+  y = y/512;
+
+  //if(y < 0) y = 0;
+
+  y = y+600;
+  if(DebugFilterIndex < 200) {
+    DebugFilter[DebugFilterIndex] = y;
+	DebugFilterIndex++;
+  }
+
+  return y;
 }
 
 //******** Consumer *************** 
@@ -283,7 +319,7 @@ void Consumer(void){
 
 	  // Perform FFT
       if(DigFiltEn == TRUE) {
-        cr4_fft_1024_stm32(PostFFT,PostFilter,1024);
+        cr4_fft_1024_stm32(PostFFT,PreFilter,1024);
       } else {
         cr4_fft_1024_stm32(PostFFT,PreFilter,1024);
       }
@@ -297,7 +333,7 @@ void Consumer(void){
 
 		if(DigFiltEn == TRUE) {
 		  // Max mag = 5*1024 = 5120, can only map to 512 
-		  mag = mag / 10;
+		  mag = mag / 4;
 		} else {
 		  // Max mag = 1024, can only map to 512
 		  mag = mag / 2;
@@ -325,7 +361,7 @@ void Consumer(void){
 	  
 	  if(DigFiltEn == TRUE) {
         // Range is from 0 to 15V because max input is 3V and max gain is 5
-		RIT128x96x4PlotClear(0, 15, 0, 5, 10, 15);
+		RIT128x96x4PlotClear(0, 60, 0, 20, 40, 60);
 	  } else {
 	    // Range is from 0 to 3.0V because max input is 3.0V 
 		RIT128x96x4PlotClear(0, 30, 0, 10, 20, 30);
@@ -346,7 +382,7 @@ void Consumer(void){
 	    snprintf(buffer, 30, "Voltage: %d mV         ", voltage);
 
 		if(DigFiltEn == TRUE) {
-		  voltage = voltage / 1000;
+		  voltage = voltage / 100;
 		} else {
 		  voltage = voltage / 100;
 		}
