@@ -2,13 +2,14 @@
 // Thomas Brezinski	TCB567
 // Zachary Lalanne ZLL67
 // TA: Zahidul Haq
-// Date of last change: 2/24/2012
+// Date of last change: 3/21/2012
 
 /*
  *  TIMER SETUP
  *	Timer0A is being used to trigger the ADC in ADC_Collect (all setup in ADC_Collect)
  *	Timer0B is being used for OS_Time (all setup in OS_Init)
  *  Timer1A is being used to decrement the sleep state, works at 1ms (1khz), initialized in OS_Init, enabled in OS_Launch
+ *  Timer1B is being used to keep time for the FatFS (setup in eFile_init)
  *	Timer2A is being used for periodic background thread 1 (Configured in OS_Init, started in OS_AddPeriodicThread)
  *	Timer2B is being used for periodic background thread 2 (Configured in OS_Init, started in OS_AddPeriodicThread)
  */

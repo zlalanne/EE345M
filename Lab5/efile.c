@@ -3,6 +3,15 @@
 // Thomas Brezinski & Zack Lalanne 3/20/12
 
 #include <stdio.h>
+
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_ints.h"
+
+#include "driverlib/timer.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/interrupt.h"
+
 #include "edisk.h"
 #include "ff.h"
 #include "UART.h"
@@ -75,7 +84,20 @@ int eFile_Init(void){
       UARTprintf("Init Error: %s\n", StringFromFresult(fresult));
 	  return(1);
    }
-   return 0;
+
+  // Initialize Timer1B: Used for sleep decrementing
+  // Need to call OS_Init before running eFile_Init
+  TimerDisable(TIMER1_BASE, TIMER_B);
+  TimerIntDisable(TIMER1_BASE, TIMER_TIMB_TIMEOUT);
+  TimerPrescaleSet(TIMER1_BASE, TIMER_B, 16); 
+  TimerLoadSet(TIMER1_BASE, TIMER_B, 31250); // Every interrupt is 1ms
+  TimerIntClear(TIMER1_BASE, TIMER_TIMB_TIMEOUT);
+  TimerIntEnable(TIMER1_BASE, TIMER_TIMB_TIMEOUT);
+  TimerEnable(TIMER1_BASE, TIMER_B);
+  IntEnable(INT_TIMER1B);
+
+  return 0;
+
 }
 
 //---------- eFile_Format-----------------
@@ -388,5 +410,13 @@ int fputc (int ch, FILE *f) {
   // regular UART output 
   UART0_OutChar(ch); 
   return 0;  
+}
+
+// ******** Timer1B_Handler ************
+// Keeps time for the Fat File System 
+void Timer1B_Handler(void) {
+    // Call the FatFs tick timer.
+    disk_timerproc();
+	TimerIntClear(TIMER1_BASE, TIMER_TIMB_TIMEOUT);
 }
  
