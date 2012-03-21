@@ -20,7 +20,7 @@
 #include "driverlib/gpio.h"
 #include "driverlib/ssi.h"
 #include "driverlib/sysctl.h"
-#include "fatfs/src/diskio.h"
+#include "diskio.h"
 
 /* Definitions for MMC/SDC command */
 #define CMD0    (0x40+0)    /* GO_IDLE_STATE */

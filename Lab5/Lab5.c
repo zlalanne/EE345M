@@ -162,6 +162,8 @@ void diskError(char* errtype, unsigned long n){
   printf(" disk error %u",n);
   OS_Kill();
 }
+
+/*
 void TestDisk(void){  DSTATUS result;  unsigned short block;  int i; unsigned long n;
   // simple test of eDisk
   printf("\n\rEE345M/EE380L, Lab 5 eDisk test\n\r");
@@ -194,10 +196,13 @@ void TestDisk(void){  DSTATUS result;  unsigned short block;  int i; unsigned lo
   }  
   printf("Successful test of %u blocks\n\r",MAXBLOCKS);
   OS_Kill();
-}
+}  
+
 void RunTest(void){
   NumCreated += OS_AddThread(&TestDisk,128,1);  
 }
+*/
+
 //******************* test main1 **********
 // SYSTICK interrupts, period established by OS_Launch
 // Timer interrupts, period established by first call to OS_AddPeriodicThread
@@ -206,11 +211,11 @@ int main(void){   // testmain1
 
 //*******attach background tasks***********
   OS_AddPeriodicThread(&disk_timerproc,1,10*TIME_1MS,0);   // time out routines for disk
-  OS_AddButtonTask(&RunTest,2);
+//  OS_AddButtonTask(&RunTest,2);
   
   NumCreated = 0 ;
 // create initial foreground threads
-  NumCreated += OS_AddThread(&TestDisk,128,1);  
+//  NumCreated += OS_AddThread(&TestDisk,128,1);  
   NumCreated += OS_AddThread(&IdleTask,128,3); 
  
   OS_Launch(10*TIME_1MS); // doesn't return, interrupts enabled in here

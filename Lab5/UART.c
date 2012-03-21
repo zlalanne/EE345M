@@ -116,7 +116,7 @@ void CMD_Run(void) {
   char arg[MAXARGS][MAXARGLENGTH] = {NULL, NULL};
   char letter;
   char *tokenPtr;
-  char newCMD = FALSE;
+  char newCMD = FAILURE;
   int i = 0;
 
   // If no new characters then exit
@@ -134,7 +134,7 @@ void CMD_Run(void) {
 		UART0_OutChar('\r');
 		CurCMD[CMDCursor] = '\0'; // Terminate string
 		CMDCursor = 0;
-		newCMD = TRUE;
+		newCMD = SUCCESS;
 		break;
 	case 0x7F:
 	    // User pressed backspace
@@ -153,7 +153,7 @@ void CMD_Run(void) {
   }
 
   // Leave function if user has not pressed enter yet
-  if(newCMD == FALSE){
+  if(newCMD == FAILURE){
     return;
   }
 
@@ -180,16 +180,16 @@ void CMD_Run(void) {
 	  Output_Clear();
 	  UART0_SendString("oLED Cleared\n\r");
 	  break;
-	case 'd':
+/*	case 'd':
 	  // Digital filter enable/disable
-	  if(DigFiltEn == TRUE) {
+	  if(DigFiltEn == SUCCESS) {
 	    UART0_SendString("Turning off digital filter\n\r");
-		DigFiltEn = FALSE;
+		DigFiltEn = FAILURE;
 	  } else {
 	    UART0_SendString("Turning on digital filter\n\r");
-		DigFiltEn = TRUE;
+		DigFiltEn = SUCCESS;
 	  }
-	  break;
+	  break;  */
 	case 'o':
 	  // Turn on oLED screen
 	  Output_On();
@@ -205,7 +205,7 @@ void CMD_Run(void) {
 	      oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
           UART0_SendString("Message Printed\n\r");
 	      break;
-	    case 'e':
+	   /* case 'e':
 		  // Print performance measurements to UART
 		  UART0_SendString("Performance Measurements:\n\r");
 		  snprintf(buffer, BUFFERSIZE, "NumCreated: %d\r\n", NumCreated);
@@ -216,9 +216,9 @@ void CMD_Run(void) {
 		  UART0_SendString(buffer);
 		  snprintf(buffer, BUFFERSIZE, "Jitter: %d\r\n", (MaxJitter1-MinJitter1));
 		  UART0_SendString(buffer);
-		  break;
+		  break; */
 	  }
-	  break;
+	  break;  
 	case 't':
 	  // Get Timer2 interrupt counter
 	  measurement = OS_MsTime(1);
@@ -270,7 +270,7 @@ void copySoftwareToHardware(void){
 //   if TxFifo is full
 // Input: Single character to print
 // Output: none
-void UART0_OutChar(char data){
+void UART0_OutChar(unsigned char data){
   while(TxFifo_Put(data) == FIFOFAIL){};
   UARTIntDisable(UART0_BASE, UART_INT_TX);
   copySoftwareToHardware();

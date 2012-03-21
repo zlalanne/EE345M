@@ -39,7 +39,7 @@
 #define _DRIVES        2
 /* Number of logical drives to be used. This affects the size of internal table. */
 
-#define    _USE_MKFS    0
+#define    _USE_MKFS    1
 /* When _USE_MKFS is set to 1 and _FS_READONLY is set to 0, f_mkfs function is
 /  enabled. */
 
@@ -323,6 +323,36 @@ DWORD get_fattime (void);    /* 31-25: Year(0-127 org.1980), 24-21: Month(1-12),
 #error Do not forget to set _MCU_ENDIAN properly!
 #endif
 #endif
+
+//*****************************************************************************
+//
+// A structure that holds a mapping between an FRESULT numerical code,
+// and a string represenation.  FRESULT codes are returned from the FatFs
+// FAT file system driver.
+//
+//*****************************************************************************
+typedef struct
+{
+    FRESULT fresult;
+    char *pcResultStr;
+}
+tFresultString;
+
+//*****************************************************************************
+//
+// A macro to make it easy to add result codes to the table.
+//
+//*****************************************************************************
+#define FRESULT_ENTRY(f)        { (f), (#f) }
+
+
+
+//*****************************************************************************
+//
+// A macro that holds the number of result codes.
+//
+//*****************************************************************************
+#define NUM_FRESULT_CODES (sizeof(g_sFresultStrings) / sizeof(tFresultString))
 
 //*****************************************************************************
 //

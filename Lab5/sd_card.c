@@ -31,8 +31,8 @@
 #include "driverlib/systick.h"
 #include "utils/cmdline.h"
 #include "utils/uartstdio.h"
-#include "fatfs/src/ff.h"
-#include "fatfs/src/diskio.h"
+#include "ff.h"
+#include "diskio.h"
 
 //*****************************************************************************
 //

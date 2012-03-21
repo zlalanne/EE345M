@@ -33,8 +33,6 @@
 // Boolean phrases
 #ifndef boolean
   #define boolean
-  #define TRUE 1
-  #define FALSE 0
   #define SUCCESS 1
   #define FAILURE 0
   #define VALID 1
@@ -44,6 +42,7 @@
 
 // UART Parameters
 #define BAUD 115200
+
 
 //------------UART0_Init------------
 // Initilizes UART0 as interpreturer
@@ -62,7 +61,7 @@ void UART0_SendString(char *stringBuffer);
 //   if TxFifo is full
 // Input: Single character to print
 // Output: none
-void UART0_OutChar(char data);
+void UART0_OutChar(unsigned char data);
 
 //------------Interpreter--------------
 // Continuosly runs commands
@@ -85,4 +84,4 @@ extern unsigned long NumSamples;   // incremented every sample
 extern unsigned long DataLost;     // data sent by Producer, but not received by Consumer
 extern long MaxJitter1;             // largest time jitter between interrupts in usec
 extern long MinJitter1;             // smallest time jitter between interrupts in usec
-extern char DigFiltEn;				// Enable/disable digital filter
+//extern char DigFiltEn;				// Enable/disable digital filter
