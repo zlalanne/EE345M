@@ -206,7 +206,7 @@ void RunTest(void){
 //******************* test main1 **********
 // SYSTICK interrupts, period established by OS_Launch
 // Timer interrupts, period established by first call to OS_AddPeriodicThread
-int main(void){   // testmain1
+int testmain1(void){   // testmain1
   OS_Init();           // initialize, disable interrupts
 
 //*******attach background tasks***********
@@ -226,10 +226,10 @@ void TestFile(void){   int i; char data;
   printf("\n\rEE345M/EE380L, Lab 5 eFile test\n\r");
   // simple test of eFile
   if(eFile_Init())              diskError("eFile_Init",0); 
-  if(eFile_Format())            diskError("eFile_Format",0); 
+  //if(eFile_Format())            diskError("eFile_Format",0); 
   eFile_Directory(&UART0_OutChar);
-  if(eFile_Create("file1"))     diskError("eFile_Create",0);
-  if(eFile_WOpen("file1"))      diskError("eFile_WOpen",0);
+  //if(eFile_Create("/file9"))     diskError("eFile_Create",0);
+  if(eFile_WOpen("/file9"))      diskError("eFile_WOpen",0);
   for(i=0;i<1000;i++){
     if(eFile_Write('a'+i%26))   diskError("eFile_Write",i);
     if(i%52==51){
@@ -239,12 +239,12 @@ void TestFile(void){   int i; char data;
   }
   if(eFile_WClose())            diskError("eFile_Close",0);
   eFile_Directory(&UART0_OutChar);
-  if(eFile_ROpen("file1"))      diskError("eFile_ROpen",0);
+  if(eFile_ROpen("/file9"))      diskError("eFile_ROpen",0);
   for(i=0;i<1000;i++){
     if(eFile_ReadNext(&data))   diskError("eFile_ReadNext",i);
     UART0_OutChar(data);
   }
-  if(eFile_Delete("file1"))     diskError("eFile_Delete",0);
+  if(eFile_Delete("/file9"))     diskError("eFile_Delete",0);
   eFile_Directory(&UART0_OutChar);
   printf("Successful test of creating a file\n\r");
   OS_Kill();
@@ -253,7 +253,7 @@ void TestFile(void){   int i; char data;
 //******************* test main2 **********
 // SYSTICK interrupts, period established by OS_Launch
 // Timer interrupts, period established by first call to OS_AddPeriodicThread
-int testmain2(void){ 
+int main(void){ 
   OS_Init();           // initialize, disable interrupts
 
 //*******attach background tasks***********

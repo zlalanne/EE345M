@@ -129,7 +129,7 @@ void OS_Init(void) {
   // Initialze peripherals
   UART0_Init();
   ADC_Open();
-  Output_Init();
+  //Output_Init();
 
   // Select switch
   SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);

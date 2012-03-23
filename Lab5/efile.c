@@ -64,9 +64,16 @@ int StreamToFile = 0;  // 0=UART, 1=stream to file
 //    the disk periodic task operating
 int eFile_Init(void){
    FRESULT fresult;
+
+   
+  // Enabling SSIO
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOA);
+
+
    fresult = f_mount(0, &g_sFatFs);
    if(fresult != FR_OK){
-      UARTprintf("Init Error: %s\n", StringFromFresult(fresult));
+      UARTprintf("Init Error: %s\n\r", StringFromFresult(fresult));
 	  return(1);
    }
 
@@ -94,9 +101,11 @@ int eFile_Init(void){
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
 int eFile_Format(void) {
    FRESULT fresult;
-   fresult = f_mkfs(0,0,255);	// !!! all arguments must be bytes, so smaller sectors?
+
+   // Third argument is allocation unit size
+   fresult = f_mkfs(0,0,32);
    if(fresult != FR_OK){
-      UARTprintf("Format Error: %s\n", StringFromFresult(fresult));
+      UARTprintf("Format Error: %s\n\r", StringFromFresult(fresult));
       return(1);
    }
    return 0;
@@ -110,7 +119,7 @@ int eFile_Create( char name[]){
    FRESULT fresult;
    fresult = f_open(&g_sFileObject, name, FA_CREATE_NEW);
    if(fresult != FR_OK){
-      UARTprintf("Create Error: %s\n", StringFromFresult(fresult));
+      UARTprintf("Create Error: %s\n\r", StringFromFresult(fresult));
 	  return 1;
    }
    return 0;
@@ -124,7 +133,7 @@ int eFile_WOpen(char name[]){
    FRESULT fresult;
    fresult = f_open(&g_sFileObject, name, FA_WRITE);
    if (fresult != FR_OK){
-      UARTprintf("WOpen Error: %s\n", StringFromFresult(fresult));;
+      UARTprintf("WOpen Error: %s\n\r", StringFromFresult(fresult));;
 	  return 1;
    }
    return 0;
@@ -137,9 +146,9 @@ int eFile_WOpen(char name[]){
 int eFile_Write( char data){
    unsigned	short BytesWritten;
    FRESULT fresult;
-   fresult = f_write(&g_sFileObject, (const void *)data, 1, &BytesWritten);
+   fresult = f_write(&g_sFileObject, &data, 1, &BytesWritten);
    if (fresult != FR_OK){
-      UARTprintf("Write Error: %s\n", StringFromFresult(fresult));
+      UARTprintf("Write Error: %s\n\r", StringFromFresult(fresult));
 	  return 1;
    }
    return 0;  
@@ -153,7 +162,7 @@ int eFile_Close(void){
    FRESULT fresult;
    fresult = f_mount(0, '\0');
    if (fresult != FR_OK){
-      UARTprintf("Close Error: %s\n", StringFromFresult(fresult));
+      UARTprintf("Close Error: %s\n\r", StringFromFresult(fresult));
 	  return 1;
    }
    return 0;  
@@ -169,7 +178,7 @@ int eFile_WClose(void){
    FRESULT fresult;
    fresult = f_close(&g_sFileObject);
    if (fresult != FR_OK){
-      UARTprintf("WClose Error: %s\n", StringFromFresult(fresult));
+      UARTprintf("WClose Error: %s\n\r", StringFromFresult(fresult));
 	  return 1;
    }
    return 0;  
@@ -183,7 +192,7 @@ int eFile_ROpen( char name[]){
    FRESULT fresult;
    fresult = f_open(&g_sFileObject, name, FA_READ);
    if (fresult != FR_OK) {
-      UARTprintf("ROpen Error: %s\n", StringFromFresult(fresult));
+      UARTprintf("ROpen Error: %s\n\r", StringFromFresult(fresult));
 	  return 1;
    }
    return 0;
@@ -199,7 +208,7 @@ int eFile_ReadNext( char *pt){
    FRESULT fresult;
    fresult = f_read(&g_sFileObject, pt, 1, &BytesRead);
    if (fresult != FR_OK){
-      UARTprintf("ReadNext Error: %s\n", StringFromFresult(fresult));
+      UARTprintf("ReadNext Error: %s\n\r", StringFromFresult(fresult));
 	  return 1;
    }
    return 0;  
@@ -214,7 +223,7 @@ int eFile_RClose(void){
    FRESULT fresult;
    fresult = f_close(&g_sFileObject);
    if (fresult != FR_OK){
-      UARTprintf("RClose Error: %s\n", StringFromFresult(fresult));
+      UARTprintf("RClose Error: %s\n\r", StringFromFresult(fresult));
 	  return 1;
    }
    return 0; 
@@ -253,7 +262,7 @@ int eFile_Directory(void(*fp)(unsigned char)){
     //
     // Give an extra blank line before the listing.
     //
-    UARTprintf("\n");
+    UARTprintf("\n\r");
 
     //
     // Enter loop to enumerate through all directory entries.
@@ -322,7 +331,7 @@ int eFile_Directory(void(*fp)(unsigned char)){
     //
     // Print summary lines showing the file, dir, and size totals.
     //
-    UARTprintf("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
+    UARTprintf("\n\r%4u File(s),%10u bytes total\n\r%4u Dir(s)",
                 ulFileCount, ulTotalSize, ulDirCount);
 
     //
@@ -341,7 +350,7 @@ int eFile_Directory(void(*fp)(unsigned char)){
     //
     // Display the amount of free space that was calculated.
     //
-    UARTprintf(", %10uK bytes free\n", ulTotalSize * pFatFs->sects_clust / 2);
+    UARTprintf(", %10uK bytes free\n\r", ulTotalSize * pFatFs->sects_clust / 2);
 
     //
     // Made it to here, return with no errors.
@@ -359,7 +368,7 @@ int eFile_Delete( char name[]){
    if(fresult != FR_OK){
       UART0_SendString("Error deleting file: ");
 	  UART0_SendString((char *)StringFromFresult(fresult));
-	  UART0_SendString("\n");
+	  UART0_SendString("\n\r");
 	  return 1;
    }
    return 0;
@@ -395,7 +404,7 @@ int fputc (int ch, FILE *f) {
     } 
     return 0; // success writing 
   }
-   
+   					
   // regular UART output 
   UART0_OutChar(ch); 
   return 0;  
