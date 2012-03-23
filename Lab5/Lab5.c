@@ -228,8 +228,8 @@ void TestFile(void){   int i; char data;
   if(eFile_Init())              diskError("eFile_Init",0); 
   //if(eFile_Format())            diskError("eFile_Format",0); 
   eFile_Directory(&UART0_OutChar);
-  //if(eFile_Create("/file9"))     diskError("eFile_Create",0);
-  if(eFile_WOpen("/file9"))      diskError("eFile_WOpen",0);
+  if(eFile_Create("file4"))     diskError("eFile_Create",0);
+  if(eFile_WOpen("file4"))      diskError("eFile_WOpen",0);
   for(i=0;i<1000;i++){
     if(eFile_Write('a'+i%26))   diskError("eFile_Write",i);
     if(i%52==51){
@@ -239,12 +239,12 @@ void TestFile(void){   int i; char data;
   }
   if(eFile_WClose())            diskError("eFile_Close",0);
   eFile_Directory(&UART0_OutChar);
-  if(eFile_ROpen("/file9"))      diskError("eFile_ROpen",0);
+  if(eFile_ROpen("file4"))      diskError("eFile_ROpen",0);
   for(i=0;i<1000;i++){
     if(eFile_ReadNext(&data))   diskError("eFile_ReadNext",i);
     UART0_OutChar(data);
   }
-  if(eFile_Delete("/file9"))     diskError("eFile_Delete",0);
+  if(eFile_Delete("file4"))     diskError("eFile_Delete",0);
   eFile_Directory(&UART0_OutChar);
   printf("Successful test of creating a file\n\r");
   OS_Kill();

@@ -62,8 +62,6 @@
 
 #include "integer.h"
 
-
-
 /* Definitions corresponds to multiple sector size (not tested) */
 #define    S_MAX_SIZ    512            /* Do not change */
 #if S_MAX_SIZ > 512

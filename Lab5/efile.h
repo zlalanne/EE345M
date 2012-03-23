@@ -34,14 +34,19 @@ int eFile_WOpen(char name[]);      // open a file for writing
 // save at end of the open file
 // Input: data to be saved
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
-int eFile_Write( char data);  
+int eFile_Write( char data);
+
+//---------- eFile_WriteString-----------------
+// save at end of the open file
+// Input: data to be saved
+// Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
+int eFile_WriteString(char data[]);  
 
 //---------- eFile_Close-----------------
 // Deactivate the file system
 // Input: none
 // Output: 0 if successful and 1 on failure (not currently open)
 int eFile_Close(void); 
-
 
 //---------- eFile_WClose-----------------
 // close the file, left disk in a state power can be removed
