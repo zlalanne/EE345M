@@ -44,21 +44,21 @@ int Running;                // true while robot is running
 void Robot(void){   
 unsigned long data;      // ADC sample, 0 to 1023
 unsigned long voltage;   // in mV,      0 to 3000
-unsigned long time;      // in 10msec,  0 to 1000 
+unsigned long time;
 unsigned long t=0;
-  OS_ClearMsTime(1);    
+  eFile_ClearFSTime();    
   DataLost = 0;          // new run with no lost data 
   printf("Robot running...");
   eFile_RedirectToFile("Robot");
   printf("time(sec)\tdata(volts)\n\r");
   do{
     t++;
-    time=OS_MsTime(1);            // 10ms resolution in this OS
+	time=eFile_GetFSTime();            // 10ms resolution in this OS
     data = OS_Fifo_Get();        // 1000 Hz sampling get from producer
-    voltage = (300*data)/1024;   // in mV
+    voltage = (3000*data)/1024;   // in mV
     printf("%0u.%02u\t%0u.%03u\n\r",time/100,time%100,voltage/1000,voltage%1000);
   }
-  while(time < 1000);       // change this to mean 10 seconds
+  while(time < 1000);       // change this to mean 5 seconds
   eFile_EndRedirectToFile();
   printf("done.\n\r");
   Running = 0;                // robot no longer running
@@ -70,6 +70,7 @@ unsigned long t=0;
 // background threads execute once and return
 void ButtonPush(void){
   if(Running==0){
+    NumSamples = 0;
     Running = 1;  // prevents you from starting two robot threads
     NumCreated += OS_AddThread(&Robot,128,1);  // start a 20 second run
   }
@@ -129,7 +130,7 @@ extern void Interpreter(void);
 // execute   eFile_Init();  after periodic interrupts have started
 
 //*******************lab 5 main **********
-int realmain(void){        // lab 5 real main
+int main(void){        // lab 5 real main
   OS_Init();           // initialize, disable interrupts
   Running = 0;         // robot not running
   DataLost = 0;        // lost data between producer and consumer
@@ -141,14 +142,14 @@ int realmain(void){        // lab 5 real main
 
 //*******attach background tasks***********
   OS_AddButtonTask(&ButtonPush,2);
-  OS_AddButtonTask(&DownPush,3);
-  OS_AddPeriodicThread(disk_timerproc,1,10*TIME_1MS,5);
+  OS_AddDownTask(&DownPush,3);
 
   NumCreated = 0 ;
 // create initial foreground threads
   NumCreated += OS_AddThread(&Interpreter,128,2); 
   NumCreated += OS_AddThread(&IdleTask,128,7);  // runs when nothing useful to do
  
+  eFile_Init();
   OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
   return 0;             // this never executes
 }
@@ -253,7 +254,7 @@ void TestFile(void){   int i; char data;
 //******************* test main2 **********
 // SYSTICK interrupts, period established by OS_Launch
 // Timer interrupts, period established by first call to OS_AddPeriodicThread
-int main(void){ 
+int testmain2(void){ 
   OS_Init();           // initialize, disable interrupts
   
   NumCreated = 0 ;

@@ -104,6 +104,18 @@ int eFile_PrintWorkingDirectory(void);
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
 int eFile_Delete( char name[]);  // remove this file 
 
+//---------- eFile_GetFSTime-----------------
+// returns the number of interrupts of FS counter
+// Input: none
+// Output: value of gFSTimerCount
+unsigned long eFile_GetFSTime(void);
+
+//---------- eFile_ClearFSTime-----------------
+// clears the number of interrupts of FS counter
+// Input: none
+// Output: none
+void eFile_ClearFSTime(void);
+
 //---------- eFile_RedirectToFile-----------------
 // open a file for writing 
 // Input: file name is a single ASCII letter

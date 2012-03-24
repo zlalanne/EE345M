@@ -39,7 +39,9 @@ static DIR g_sDirObject;
 static FILINFO g_sFileInfo;
 static FIL g_sFileObject;
 
-int StreamToFile = 0;  // 0=UART, 1=stream to file 
+int StreamToFile = 0;  // 0=UART, 1=stream to file
+unsigned long gFSTimerCount = 0;
+ 
 
 // ******** generatePath ************
 // Generates the current path for opening files
@@ -159,8 +161,15 @@ int eFile_WOpen(char name[]){
    FRESULT fresult;
    if(!generatePath(name)){
      
+	 // Open the file
 	 fresult = f_open(&g_sFileObject, g_cTmpBuf, FA_WRITE);
-     
+	 if (fresult != FR_OK){
+      UARTprintf("WOpen Error: %s\n\r", StringFromFresult(fresult));;
+	  return 1;
+     }
+
+	 // By default, write to the end of the file
+	 fresult = f_lseek(&g_sFileObject, g_sFileObject.fsize);
 	 if (fresult != FR_OK){
       UARTprintf("WOpen Error: %s\n\r", StringFromFresult(fresult));;
 	  return 1;
@@ -386,7 +395,7 @@ int eFile_ChangeDirectory(char directory[]){
 int eFile_PrintWorkingDirectory(void)
 {
     // Print the CWD to the console.
-    UARTprintf("%s\n", g_cCwdBuf);
+    UARTprintf("%s\n\r", g_cCwdBuf);
 
     // Return success.
     return(0);
@@ -592,6 +601,22 @@ int eFile_Delete( char name[]){
   }   
 }
 
+//---------- eFile_GetFSTime-----------------
+// returns the number of interrupts of FS counter
+// Input: none
+// Output: value of gFSTimerCount
+unsigned long eFile_GetFSTime(void) {
+  return gFSTimerCount;
+}
+
+//---------- eFile_ClearFSTime-----------------
+// clears the number of interrupts of FS counter
+// Input: none
+// Output: none
+void eFile_ClearFSTime(void) {
+  gFSTimerCount = 0;
+}
+
 //---------- eFile_RedirectToFile-----------------
 // open a file for writing 
 // Input: file name is a single ASCII letter
@@ -632,7 +657,9 @@ int fputc (int ch, FILE *f) {
 // Keeps time for the Fat File System 
 void Timer1B_Handler(void) {
     // Call the FatFs tick timer.
+
     disk_timerproc();
+	gFSTimerCount++;
 	TimerIntClear(TIMER1_BASE, TIMER_TIMB_TIMEOUT);
 }
 

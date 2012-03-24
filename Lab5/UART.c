@@ -32,6 +32,7 @@
 #include "ADC.h"
 #include "Output.h"
 #include "OS.h"
+#include "efile.h"
 
 #define STARTSTRING "\n\rUART0 Initilization Done!\n\r"
 #define CMDPROMPT ">> "
@@ -176,20 +177,22 @@ void CMD_Run(void) {
 	  UART0_SendString(buffer);
 	  break;
 	case 'c':
-	  // Clear oLED screen
-	  Output_Clear();
-	  UART0_SendString("oLED Cleared\n\r");
-	  break;
-    /* case 'd':
-	  // Digital filter enable/disable
-	  if(DigFiltEn == SUCCESS) {
-	    UART0_SendString("Turning off digital filter\n\r");
-		DigFiltEn = FAILURE;
-	  } else {
-	    UART0_SendString("Turning on digital filter\n\r");
-		DigFiltEn = SUCCESS;
+	  switch(arg[0][1]){
+	    case 'l':
+	      // Clear oLED screen
+	      Output_Clear();
+	      UART0_SendString("oLED Cleared\n\r");
+	      break;
+		case 'd':
+		  // Change directory
+		  eFile_ChangeDirectory(arg[1]);
+		  break;
+		case 'a':
+		  // Read entire file
+		  eFile_ReadEntireFile(arg[1]);
+		  break;
 	  }
-	  break;  */
+	  break;
 	case 'o':
 	  // Turn on oLED screen
 	  Output_On();
@@ -205,18 +208,10 @@ void CMD_Run(void) {
 	      oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
           UART0_SendString("Message Printed\n\r");
 	      break;
-	    /* case 'e':
-		  // Print performance measurements to UART
-		  UART0_SendString("Performance Measurements:\n\r");
-		  snprintf(buffer, BUFFERSIZE, "NumCreated: %d\r\n", NumCreated);
-		  UART0_SendString(buffer);
-		  snprintf(buffer, BUFFERSIZE, "PIDWork: %d\r\n", PIDWork);
-		  UART0_SendString(buffer);
-		  snprintf(buffer, BUFFERSIZE, "DataLost: %d\r\n", DataLost);
-		  UART0_SendString(buffer);
-		  snprintf(buffer, BUFFERSIZE, "Jitter: %d\r\n", (MaxJitter1-MinJitter1));
-		  UART0_SendString(buffer);
-		  break; */
+		case 'w':
+		  // Pring working directory
+		  eFile_PrintWorkingDirectory();
+		  break;
 	  }
 	  break;  
 	case 't':
@@ -226,11 +221,28 @@ void CMD_Run(void) {
 	  UART0_SendString(buffer);
 	  break;
 	case 'r':
-	  // Reset Timer2 interurpt counter
-	  OS_ClearMsTime(1);
-	  UART0_SendString("Timer2 Counter Cleared\n\r");
+	  switch(arg[0][1]) {
+	    case 'e':
+	      // Reset Timer2 interurpt counter
+	      OS_ClearMsTime(1);
+	      UART0_SendString("Timer2 Counter Cleared\n\r");
+	      break;
+		case 'm':
+		  // Delete file
+		  eFile_Delete(arg[1]);
+		  break;
+	  }
+	  break;
+	case 'l':
+	  // List directory
+	  eFile_Directory(&UART0_OutChar);
+	  break;
+	case 'f':
+	  // Format SD Card
+	  eFile_Format();
 	  break;
 	case 'h':
+	  // Help listing
 	  UART0_SendString("Available commands: adc, on, clear, print\n\r");
 	  break;
 	default:
