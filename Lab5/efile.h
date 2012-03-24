@@ -23,6 +23,11 @@ int eFile_Format(void); // erase disk, add format
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
 int eFile_Create( char name[]);  // create new file, make it empty 
 
+//---------- eFile_CreateDirectory-----------------
+// Create a directory
+// Input: file name is an ASCII string up to seven characters 
+// Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
+int eFile_CreateDirectory(char name[]);
 
 //---------- eFile_WOpen-----------------
 // Open the file, read into RAM last block
