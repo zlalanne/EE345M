@@ -290,6 +290,184 @@ int eFile_RClose(void){
    return 0; 
 }
 
+//---------- eFile_ChangeDirectory-----------------
+// Changes the current working directory
+// Input: name of directory to change to
+// Output: 0 if successful and 1 on failure
+int eFile_ChangeDirectory(char directory[]){
+    
+	unsigned int uIdx;
+    FRESULT fresult;
+
+    // Copy the current working path into a temporary buffer so
+    // it can be manipulated.
+    strcpy(g_cTmpBuf, g_cCwdBuf);
+
+    // If the first character is /, then this is a fully specified
+    // path, and it should just be used as-is.
+    if(directory[0] == '/')
+    {
+        // Make sure the new path is not bigger than the cwd buffer.
+        if(strlen(directory) + 1 > sizeof(g_cCwdBuf))
+        {
+            UARTprintf("Resulting path name is too long\n");
+            return(0);
+        } else
+        {
+            strncpy(g_cTmpBuf, directory, sizeof(g_cTmpBuf));
+        }
+    }
+
+    // If the argument is .. then attempt to remove the lowest level
+    // on the CWD.
+    else if(!strcmp(directory, ".."))
+    {
+        // Get the index to the last character in the current path.
+        uIdx = strlen(g_cTmpBuf) - 1;
+
+        // Back up from the end of the path name until a separator (/)
+        // is found, or until we bump up to the start of the path.
+        while((g_cTmpBuf[uIdx] != '/') && (uIdx > 1))
+        {
+            // Back up one character.
+            uIdx--;
+        }
+
+        // Now we are either at the lowest level separator in the
+        // current path, or at the beginning of the string (root).
+        // So set the new end of string here, effectively removing
+        // that last part of the path.
+        g_cTmpBuf[uIdx] = 0;
+    } else {
+        // Test to make sure that when the new additional path is
+        // added on to the current path, there is room in the buffer
+        // for the full new path.  It needs to include a new separator,
+        // and a trailing null character.
+        if(strlen(g_cTmpBuf) + strlen(directory) + 1 + 1 > sizeof(g_cCwdBuf))
+        {
+            UARTprintf("Resulting path name is too long\n");
+            return(0);
+        } else {
+            
+			// If not already at the root level, then append a /
+            if(strcmp(g_cTmpBuf, "/"))
+            {
+                strcat(g_cTmpBuf, "/");
+            }
+
+            // Append the new directory to the path.
+            strcat(g_cTmpBuf, directory);
+        }
+    }
+
+    // At this point, a candidate new directory path is in chTmpBuf.
+    // Try to open it to make sure it is valid.
+    fresult = f_opendir(&g_sDirObject, g_cTmpBuf);
+
+    // If it cant be opened, then it is a bad path.  Inform
+    // user and return.
+    if(fresult != FR_OK)
+    {
+        UARTprintf("cd: %s\n", g_cTmpBuf);
+        return(fresult);
+    } else
+    {
+        strncpy(g_cCwdBuf, g_cTmpBuf, sizeof(g_cCwdBuf));
+    }
+
+    // Return success.
+    return(0); 
+}
+
+//---------- eFile_PrintWorkingDirectory-----------------
+// prints the working directory
+// Input: none
+// Output: 0 if successful and 1 on failure
+int eFile_PrintWorkingDirectory(void)
+{
+    // Print the CWD to the console.
+    UARTprintf("%s\n", g_cCwdBuf);
+
+    // Return success.
+    return(0);
+}
+
+//---------- eFile_ReadEntireFile-----------------
+// prints a file
+// Input: none
+// Output: 0 if successful and 1 on failure
+int eFile_ReadEntireFile(char file[])
+{
+    FRESULT fresult;
+    unsigned short usBytesRead;
+
+    // First, check to make sure that the current path (CWD), plus
+    // the file name, plus a separator and trailing null, will all
+    // fit in the temporary buffer that will be used to hold the
+    // file name.  The file name must be fully specified, with path,
+    // to FatFs.
+    if(strlen(g_cCwdBuf) + strlen(file) + 1 + 1 > sizeof(g_cTmpBuf))
+    {
+        UARTprintf("Resulting path name is too long\n");
+        return(0);
+    }
+
+    // Copy the current path to the temporary buffer so it can be manipulated.
+    strcpy(g_cTmpBuf, g_cCwdBuf);
+
+    // If not already at the root level, then append a separator.
+    if(strcmp("/", g_cCwdBuf))
+    {
+        strcat(g_cTmpBuf, "/");
+    }
+
+    // Now finally, append the file name to result in a fully specified file.
+    strcat(g_cTmpBuf, file);
+
+    // Open the file for reading.
+    fresult = f_open(&g_sFileObject, g_cTmpBuf, FA_READ);
+
+    // If there was some problem opening the file, then return
+    // an error.
+    if(fresult != FR_OK)
+    {
+        return(fresult);
+    }
+
+    // Enter a loop to repeatedly read data from the file and display it,
+    // until the end of the file is reached.
+    do
+    {
+        // Read a block of data from the file.  Read as much as can fit
+        // in the temporary buffer, including a space for the trailing null.
+        fresult = f_read(&g_sFileObject, g_cTmpBuf, sizeof(g_cTmpBuf) - 1,
+                         &usBytesRead);
+
+        // If there was an error reading, then print a newline and
+        // return the error to the user.
+        if(fresult != FR_OK)
+        {
+            UARTprintf("\n");
+            return(fresult);
+        }
+
+        // Null terminate the last block that was read to make it a
+        // null terminated string that can be used with printf.
+        g_cTmpBuf[usBytesRead] = 0;
+
+        // Print the last chunk of the file that was received.
+        UARTprintf("%s", g_cTmpBuf);
+
+    // Continue reading until less than the full number of bytes are
+    // read.  That means the end of the buffer was reached.
+    } while(usBytesRead == sizeof(g_cTmpBuf) - 1);
+
+    // Return success.
+    return(0);
+}
+
+
+
 //---------- eFile_Directory-----------------
 // Display the directory with filenames and sizes
 // Input: pointer to a function that outputs ASCII characters to display

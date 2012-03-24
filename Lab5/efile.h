@@ -73,12 +73,30 @@ int eFile_ReadNext( char *pt);       // get next byte
 // Output: 0 if successful and 1 on failure (e.g., wasn't open)
 int eFile_RClose(void); // close the file for writing
 
+//---------- eFile_ReadEntireFile-----------------
+// opens a file and prints entire file to UART
+// Input: none
+// Output: 0 if successful and 1 on failure
+int eFile_ReadEntireFile(char file[]);
+
 //---------- eFile_Directory-----------------
 // Display the directory with filenames and sizes
 // Input: pointer to a function that outputs ASCII characters to display
 // Output: characters returned by reference
 //         0 if successful and 1 on failure (e.g., trouble reading from flash)
-int eFile_Directory(void(*fp)(unsigned char));   
+int eFile_Directory(void(*fp)(unsigned char));
+
+//---------- eFile_ChangeDirectory-----------------
+// Changes the current working directory
+// Input: name of directory to change to
+// Output: 0 if successful and 1 on failure
+int eFile_ChangeDirectory(char directory[]); 
+
+//---------- eFile_PrintWorkingDirectory-----------------
+// prints the working directory
+// Input: none
+// Output: 0 if successful and 1 on failure
+int eFile_PrintWorkingDirectory(void); 
 
 //---------- eFile_Delete-----------------
 // delete this file

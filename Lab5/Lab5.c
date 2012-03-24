@@ -255,9 +255,6 @@ void TestFile(void){   int i; char data;
 // Timer interrupts, period established by first call to OS_AddPeriodicThread
 int main(void){ 
   OS_Init();           // initialize, disable interrupts
-
-//*******attach background tasks***********
-  OS_AddPeriodicThread(&disk_timerproc,1,10*TIME_1MS,0);   // time out routines for disk
   
   NumCreated = 0 ;
 // create initial foreground threads
