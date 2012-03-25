@@ -236,20 +236,11 @@ int eFile_WriteString(char data[]) {
   unsigned short BytesWritten;
   FRESULT fresult;
   
-  fresult = f_write(&g_sFileObject, data, sizeof(data), &BytesWritten);
+  fresult = f_write(&g_sFileObject, data, strlen(data), &BytesWritten);
   if(fresult != FR_OK) {
     UARTprintf("Write Error: %s\n\r", StringFromFresult(fresult));
     return 1;
   }
-
-  // Sync is used if there is a long time between writing data,
-  // for example multiple interrupts are called during the write
-  fresult = f_sync(&g_sFileObject);
-  if(fresult != FR_OK) {
-    UARTprintf("Write Error: %s\n\r", StringFromFresult(fresult));
-    return 1;
-  }
-
   return 0;
 }
 
@@ -259,11 +250,14 @@ int eFile_WriteString(char data[]) {
 // Output: 0 if successful and 1 on failure (not currently open)
 int eFile_Close(void) {
   FRESULT fresult;
+	
   fresult = f_mount(0, '\0');
   if(fresult != FR_OK) {
     UARTprintf("Close Error: %s\n\r", StringFromFresult(fresult));
     return 1;
   }
+
+	
   return 0;
 }
 
@@ -273,7 +267,17 @@ int eFile_Close(void) {
 // Output: 0 if successful and 1 on failure (e.g., trouble writing to flash)
 int eFile_WClose(void) {
 
+	
   FRESULT fresult;
+	
+	// Sync is used if there is a long time between writing data,
+  // for example multiple interrupts are called during the write
+  fresult = f_sync(&g_sFileObject);
+  if(fresult != FR_OK) {
+    UARTprintf("WClose Error: %s\n\r", StringFromFresult(fresult));
+    return 1;
+  }
+	
   fresult = f_close(&g_sFileObject);
   if(fresult != FR_OK) {
     UARTprintf("WClose Error: %s\n\r", StringFromFresult(fresult));

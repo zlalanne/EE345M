@@ -13,7 +13,6 @@
 #include "adc.h"
 #include "os.h"
 #include "lm3s8962.h"
-#include "edisk.h"
 #include "efile.h"
 
 unsigned long NumCreated;   // number of foreground threads created
@@ -211,7 +210,7 @@ int testmain1(void){   // testmain1
   OS_Init();           // initialize, disable interrupts
 
 //*******attach background tasks***********
-  OS_AddPeriodicThread(&disk_timerproc,1,10*TIME_1MS,0);   // time out routines for disk
+//  OS_AddPeriodicThread(&disk_timerproc,1,10*TIME_1MS,0);   // time out routines for disk
 //  OS_AddButtonTask(&RunTest,2);
   
   NumCreated = 0 ;

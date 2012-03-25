@@ -43,7 +43,7 @@
 #include "driverlib/rom_map.h"
 #include "driverlib/sysctl.h"
 #include "driverlib/uart.h"
-#include "utils/uartstdio.h"
+#include "uartstdio.h"
 
 #include "UART.h"// Our UART0 Driver
 

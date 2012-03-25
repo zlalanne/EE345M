@@ -179,7 +179,7 @@ void CMD_Run(void) {
       switch(arg[0][1]) {
         case 'l':
           // Close the current file
-          eFile_Close();
+          eFile_WClose();
           break;
         case 'd':
           // Change directory
