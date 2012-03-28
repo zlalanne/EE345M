@@ -89,6 +89,7 @@ __heap_limit
 		EXTERN Timer2B_Handler
 		EXTERN Timer1A_Handler
 		EXTERN Timer1B_Handler
+		EXTERN CANIntHandler
 
 ;******************************************************************************
 ;
@@ -152,7 +153,7 @@ __Vectors
         DCD     IntDefaultHandler           ; Timer 3 subtimer B
         DCD     IntDefaultHandler           ; I2C1 Master and Slave
         DCD     IntDefaultHandler           ; Quadrature Encoder 1
-        DCD     IntDefaultHandler           ; CAN0
+        DCD     CANIntHandler               ; CAN0
         DCD     IntDefaultHandler           ; CAN1
         DCD     IntDefaultHandler           ; CAN2
         DCD     IntDefaultHandler           ; Ethernet
