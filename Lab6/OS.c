@@ -9,7 +9,7 @@
  *  Timer0A is being used for the WRB1134 optical reflectance sensor (tachometers) (Configured in Tach_Init, started in Tach_Init)
  *	Timer0B is being used for OS_Time (all setup in OS_Init)
  *  Timer1A is being used to decrement the sleep state, works at 1ms (1khz), initialized in OS_Init, enabled in OS_Launch
- *  Timer1B is being used to keep time for the FatFS (setup in eFile_init)
+ *  Timer1B is unused
  *	Timer2A is being used for periodic background thread 1 (Configured in OS_Init, started in OS_AddPeriodicThread)
  *	Timer2B is being used for periodic background thread 2 (Configured in OS_Init, started in OS_AddPeriodicThread)
  *  Timer0A is being used to trigger the ADC in ADC_Collect (all setup in ADC_Collect)
@@ -126,11 +126,12 @@ void OS_Init(void) {
   OS_DisableInterrupts();
 
   // Setting the clock to 50 MHz
-  SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
+  //SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
 
-  // Initialze peripherals
-  UART0_Init();
-  ADC_Open();
+  // Initialze peripherals - need to move these to main files for specific processor
+	//SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
+  //UART0_Init();
+  //ADC_Open();
   //Output_Init();
 
   // Select switch
@@ -943,13 +944,6 @@ void SysTick_Handler(void) {
 
   IntPendSet(FAULT_PENDSV);
   OS_EnableInterrupts();
-}
-
-// ******** Jitter ****************
-// prints the jitter info for the both periodic background thread
-void Jitter(void) {
-  oLED_Message(1, 2, "0.1u Jitter1=", MaxJitter1 - MinJitter1);
-  oLED_Message(1, 3, "0.1u Jitter2=", MaxJitter2 - MinJitter2);
 }
 
 // ******** Jitter1 ***************
