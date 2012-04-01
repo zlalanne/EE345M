@@ -32,10 +32,21 @@
 #include "driverlib/interrupt.h"  // defines IntEnable
 #include "driverlib/systick.h"
 
-#define MAXTHREADS 8    // maximum number of threads
-#define STACKSIZE  512  // number of 32-bit words in stack
-#define FIFOSIZE 256
-#define JITTERSIZE 64
+
+#ifdef BOARD_LM3S2110
+	#define MAXTHREADS 4    // maximum number of threads
+	#define STACKSIZE  256  // number of 32-bit words in stack
+	#define FIFOSIZE 256
+	#define JITTERSIZE 64
+#endif
+
+#ifdef BOARD_LM3S8962
+	#define MAXTHREADS 8    // maximum number of threads
+	#define STACKSIZE  256  // number of 32-bit words in stack
+	#define FIFOSIZE 256
+	#define JITTERSIZE 64
+#endif
+
 
 extern unsigned long Period;
 
@@ -134,26 +145,13 @@ void OS_Init(void) {
   //ADC_Open();
   //Output_Init();
 
-  // Select switch
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-  GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_1);
-  GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-  GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
-  GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
-
-  // Down switch
-  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
-  GPIOPinTypeGPIOInput(GPIO_PORTE_BASE, GPIO_PIN_1);
-  GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-  GPIOIntTypeSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
-  GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
-
   // Initialize Timer2A and Timer2B: Periodic Background Threads
   SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
   TimerDisable(TIMER2_BASE, TIMER_A | TIMER_B);
   TimerConfigure(TIMER2_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
   
   // Initialize Timer0B: Used for time keeping
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
   TimerDisable(TIMER0_BASE, TIMER_B);
   TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
   TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
@@ -441,6 +439,13 @@ int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
 
   long status;
   status = StartCritical();
+	
+	// Select switch
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+  GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_1);
+  GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+  GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
+  GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
 
   gButtonThreadSelectPt = task;
   gButtonThreadSelectPriority = priority;
@@ -473,6 +478,14 @@ int OS_AddDownTask(void(*task)(void), unsigned long priority) {
 
   long status;
   status = StartCritical();
+
+  // Down switch
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+  GPIOPinTypeGPIOInput(GPIO_PORTE_BASE, GPIO_PIN_1);
+  GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
+  GPIOIntTypeSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
+  GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
+
 
   gButtonThreadDownPt = task;
   gButtonThreadDownPriority = priority;

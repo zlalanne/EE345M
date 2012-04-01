@@ -50,10 +50,6 @@
 
 #define CAN_BITRATE             1000000
 
-//#define BOARD_LM3S8962
-#define BOARD_LM3S2110
-
-
 // ID's for sending messages
 #ifdef BOARD_LM3S2110
   #define RCV_ID 2

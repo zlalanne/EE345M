@@ -30,7 +30,7 @@ int main(void){
 	
 	// bus clock at 25 MHz
   SysCtlClockSet(SYSCTL_SYSDIV_8 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
-                 SYSCTL_XTAL_8MHZ);  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+                 SYSCTL_XTAL_8MHZ);  
 	
 	Tach_Init();
 	CAN0_Open();
@@ -43,7 +43,7 @@ int main(void){
   NumCreated += OS_AddThread(&TachThread, 512, 1);
 	
 	
-  OS_Launch(1); // doesn't return, interrupts enabledin here
+  OS_Launch(TIMESLICE); // doesn't return, interrupts enabledin here
   return 0;             // this never executes
 }
 
