@@ -39,9 +39,10 @@ Sema4Type Sensor1DataAvailable;
 void TriggerSensor0(void);
 void TriggerSensor1(void);
 
-void Ping_Init(void) {
+void Ping_Init(void) {	volatile unsigned long delay;
+  OS_DisableInterrupts();
 	SYSCTL_RCGC2_R |= SYSCTL_RCGC2_GPIOB; // activate port B
-
+	delay = SYSCTL_RCGC2_R;
   // **** Port B Edge Trigger Initialization ****
 	GPIO_PORTB_DIR_R |= 0x03;   // make PB0-1 out
   GPIO_PORTB_DEN_R |= 0x03;   // enable digital I/O on PB0-1
@@ -56,6 +57,8 @@ void Ping_Init(void) {
 	OS_InitSemaphore(&Sensor1Free, 1);
 	OS_InitSemaphore(&Sensor0DataAvailable, 0);
 	OS_InitSemaphore(&Sensor1DataAvailable, 0);
+
+	OS_EnableInterrupts();
 }
 
 unsigned long Ping_GetDistance(int sensor) {
@@ -86,26 +89,30 @@ unsigned long Ping_GetDistance(int sensor) {
 
 void TriggerSensor0(void) {
   int i;
+	OS_DisableInterrupts();
 	GPIO_PORTB0 = 0x01;
 	
 	// delay 5 us
-	for (i = 0; i < 10000; i++);
+	for (i = 0; i < 15; i++);
 	
 	GPIO_PORTB0 = 0x00;
 	GPIO_PORTB_DIR_R &= ~0x01;   // make PB0 in	
 	GPIO_PORTB_IM_R |= 0x01;		// enable PB0 interrupts 
+  OS_EnableInterrupts();
 }
 
 void TriggerSensor1(void) {
   int i;
+	OS_DisableInterrupts();
 	GPIO_PORTB1 = 0x02;
 	
 	// delay 5 us
-	for (i = 0; i < 10000; i++);
+	for (i = 0; i < 15; i++);
 	
 	GPIO_PORTB1 = 0x00;
 	GPIO_PORTB_DIR_R &= ~0x02;   // make PB1 in	
 	GPIO_PORTB_IM_R |= 0x02;		// enable PB1 interrupts 
+  OS_EnableInterrupts();
 }
 
 void GPIOPortB_Handler(void) {

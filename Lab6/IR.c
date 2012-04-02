@@ -14,7 +14,7 @@
 #include "inc/lm3s8962.h"
 
 #define NUM_SENSORS 4
-#define IR_FREQ 50
+#define IR_FREQ 10
 
 unsigned short SensorValues[NUM_SENSORS];
 
