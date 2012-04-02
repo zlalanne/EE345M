@@ -22,7 +22,10 @@
 #include "ADC.h"
 
 unsigned long *Buffer;
-void (*ADCTask) (unsigned short);
+
+ADCTask SS0Task;
+ADCTask SS1Tasks[4];
+int NumActiveChannels;
 
 void ADC0_Handler(void);
 
@@ -75,7 +78,7 @@ int ADC_Collect(unsigned int channelNum, unsigned int fs,
 
   unsigned long config;
 
-  ADCTask = task;
+  SS0Task = task;
 
   // Determine input channel
   switch(channelNum){
@@ -117,6 +120,60 @@ int ADC_Collect(unsigned int channelNum, unsigned int fs,
   return 1; 
 }
 
+// Sets up an adc collection sequence on channels 0-(numChannels-1)
+// tasks is an array of function pointers (one for each channel num)
+int ADC_CollectSequence(unsigned short numChannels, unsigned int fs,
+  ADCTask* tasks) {
+	int channelNum;
+	unsigned long config;
+	NumActiveChannels = numChannels;
+
+  ADCSequenceDisable(ADC0_BASE, 1);
+
+	// Enable the ADC0 for interrupt Sequence 0 with lower priority then single shot
+  ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_TIMER, 1);
+
+	// loop through the channels from 0 to numChannels-1, configuring each channel as a step
+	// of the sequence and setting the respective task to handle the result
+	for (channelNum = 0; channelNum < numChannels; channelNum++) {
+		SS1Tasks[channelNum] = tasks[channelNum];
+	  
+		switch(channelNum){
+      case 0: config = ADC_CTL_CH0; break;
+	    case 1: config = ADC_CTL_CH1; break;
+	    case 2: config = ADC_CTL_CH2; break;
+	    case 3: config = ADC_CTL_CH3; break;
+    }
+		// Configuring steps of sequence, last step contains ADC_CTL_END and ADC_CTL_IE config paramter
+    if (channelNum == numChannels-1) {
+		  config |= ADC_CTL_END | ADC_CTL_IE;
+		}
+		ADCSequenceStepConfigure(ADC0_BASE, 1, channelNum, config);
+	}
+
+  // Disabling Timer0A for configuration
+  TimerDisable(TIMER3_BASE, TIMER_A);
+
+  // Configure as 16 bit timer and trigger ADC conversion
+  TimerControlTrigger(TIMER3_BASE, TIMER_A, true);
+
+  TimerLoadSet(TIMER3_BASE, TIMER_A, SysCtlClockGet()/ fs);
+  TimerIntClear(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
+
+ // ADCSequenceOverflowClear(ADC0_BASE, 0);
+  //ADCSequenceUnderflowClear(ADC0_BASE, 0);
+  ADCIntClear(ADC0_BASE, 1);
+  ADCSequenceEnable(ADC0_BASE, 1);
+ 
+  TimerEnable(TIMER3_BASE, TIMER_A);
+  TimerIntEnable(TIMER3_BASE, TIMER_A);
+  ADCIntEnable(ADC0_BASE, 1);
+
+  IntEnable(INT_ADC0SS1);
+  
+  return 1; 
+}
+
 void ADC0S0_Handler(void){
   
   unsigned long data[8];
@@ -134,6 +191,21 @@ void ADC0S0_Handler(void){
   }
 
   average = average / samples; 
-  ADCTask(average);
+  SS0Task(average);
+}
+
+void ADC0S1_Handler(void){
+  unsigned long data[4];
+  char samples;
+  int seqStep;
+
+  // Clear flag
+  ADCIntClear(ADC0_BASE, 1);
+  samples = ADCSequenceDataGet(ADC0_BASE, 1, data);
+  
+  // Handle samples from FIFO
+  for(seqStep = 0; seqStep < samples; seqStep++) {
+    (SS1Tasks[seqStep])(data[seqStep]);
+  }
 }
 

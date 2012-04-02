@@ -22,9 +22,13 @@
 #endif
 
 
+typedef void (*ADCTask) (unsigned short);
+
 void ADC_Open(void);
 int ADC_Status(void);
 unsigned long ADC_In(unsigned int channelNum);
 int ADC_Collect(unsigned int channelNum, unsigned int fs, 
   void (*task)(unsigned short));
+int ADC_CollectSequence(unsigned short numChannels, unsigned int fs,
+  ADCTask* tasks);
 

@@ -86,6 +86,7 @@ __heap_limit
 		EXTERN Down_Switch_Handler
 		EXTERN UART0_Handler
 		EXTERN ADC0S0_Handler
+		EXTERN ADC0S1_Handler
 		EXTERN Timer2B_Handler
 		EXTERN Timer1A_Handler
 		EXTERN Timer1B_Handler
@@ -128,7 +129,7 @@ __Vectors
         DCD     IntDefaultHandler           ; PWM Generator 2
         DCD     IntDefaultHandler           ; Quadrature Encoder 0
         DCD     ADC0S0_Handler              ; ADC Sequence 0
-        DCD     IntDefaultHandler           ; ADC Sequence 1
+        DCD     ADC0S1_Handler              ; ADC Sequence 1
         DCD     IntDefaultHandler           ; ADC Sequence 2
         DCD     IntDefaultHandler           ; ADC Sequence 3
         DCD     IntDefaultHandler           ; Watchdog timer

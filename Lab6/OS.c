@@ -12,6 +12,7 @@
  *  Timer1B is unused
  *	Timer2A is being used for periodic background thread 1 (Configured in OS_Init, started in OS_AddPeriodicThread)
  *	Timer2B is being used for periodic background thread 2 (Configured in OS_Init, started in OS_AddPeriodicThread)
+ * 	Timer3A is being used to trigger the ADC in ADC_CollectSequence (all setup in ADC_CollectSequence)
  *  Timer0A is being used to trigger the ADC in ADC_Collect (all setup in ADC_Collect)
  */
 
