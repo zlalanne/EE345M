@@ -84,11 +84,10 @@ __heap_limit
 		EXTERN Timer2A_Handler
 		EXTERN Select_Switch_Handler
 		EXTERN Down_Switch_Handler
-		EXTERN UART0_Handler
 		EXTERN ADC0S0_Handler
 		EXTERN Timer2B_Handler
 		EXTERN Timer1A_Handler
-		EXTERN Timer1B_Handler
+		EXTERN CAN0_Handler
 
 ;******************************************************************************
 ;
@@ -118,7 +117,7 @@ __Vectors
         DCD     IntDefaultHandler           ; GPIO Port C
         DCD     IntDefaultHandler           ; GPIO Port D
         DCD     Down_Switch_Handler         ; GPIO Port E
-        DCD     UART0_Handler               ; UART0 Rx and Tx
+        DCD     IntDefaultHandler           ; UART0 Rx and Tx
         DCD     IntDefaultHandler           ; UART1 Rx and Tx
         DCD     IntDefaultHandler           ; SSI0 Rx and Tx
         DCD     IntDefaultHandler           ; I2C0 Master and Slave
@@ -135,7 +134,7 @@ __Vectors
         DCD     IntDefaultHandler           ; Timer 0 subtimer A
         DCD     IntDefaultHandler           ; Timer 0 subtimer B
         DCD     Timer1A_Handler             ; Timer 1 subtimer A
-        DCD     Timer1B_Handler             ; Timer 1 subtimer B
+        DCD     IntDefaultHandler           ; Timer 1 subtimer B
         DCD     Timer2A_Handler             ; Timer 2 subtimer A
         DCD     Timer2B_Handler             ; Timer 2 subtimer B
         DCD     IntDefaultHandler           ; Analog Comparator 0
@@ -152,7 +151,7 @@ __Vectors
         DCD     IntDefaultHandler           ; Timer 3 subtimer B
         DCD     IntDefaultHandler           ; I2C1 Master and Slave
         DCD     IntDefaultHandler           ; Quadrature Encoder 1
-        DCD     IntDefaultHandler           ; CAN0
+        DCD     CAN0_Handler               ; CAN0
         DCD     IntDefaultHandler           ; CAN1
         DCD     IntDefaultHandler           ; CAN2
         DCD     IntDefaultHandler           ; Ethernet
