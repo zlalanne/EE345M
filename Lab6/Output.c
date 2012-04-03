@@ -91,7 +91,7 @@ void shiftEverythingUp(void){
 
 
 // Print a character to OLED.
-/*int fputc(int ch, FILE *f){
+int fputc(int ch, FILE *f){
   unsigned char outStr[2];
   if(Status == 0){            // verify that OLED display is on
     return EOF;               // error
@@ -168,7 +168,7 @@ void shiftEverythingUp(void){
     CursorX = CursorX + CHARCOLS;
   }
   return 1;
-} */
+}
 
 // No input from OLED, always return 0.
 int fgetc (FILE *f){

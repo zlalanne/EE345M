@@ -53,18 +53,23 @@
 // ID's for sending messages
 #ifdef BOARD_LM3S2110
   #define RCV_ID 2
+	#define TACH_ID 3
   #define XMT_ID 4
 #endif
 
 #ifdef BOARD_LM3S8962
   #define RCV_ID 4
+	#define TACH_ID 3
 	#define XMT_ID 2
 #endif
 
 
 // Mailbox linkage from background to foreground
 unsigned char static RCVData[4];
-int static MailFlag;
+unsigned char static TachData[4];
+
+unsigned long static GenMailFlag;
+unsigned long static TachMailFlag;
 
 //******** convertCharToLong *************** 
 // Converts a array of chars to a long
@@ -113,7 +118,8 @@ void CAN0_Open(void){
   if(REVISION_IS_A2){
     SysCtlLDOSet(SYSCTL_LDO_2_75V);
   }
-  MailFlag = FALSE;
+  GenMailFlag = FALSE;
+	TachMailFlag = FALSE;
   SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);              // PD0 is CAN0Rx
   GPIOPinTypeCAN(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1); // PD1 is CAN0Tx
   SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
@@ -125,6 +131,7 @@ void CAN0_Open(void){
 // Set up filter to receive these IDs
 // in this case there is just one type, but you could accept multiple ID types
   CAN0_Setup_Message_Object(RCV_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, RCV_ID, MSG_OBJ_TYPE_RX);
+	CAN0_Setup_Message_Object(TACH_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, TACH_ID, MSG_OBJ_TYPE_RX);
   IntEnable(INT_CAN0);
   return;
 }
@@ -134,11 +141,11 @@ void CAN0_Open(void){
 // Sends data over can on the XMT_ID
 // Inputs: Data to send
 // Outputs: None
-void CAN0_SendData(unsigned long data){
+void CAN0_SendData(unsigned long data, unsigned long msgType){
   // in this case there is just one type, but you could accept multiple ID types
   unsigned char dataMsg[4];
 	convertLongToChar(data,dataMsg);	
-	CAN0_Setup_Message_Object(XMT_ID, NULL, 4, dataMsg, XMT_ID, MSG_OBJ_TYPE_TX);
+	CAN0_Setup_Message_Object(msgType, NULL, 4, dataMsg, msgType, MSG_OBJ_TYPE_TX);
 }
 
 
@@ -146,27 +153,44 @@ void CAN0_SendData(unsigned long data){
 // Returns if there is new data
 // Inputs: None
 // Outputs: TRUE if valid data, FALSE if invalid
-int CAN0_CheckMail(void){
-  return MailFlag;
+int CAN0_CheckMail(unsigned long msgType){
+  if (msgType == RCV_ID) {
+		return GenMailFlag;
+	} else if (msgType == TACH_ID) {
+		return TachMailFlag;
+	}
+	return -1;
 }
 
 //******** CAN0_GetMailNonBlock *************** 
 // Returns the data that was recieved
 // Inputs: Pointer to variable to store data
 // Outputs: TRUE if valid data, FALSE if invalid
-int CAN0_GetMailNonBlock(unsigned long *data){
+int CAN0_GetMailNonBlock(unsigned long *data, unsigned long msgType){
 	
   unsigned char tempData[4];
 	
-	if(MailFlag){
-    tempData[0] = RCVData[0];
-    tempData[1] = RCVData[1];
-    tempData[2] = RCVData[2];
-    tempData[3] = RCVData[3];
-		(*data) = convertCharToLong(tempData);
-    MailFlag = FALSE;
-    return TRUE;
-  }
+	if (msgType == RCV_ID) {
+		if (GenMailFlag) {
+			tempData[0] = RCVData[0];
+      tempData[1] = RCVData[1];
+      tempData[2] = RCVData[2];
+      tempData[3] = RCVData[3];
+		  (*data) = convertCharToLong(tempData);
+      GenMailFlag = FALSE;
+			return TRUE;
+		} 
+  } else if (msgType == TACH_ID) {
+		if (TachMailFlag) {
+			tempData[0] = TachData[0];
+			tempData[1] = TachData[1];
+			tempData[2] = TachData[2];
+			tempData[3] = TachData[3];
+			(*data) = convertCharToLong(tempData);
+			TachMailFlag = FALSE;
+			return TRUE;
+		}
+	}
   return FALSE;
 }
 
@@ -174,18 +198,27 @@ int CAN0_GetMailNonBlock(unsigned long *data){
 // Returns the data that was recieved, blocks
 // Inputs: Pointer to variable to store data
 // Outputs: None
-void CAN0_GetMail(unsigned long *data){
+void CAN0_GetMail(unsigned long *data, unsigned long MsgType){
   
 	unsigned char tempData[4];
 	
-	while(MailFlag==FALSE){};
-  tempData[0] = RCVData[0];
-  tempData[1] = RCVData[1];
-  tempData[2] = RCVData[2];
-  tempData[3] = RCVData[3];
-	(*data) = convertCharToLong(tempData);
-		
-  MailFlag = FALSE;
+	if (MsgType == RCV_ID) {
+		while(GenMailFlag==FALSE){};
+    tempData[0] = RCVData[0];
+    tempData[1] = RCVData[1];
+    tempData[2] = RCVData[2];
+    tempData[3] = RCVData[3];
+	  (*data) = convertCharToLong(tempData);
+		GenMailFlag = FALSE;
+	} else if (MsgType == TACH_ID) {
+		while(TachMailFlag==FALSE){};
+		tempData[0] = TachData[0];
+		tempData[1] = TachData[1];
+		tempData[2] = TachData[2];
+		tempData[3] = TachData[3];
+		(*data) = convertCharToLong(tempData);
+		TachMailFlag = FALSE;
+	}
 }
 
 //******** CAN0_Handler *************** 
@@ -210,8 +243,14 @@ void CAN0_Handler(void){
           RCVData[1] = data[1];
           RCVData[2] = data[2];
           RCVData[3] = data[3];
-          MailFlag = TRUE;   // new mail
-        }
+          GenMailFlag = TRUE;   // new mail
+        } else if(xTempMsgObject.ulMsgID == TACH_ID){
+					TachData[0] = data[0];
+					TachData[1] = data[1];
+					TachData[2] = data[2];
+					TachData[3] = data[3];
+					TachMailFlag = TRUE;
+				}
       }
     }
   }

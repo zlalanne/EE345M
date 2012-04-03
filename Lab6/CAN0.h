@@ -47,19 +47,19 @@
 // Returns if there is new data
 // Inputs: None
 // Outputs: TRUE if valid data, FALSE if invalid
-int CAN0_CheckMail(void);
+int CAN0_CheckMail(unsigned long msgType);
 
 //******** CAN0_GetMailNonBlock *************** 
 // Returns the data that was recieved
 // Inputs: Pointer to variable to store data
 // Outputs: TRUE if valid data, FALSE if invalid
-int CAN0_GetMailNonBlock(unsigned long * data);
+int CAN0_GetMailNonBlock(unsigned long * data, unsigned long msgType);
 
 //******** CAN0_GetMail *************** 
 // Returns the data that was recieved, blocks
 // Inputs: Pointer to variable to store data
 // Outputs: None
-void CAN0_GetMail(unsigned long *data);
+void CAN0_GetMail(unsigned long *data, unsigned long msgType);
 
 //******** CAN0_Open ************** 
 // Initializes the CAN0
@@ -71,7 +71,7 @@ void CAN0_Open(void);
 // Sends data over can on the XMT_ID
 // Inputs: Data to send
 // Outputs: None
-void CAN0_SendData(unsigned long data);
+void CAN0_SendData(unsigned long data, unsigned long msgType);
 
 #endif //  __CAN0_H__
 
