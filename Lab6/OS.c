@@ -138,11 +138,11 @@ void OS_Init(void) {
   OS_DisableInterrupts();
 
   // Setting the clock to 50 MHz
-  //SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
+  SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
 
   // Initialze peripherals - need to move these to main files for specific processor
 	//SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
-  //UART0_Init();
+  UART0_Init();
   //ADC_Open();
   //Output_Init();
 
