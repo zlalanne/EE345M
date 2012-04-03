@@ -652,6 +652,7 @@ int eFile_EndRedirectToFile(void) {
   return 0;
 }
 
+/*
 int fputc(int ch, FILE *f) {
   if(StreamToFile) {
     if(eFile_Write(ch)) { // close file on error 
@@ -665,6 +666,7 @@ int fputc(int ch, FILE *f) {
   UART0_OutChar(ch);
   return 0;
 }
+*/
 
 // ******** Timer1B_Handler ************
 // Keeps time for the Fat File System 

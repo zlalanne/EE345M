@@ -7,6 +7,18 @@
 #include "../QRB1134.h"
 #include "../CAN0.h"
 
+// ID's for sending messages
+#ifdef BOARD_LM3S2110
+  #define RCV_ID 2
+	#define TACH_ID 3
+  #define XMT_ID 4
+#endif
+
+#ifdef BOARD_LM3S8962
+  #define RCV_ID 4
+	#define TACH_ID 3
+	#define XMT_ID 2
+#endif
 
 #define TIMESLICE 2*TIME_1MS  // thread switch time in system time units
 
@@ -14,16 +26,33 @@ double NumCreated;
 
 void TachThread(void){
 	unsigned long data;
+	static unsigned long count = 0;
 	while(1) {
-		data = Tach_GetPeriod();
-		CAN0_SendData(data);
-		data = Tach_GetRPS();
-		CAN0_SendData(data);
-		data = Tach_GetRPM();
-		CAN0_SendData(data);
-		
+		//data = Tach_GetPeriod();
+		CAN0_SendData(count++, TACH_ID);
+		//data = Tach_GetRPS();
+		//CAN0_SendData(data);
+		//data = Tach_GetRPM();
+		//CAN0_SendData(data);
+		OS_Sleep(500);
 		// Add OS_Sleep()?
   }
+}
+
+void GenDataThread(void) {
+	static unsigned long count = 0;
+	while(1) {
+		CAN0_SendData(count++, XMT_ID);
+		CAN0_SendData(count, TACH_ID);
+		OS_Sleep(500);
+	}
+}
+
+void DummyThread(void) {
+	static unsigned long dummy = 0;
+	while(1) {
+		dummy++;
+	}
 }
 
 int main(void){
@@ -40,7 +69,9 @@ int main(void){
 	
 	
   NumCreated = 0 ;
-  NumCreated += OS_AddThread(&TachThread, 512, 1);
+  //NumCreated += OS_AddThread(&TachThread, 512, 1);
+	NumCreated += OS_AddThread(&GenDataThread, 512, 1);
+	NumCreated += OS_AddThread(&DummyThread, 512, 2);
 	
 	
   OS_Launch(TIMESLICE); // doesn't return, interrupts enabledin here
