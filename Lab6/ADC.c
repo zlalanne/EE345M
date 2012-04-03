@@ -34,7 +34,7 @@ void ADC_Open(void){
   // The ADC0 peripheral must be enabled for use.
   SysCtlPeripheralEnable(SYSCTL_PERIPH_ADC0);
   SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
-
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER3);
 }
 
 unsigned long ADC_In(unsigned int channelNum){
@@ -152,21 +152,21 @@ int ADC_CollectSequence(unsigned short numChannels, unsigned int fs,
 	}
 
   // Disabling Timer0A for configuration
-  TimerDisable(TIMER3_BASE, TIMER_A);
+  TimerDisable(TIMER0_BASE, TIMER_A);
 
   // Configure as 16 bit timer and trigger ADC conversion
-  TimerControlTrigger(TIMER3_BASE, TIMER_A, true);
+  TimerControlTrigger(TIMER0_BASE, TIMER_A, true);
 
-  TimerLoadSet(TIMER3_BASE, TIMER_A, SysCtlClockGet()/ fs);
-  TimerIntClear(TIMER3_BASE, TIMER_TIMA_TIMEOUT);
+  TimerLoadSet(TIMER0_BASE, TIMER_A, SysCtlClockGet()/ fs);
+  TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
 
- // ADCSequenceOverflowClear(ADC0_BASE, 0);
-  //ADCSequenceUnderflowClear(ADC0_BASE, 0);
+  ADCSequenceOverflowClear(ADC0_BASE, 1);
+  ADCSequenceUnderflowClear(ADC0_BASE, 1);
   ADCIntClear(ADC0_BASE, 1);
   ADCSequenceEnable(ADC0_BASE, 1);
  
-  TimerEnable(TIMER3_BASE, TIMER_A);
-  TimerIntEnable(TIMER3_BASE, TIMER_A);
+  TimerEnable(TIMER0_BASE, TIMER_A);
+  TimerIntEnable(TIMER0_BASE, TIMER_A);
   ADCIntEnable(ADC0_BASE, 1);
 
   IntEnable(INT_ADC0SS1);

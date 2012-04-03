@@ -143,7 +143,7 @@ void OS_Init(void) {
   // Initialze peripherals - need to move these to main files for specific processor
 	//SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
   UART0_Init();
-  //ADC_Open();
+  ADC_Open();
   //Output_Init();
 
   // Initialize Timer2A and Timer2B: Periodic Background Threads
