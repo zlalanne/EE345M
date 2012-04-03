@@ -80,6 +80,7 @@ __heap_limit
 ;******************************************************************************
 
 		EXTERN PendSV_Handler
+		EXTERN GPIOPortB_Handler
 		EXTERN SysTick_Handler
 		EXTERN Timer2A_Handler
 		EXTERN Select_Switch_Handler
@@ -89,6 +90,7 @@ __heap_limit
 		EXTERN Timer2B_Handler
 		EXTERN Timer1A_Handler
 		EXTERN CAN0_Handler
+		EXTERN UART0_Handler
 
 ;******************************************************************************
 ;
@@ -114,11 +116,11 @@ __Vectors
         DCD     PendSV_Handler              ; PendSV Handler
         DCD     SysTick_Handler             ; SysTick Handler
         DCD     IntDefaultHandler           ; GPIO Port A
-        DCD     FindHandler                 ; GPIO Port B
+        DCD     GPIOPortB_Handler           ; GPIO Port B
         DCD     IntDefaultHandler           ; GPIO Port C
         DCD     IntDefaultHandler           ; GPIO Port D
         DCD     Down_Switch_Handler         ; GPIO Port E
-        DCD     IntDefaultHandler           ; UART0 Rx and Tx
+        DCD     UART0_Handler               ; UART0 Rx and Tx
         DCD     IntDefaultHandler           ; UART1 Rx and Tx
         DCD     IntDefaultHandler           ; SSI0 Rx and Tx
         DCD     IntDefaultHandler           ; I2C0 Master and Slave

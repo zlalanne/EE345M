@@ -24,8 +24,9 @@
 #define GPIO_PORTB0				 (*((volatile unsigned long *)0x40005004))
 #define GPIO_PORTB1				 (*((volatile unsigned long *)0x40005008))
 
-#define TIME_1US 50
-#define SPEED_OF_LIGHT 300			// in meters / microsec
+#define TIME_1S 10000000					// in units of 100ns
+#define SPEED_OF_SOUND 42000			// in centimeters / sec (CALIBRATED FROM DATA - NOT ACTUAL SPEED OF SOUND)
+#define PING_OFFSET -14           // distance measured at 0 cm to sensor
 
 unsigned long Sensor0Reading;
 unsigned long Sensor1Reading;
@@ -71,16 +72,16 @@ unsigned long Ping_GetDistance(int sensor) {
 		TriggerSensor0();
 		OS_bWait(&Sensor0DataAvailable);
 		time = Sensor0Reading;
-		distance = SPEED_OF_LIGHT * time / (2 * TIME_1US);
+		distance = SPEED_OF_SOUND * time / (2 * TIME_1S) + PING_OFFSET;
 		OS_bSignal(&Sensor0Free);
 
-	} else if (sensor == 1) {
+	} else if (sensor == 1) {																
 
 	  OS_bWait(&Sensor1Free);
 		TriggerSensor1();
 		OS_bWait(&Sensor1DataAvailable);
 		time = Sensor1Reading;
-		distance = SPEED_OF_LIGHT * time / (2 * TIME_1US);
+		distance = SPEED_OF_SOUND * time / (2 * TIME_1S) + PING_OFFSET;
 		OS_bSignal(&Sensor1Free);
 
 	}
@@ -121,13 +122,14 @@ void GPIOPortB_Handler(void) {
     GPIO_PORTB_ICR_R = 0x01;
 
 	  // handle rising edge
-	  if (GPIO_PORTB_IEV_R == 0x01) {
+	  if ((GPIO_PORTB_IEV_R&0x01) == 0x01) {
 		  Sensor0StartTime = OS_Time();
 			GPIO_PORTB_IEV_R &= ~0x01;  // switch to falling edge 
 		}  else {	 // handle falling edge
 			Sensor0Reading = OS_TimeDifference(Sensor0StartTime, OS_Time());	
-	    GPIO_PORTB_IM_R &= 0x01;		// disable PB0 interrupts
-			GPIO_PORTB_IEV_R |= 0x01;   // switch to rising edge (for next time)
+	    GPIO_PORTB_IM_R &= ~0x01;		 // disable PB0 interrupts
+			GPIO_PORTB_IEV_R |= 0x01;    // switch to rising edge (for next time)
+			GPIO_PORTB_DIR_R |= 0x01;    // make PB0 out (for next time)	
 			OS_bSignal(&Sensor0DataAvailable); 
 		}
 	}
@@ -137,13 +139,14 @@ void GPIOPortB_Handler(void) {
     GPIO_PORTB_ICR_R = 0x02;
 
 	  // handle rising edge
-	  if (GPIO_PORTB_IEV_R == 0x02) {
+	  if ((GPIO_PORTB_IEV_R&0x02) == 0x02) {
 		  Sensor1StartTime = OS_Time();
 			GPIO_PORTB_IEV_R &= ~0x02;  // switch to falling edge 
 		}  else {	 // handle falling edge
 			Sensor1Reading = OS_TimeDifference(Sensor1StartTime, OS_Time());	
-	    GPIO_PORTB_IM_R &= 0x02;		// disable PB1 interrupts
+	    GPIO_PORTB_IM_R &= ~0x02;		// disable PB1 interrupts
 			GPIO_PORTB_IEV_R |= 0x02;   // switch to rising edge (for next time)
+			GPIO_PORTB_DIR_R |= 0x02;   // make PB1 out (for next time)	
 			OS_bSignal(&Sensor1DataAvailable); 
 		}
 	}
