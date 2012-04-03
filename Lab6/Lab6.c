@@ -33,6 +33,7 @@ int main(void) {
 	
   SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
   
+	UART0_Init();
 	Output_Init();
 	CAN0_Open();
 	OS_Fifo_Init(512);
