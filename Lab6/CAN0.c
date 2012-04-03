@@ -50,20 +50,6 @@
 
 #define CAN_BITRATE             1000000
 
-// ID's for sending messages
-#ifdef BOARD_LM3S2110
-  #define RCV_ID 2
-	#define TACH_ID 3
-  #define XMT_ID 4
-#endif
-
-#ifdef BOARD_LM3S8962
-  #define RCV_ID 4
-	#define TACH_ID 3
-	#define XMT_ID 2
-#endif
-
-
 // Mailbox linkage from background to foreground
 unsigned char static RCVData[4];
 unsigned char static TachData[4];
@@ -86,8 +72,8 @@ unsigned long convertCharToLong(unsigned char input[4]) {
 void convertLongToChar(unsigned long input, unsigned char output[4]) {
 	output[3] = (input & 0xFF000000) >> 24;
 	output[2] = (input & 0x00FF0000) >> 16;
-	output[2] = (input & 0x0000FF00) >> 8;
-	output[2] = (input & 0x000000FF);
+	output[1] = (input & 0x0000FF00) >> 8;
+	output[0] = (input & 0x000000FF);
 }
 
 //******** CAN0_Setup_Message_Object ************** 
@@ -112,9 +98,11 @@ void static CAN0_Setup_Message_Object( unsigned long MessageID, \
 
 //******** CAN0_Open ************** 
 // Initializes the CAN0
+// Note: need to set clock to correct speed before calling this
 // Inputs: None
 // Outputs: None
 void CAN0_Open(void){
+
   if(REVISION_IS_A2){
     SysCtlLDOSet(SYSCTL_LDO_2_75V);
   }
@@ -132,7 +120,8 @@ void CAN0_Open(void){
 // in this case there is just one type, but you could accept multiple ID types
   CAN0_Setup_Message_Object(RCV_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, RCV_ID, MSG_OBJ_TYPE_RX);
 	CAN0_Setup_Message_Object(TACH_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, TACH_ID, MSG_OBJ_TYPE_RX);
-  IntEnable(INT_CAN0);
+
+	IntEnable(INT_CAN0);
   return;
 }
 

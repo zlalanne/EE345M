@@ -14,9 +14,18 @@
 #ifndef __OS_H
 #define __OS_H  1
 
-// fill these depending on your clock        
-#define TIME_1MS  50000          
+// fill these depending on your clock 
+
+#ifdef BOARD_LM3S8962
+  #define TIME_1MS  50000          
+#endif
+
+#ifdef BOARD_LM3S2110
+  #define TIME_1MS  25000
+#endif
+
 #define TIME_2MS  2*TIME_1MS  
+
 
 // feel free to change the type of semaphore, there are lots of good solutions
 struct  Sema4{

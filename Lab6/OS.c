@@ -138,13 +138,19 @@ void OS_Init(void) {
   OS_DisableInterrupts();
 
   // Setting the clock to 50 MHz
-  SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
-
-  // Initialze peripherals - need to move these to main files for specific processor
-	//SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
-  UART0_Init();
-  ADC_Open();
-  //Output_Init();
+	#ifdef BOARD_LM3S8962
+		SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
+	#endif
+	
+	#ifdef BOARD_LM3S2110
+	  SysCtlClockSet(SYSCTL_SYSDIV_8 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
+	#endif
+  
+	
+	// If these are needed move to board specific main 
+	// UART0_Init();
+  // ADC_Open();
+  // Output_Init();
 
   // Initialize Timer2A and Timer2B: Periodic Background Threads
   SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
@@ -165,6 +171,7 @@ void OS_Init(void) {
   TimerDisable(TIMER1_BASE, TIMER_A);
   TimerConfigure(TIMER1_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
   TimerIntDisable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
+	
 	#ifdef BOARD_LM3S2110
   	TimerLoadSet(TIMER1_BASE, TIMER_A, 25000); // Every interrupt is 1ms
 	#endif

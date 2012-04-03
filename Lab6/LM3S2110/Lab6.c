@@ -29,7 +29,7 @@ void TachThread(void){
 	static unsigned long countTach = 0;
 	while(1) {
 		CAN0_SendData(countTach++, TACH_ID);
-		OS_Sleep(1000);
+		OS_Sleep(10000);
   }
 }
 
@@ -37,7 +37,7 @@ void GenDataThread(void) {
 	static unsigned long countGen = 0;
 	while(1) {
 		CAN0_SendData(countGen++, XMT_ID);
-		OS_Sleep(500);
+		OS_Sleep(5000);
 	}
 }
 
@@ -50,9 +50,13 @@ void DummyThread(void) {
 
 int main(void){
 	
+	
+	
 	// bus clock at 25 MHz
   SysCtlClockSet(SYSCTL_SYSDIV_8 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                  SYSCTL_XTAL_8MHZ);  
+	
+	
 	
 	Tach_Init();
 	CAN0_Open();

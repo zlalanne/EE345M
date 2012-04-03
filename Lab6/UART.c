@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
@@ -26,16 +27,16 @@
 #include "driverlib/interrupt.h"
 #include "driverlib/gpio.h"
 #include "driverlib/timer.h"
+#include "driverlib/debug.h"
 
 #include "Fifo.h"
 #include "UART.h"
 #include "ADC.h"
 #include "Output.h"
 #include "OS.h"
-#include "efile.h"
 
 #define STARTSTRING "\n\rUART Initilization Complete\n\r"
-#define CMDPROMPT "$ "
+#define CMDPROMPT ">> "
 
 #define MAXCMDSIZE 30       // Max size of a command entered
 #define BUFFERSIZE 20       // Max size of snprintf buffer
@@ -89,7 +90,6 @@ void UART0_Init(void) {
   UART0_SendString(STARTSTRING);
 
   // Print command prompt
-  eFile_PrintWorkingDirectory();
   UART0_SendString(CMDPROMPT);
 }
 
@@ -175,23 +175,6 @@ void CMD_Run(void) {
       snprintf(buffer, BUFFERSIZE, "ADC%c: %d\n\r", arg[1][0], measurement);
       UART0_SendString(buffer);
       break;
-    case 'c':
-      switch(arg[0][1]) {
-        case 'l':
-          // Close the current file
-          eFile_WClose();
-          break;
-        case 'd':
-          // Change directory
-          eFile_ChangeDirectory(arg[1]);
-          break;
-        case 'a':
-          // Read entire file
-          eFile_ReadEntireFile(arg[1]);
-          UART0_SendString("\n\r");
-          break;
-      }
-      break;
     case 'o':
       switch(arg[0][1]) {
         case 'l':
@@ -199,16 +182,8 @@ void CMD_Run(void) {
           Output_On();
           UART0_SendString("oLED On\n\r");
           break;
-        case 'p':
-          // Open a file for writing
-          if(eFile_WOpen(arg[1]) == 0) {
-            UART0_SendString("Opened Successfully\n\r");
-          } else {
-            UART0_SendString("Error Opening File\n\r");
-          }
-          break;
-      }
-      break;
+			}
+			break;
     case 'p':
       switch(arg[0][1]) {
         case 'r':
@@ -219,13 +194,8 @@ void CMD_Run(void) {
           oLED_Message(arg[1][0] - 0x30, arg[2][0] - 0x30, buffer, 0);
           UART0_SendString("Message Printed\n\r");
           break;
-        case 'w':
-          // Pring working directory
-          eFile_PrintWorkingDirectory();
-          UART0_SendString("\n\r");
-          break;
-      }
-      break;
+			}
+			break;
     case 't':
       // Get Timer2 interrupt counter
       measurement = OS_MsTime(1);
@@ -239,36 +209,12 @@ void CMD_Run(void) {
           OS_ClearMsTime(1);
           UART0_SendString("Timer2 Counter Cleared\n\r");
           break;
-        case 'm':
-          // Delete file
-          eFile_Delete(arg[1]);
-          break;
       }
-      break;
-    case 'l':
-      // List directory
-      eFile_Directory(&UART0_OutChar);
-      break;
-    case 'f':
-      // Format SD Card
-      eFile_Format();
-      break;
-    case 'n':
-      // Create new file
-      eFile_Create(arg[1]);
-      break;
-    case 'm':
-      // Create new directory
-      eFile_CreateDirectory(arg[1]);
       break;
     case 'h':
       // Help listing
       // TODO: update this to be relevant
       UART0_SendString("Available commands: adc, on, clear, print\n\r");
-      break;
-    case 'w':
-      // Writes to currently open file
-      eFile_WriteString(arg[1]);
       break;
     default:
       UART0_SendString("Command not recgonized\n\r");
@@ -276,7 +222,6 @@ void CMD_Run(void) {
   }
 
   // Print command prompt
-  eFile_PrintWorkingDirectory();
   UART0_SendString(CMDPROMPT);
 
   return;
@@ -367,4 +312,460 @@ void UART0_Handler(void) {
     UARTIntClear(UART0_BASE, status);
     copyHardwareToSoftware();
   }
+}
+
+
+// The code below is taking from the StellarisWare UARTStdio.c file. It contains
+// a useful implementation of the printf routine for UART
+
+//------------UARTprintf--------------
+// Implements printf for UART
+// Input: String in printf format
+// Output: none
+
+//*****************************************************************************
+//
+// A mapping from an integer between 0 and 15 to its ASCII character
+// equivalent.
+//
+//*****************************************************************************
+static const char * const g_pcHex = "0123456789abcdef";
+
+//*****************************************************************************
+//
+//! A simple UART based printf function supporting \%c, \%d, \%p, \%s, \%u,
+//! \%x, and \%X.
+//!
+//! \param pcString is the format string.
+//! \param ... are the optional arguments, which depend on the contents of the
+//! format string.
+//!
+//! This function is very similar to the C library <tt>fprintf()</tt> function.
+//! All of its output will be sent to the UART.  Only the following formatting
+//! characters are supported:
+//!
+//! - \%c to print a character
+//! - \%d to print a decimal value
+//! - \%s to print a string
+//! - \%u to print an unsigned decimal value
+//! - \%x to print a hexadecimal value using lower case letters
+//! - \%X to print a hexadecimal value using lower case letters (not upper case
+//! letters as would typically be used)
+//! - \%p to print a pointer as a hexadecimal value
+//! - \%\% to print out a \% character
+//!
+//! For \%s, \%d, \%u, \%p, \%x, and \%X, an optional number may reside
+//! between the \% and the format character, which specifies the minimum number
+//! of characters to use for that value; if preceded by a 0 then the extra
+//! characters will be filled with zeros instead of spaces.  For example,
+//! ``\%8d'' will use eight characters to print the decimal value with spaces
+//! added to reach eight; ``\%08d'' will use eight characters as well but will
+//! add zeroes instead of spaces.
+//!
+//! The type of the arguments after \e pcString must match the requirements of
+//! the format string.  For example, if an integer was passed where a string
+//! was expected, an error of some kind will most likely occur.
+//!
+//! \return None.
+//
+//*****************************************************************************
+void
+UARTprintf(const char *pcString, ...)
+{
+    unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
+    char *pcStr, pcBuf[16], cFill;
+    va_list vaArgP;
+
+    //
+    // Check the arguments.
+    //
+    ASSERT(pcString != 0);
+
+    //
+    // Start the varargs processing.
+    //
+    va_start(vaArgP, pcString);
+
+    //
+    // Loop while there are more characters in the string.
+    //
+    while(*pcString)
+    {
+        //
+        // Find the first non-% character, or the end of the string.
+        //
+        for(ulIdx = 0; (pcString[ulIdx] != '%') && (pcString[ulIdx] != '\0');
+            ulIdx++)
+        {
+        }
+
+        //
+        // Write this portion of the string.
+        //
+        UART0_SendStringLength(pcString, ulIdx);
+
+        //
+        // Skip the portion of the string that was written.
+        //
+        pcString += ulIdx;
+
+        //
+        // See if the next character is a %.
+        //
+        if(*pcString == '%')
+        {
+            //
+            // Skip the %.
+            //
+            pcString++;
+
+            //
+            // Set the digit count to zero, and the fill character to space
+            // (i.e. to the defaults).
+            //
+            ulCount = 0;
+            cFill = ' ';
+
+            //
+            // It may be necessary to get back here to process more characters.
+            // Goto's aren't pretty, but effective.  I feel extremely dirty for
+            // using not one but two of the beasts.
+            //
+again:
+
+            //
+            // Determine how to handle the next character.
+            //
+            switch(*pcString++)
+            {
+                //
+                // Handle the digit characters.
+                //
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                {
+                    //
+                    // If this is a zero, and it is the first digit, then the
+                    // fill character is a zero instead of a space.
+                    //
+                    if((pcString[-1] == '0') && (ulCount == 0))
+                    {
+                        cFill = '0';
+                    }
+
+                    //
+                    // Update the digit count.
+                    //
+                    ulCount *= 10;
+                    ulCount += pcString[-1] - '0';
+
+                    //
+                    // Get the next character.
+                    //
+                    goto again;
+                }
+
+                //
+                // Handle the %c command.
+                //
+                case 'c':
+                {
+                    //
+                    // Get the value from the varargs.
+                    //
+                    ulValue = va_arg(vaArgP, unsigned long);
+
+                    //
+                    // Print out the character.
+                    //
+                    UART0_SendStringLength((char *)&ulValue, 1);
+
+                    //
+                    // This command has been handled.
+                    //
+                    break;
+                }
+
+                //
+                // Handle the %d command.
+                //
+                case 'd':
+                {
+                    //
+                    // Get the value from the varargs.
+                    //
+                    ulValue = va_arg(vaArgP, unsigned long);
+
+                    //
+                    // Reset the buffer position.
+                    //
+                    ulPos = 0;
+
+                    //
+                    // If the value is negative, make it positive and indicate
+                    // that a minus sign is needed.
+                    //
+                    if((long)ulValue < 0)
+                    {
+                        //
+                        // Make the value positive.
+                        //
+                        ulValue = -(long)ulValue;
+
+                        //
+                        // Indicate that the value is negative.
+                        //
+                        ulNeg = 1;
+                    }
+                    else
+                    {
+                        //
+                        // Indicate that the value is positive so that a minus
+                        // sign isn't inserted.
+                        //
+                        ulNeg = 0;
+                    }
+
+                    //
+                    // Set the base to 10.
+                    //
+                    ulBase = 10;
+
+                    //
+                    // Convert the value to ASCII.
+                    //
+                    goto convert;
+                }
+
+                //
+                // Handle the %s command.
+                //
+                case 's':
+                {
+                    //
+                    // Get the string pointer from the varargs.
+                    //
+                    pcStr = va_arg(vaArgP, char *);
+
+                    //
+                    // Determine the length of the string.
+                    //
+                    for(ulIdx = 0; pcStr[ulIdx] != '\0'; ulIdx++)
+                    {
+                    }
+
+                    //
+                    // Write the string.
+                    //
+                    UART0_SendStringLength(pcStr, ulIdx);
+
+                    //
+                    // Write any required padding spaces
+                    //
+                    if(ulCount > ulIdx)
+                    {
+                        ulCount -= ulIdx;
+                        while(ulCount--)
+                        {
+                            UART0_SendStringLength(" ", 1);
+                        }
+                    }
+                    //
+                    // This command has been handled.
+                    //
+                    break;
+                }
+
+                //
+                // Handle the %u command.
+                //
+                case 'u':
+                {
+                    //
+                    // Get the value from the varargs.
+                    //
+                    ulValue = va_arg(vaArgP, unsigned long);
+
+                    //
+                    // Reset the buffer position.
+                    //
+                    ulPos = 0;
+
+                    //
+                    // Set the base to 10.
+                    //
+                    ulBase = 10;
+
+                    //
+                    // Indicate that the value is positive so that a minus sign
+                    // isn't inserted.
+                    //
+                    ulNeg = 0;
+
+                    //
+                    // Convert the value to ASCII.
+                    //
+                    goto convert;
+                }
+
+                //
+                // Handle the %x and %X commands.  Note that they are treated
+                // identically; i.e. %X will use lower case letters for a-f
+                // instead of the upper case letters is should use.  We also
+                // alias %p to %x.
+                //
+                case 'x':
+                case 'X':
+                case 'p':
+                {
+                    //
+                    // Get the value from the varargs.
+                    //
+                    ulValue = va_arg(vaArgP, unsigned long);
+
+                    //
+                    // Reset the buffer position.
+                    //
+                    ulPos = 0;
+
+                    //
+                    // Set the base to 16.
+                    //
+                    ulBase = 16;
+
+                    //
+                    // Indicate that the value is positive so that a minus sign
+                    // isn't inserted.
+                    //
+                    ulNeg = 0;
+
+                    //
+                    // Determine the number of digits in the string version of
+                    // the value.
+                    //
+convert:
+                    for(ulIdx = 1;
+                        (((ulIdx * ulBase) <= ulValue) &&
+                         (((ulIdx * ulBase) / ulBase) == ulIdx));
+                        ulIdx *= ulBase, ulCount--)
+                    {
+                    }
+
+                    //
+                    // If the value is negative, reduce the count of padding
+                    // characters needed.
+                    //
+                    if(ulNeg)
+                    {
+                        ulCount--;
+                    }
+
+                    //
+                    // If the value is negative and the value is padded with
+                    // zeros, then place the minus sign before the padding.
+                    //
+                    if(ulNeg && (cFill == '0'))
+                    {
+                        //
+                        // Place the minus sign in the output buffer.
+                        //
+                        pcBuf[ulPos++] = '-';
+
+                        //
+                        // The minus sign has been placed, so turn off the
+                        // negative flag.
+                        //
+                        ulNeg = 0;
+                    }
+
+                    //
+                    // Provide additional padding at the beginning of the
+                    // string conversion if needed.
+                    //
+                    if((ulCount > 1) && (ulCount < 16))
+                    {
+                        for(ulCount--; ulCount; ulCount--)
+                        {
+                            pcBuf[ulPos++] = cFill;
+                        }
+                    }
+
+                    //
+                    // If the value is negative, then place the minus sign
+                    // before the number.
+                    //
+                    if(ulNeg)
+                    {
+                        //
+                        // Place the minus sign in the output buffer.
+                        //
+                        pcBuf[ulPos++] = '-';
+                    }
+
+                    //
+                    // Convert the value into a string.
+                    //
+                    for(; ulIdx; ulIdx /= ulBase)
+                    {
+                        pcBuf[ulPos++] = g_pcHex[(ulValue / ulIdx) % ulBase];
+                    }
+
+                    //
+                    // Write the string.
+                    //
+                    UART0_SendStringLength(pcBuf, ulPos);
+
+                    //
+                    // This command has been handled.
+                    //
+                    break;
+                }
+
+                //
+                // Handle the %% command.
+                //
+                case '%':
+                {
+                    //
+                    // Simply write a single %.
+                    //
+                    UART0_SendStringLength(pcString - 1, 1);
+
+                    //
+                    // This command has been handled.
+                    //
+                    break;
+                }
+
+                //
+                // Handle all other commands.
+                //
+                default:
+                {
+                    //
+                    // Indicate an error.
+                    //
+                    UART0_SendStringLength("ERROR", 5);
+
+                    //
+                    // This command has been handled.
+                    //
+                    break;
+                }
+            }
+        }
+    }
+
+    //
+    // End the varargs processing.
+    //
+    va_end(vaArgP);
 }

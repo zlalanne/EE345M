@@ -43,6 +43,19 @@
 #define FALSE 0
 #define NULL 0
 
+// ID's for sending messages
+#ifdef BOARD_LM3S2110
+  #define RCV_ID 2
+	#define TACH_ID 3
+  #define XMT_ID 4
+#endif
+
+#ifdef BOARD_LM3S8962
+  #define RCV_ID 4
+	#define TACH_ID 3
+	#define XMT_ID 2
+#endif
+
 //******** CAN0_CheckMail************** 
 // Returns if there is new data
 // Inputs: None
@@ -63,6 +76,7 @@ void CAN0_GetMail(unsigned long *data, unsigned long msgType);
 
 //******** CAN0_Open ************** 
 // Initializes the CAN0
+// Note: need to set clock to correct speed before calling this
 // Inputs: None
 // Outputs: None
 void CAN0_Open(void);

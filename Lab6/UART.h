@@ -82,6 +82,12 @@ void Interpreter(void);
 // Output: none
 void CMD_Run(void);
 
+//------------UARTprintf--------------
+// Implements printf for UART
+// Input: String in printf format
+// Output: none
+void UARTprintf(const char *pcString, ...);
+
 // External variables from Lab2.c
 extern unsigned long NumCreated;   // number of foreground threads created
 extern unsigned long PIDWork;      // current number of PID calculations finished
