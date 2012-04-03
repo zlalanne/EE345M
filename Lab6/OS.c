@@ -165,7 +165,12 @@ void OS_Init(void) {
   TimerDisable(TIMER1_BASE, TIMER_A);
   TimerConfigure(TIMER1_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
   TimerIntDisable(TIMER1_BASE, TIMER_TIMA_TIMEOUT);
-  TimerLoadSet(TIMER1_BASE, TIMER_A, 50000); // Every interrupt is 1ms
+	#ifdef BOARD_LM3S2110
+  	TimerLoadSet(TIMER1_BASE, TIMER_A, 25000); // Every interrupt is 1ms
+	#endif
+	#ifdef BOARD_LM3S8962
+	  TimerLoadSet(TIMER1_BASE, TIMER_A, 50000); // Every interrupt is 1ms
+	#endif
 
   // Setting priorities for all interrupts
   // To add more, look up correct names in inc\hw_ints.h

@@ -26,24 +26,17 @@ double NumCreated;
 
 void TachThread(void){
 	unsigned long data;
-	static unsigned long count = 0;
+	static unsigned long countTach = 0;
 	while(1) {
-		//data = Tach_GetPeriod();
-		CAN0_SendData(count++, TACH_ID);
-		//data = Tach_GetRPS();
-		//CAN0_SendData(data);
-		//data = Tach_GetRPM();
-		//CAN0_SendData(data);
-		OS_Sleep(500);
-		// Add OS_Sleep()?
+		CAN0_SendData(countTach++, TACH_ID);
+		OS_Sleep(1000);
   }
 }
 
 void GenDataThread(void) {
-	static unsigned long count = 0;
+	static unsigned long countGen = 0;
 	while(1) {
-		CAN0_SendData(count++, XMT_ID);
-		CAN0_SendData(count, TACH_ID);
+		CAN0_SendData(countGen++, XMT_ID);
 		OS_Sleep(500);
 	}
 }
@@ -69,7 +62,7 @@ int main(void){
 	
 	
   NumCreated = 0 ;
-  //NumCreated += OS_AddThread(&TachThread, 512, 1);
+  NumCreated += OS_AddThread(&TachThread, 512, 1);
 	NumCreated += OS_AddThread(&GenDataThread, 512, 1);
 	NumCreated += OS_AddThread(&DummyThread, 512, 2);
 	

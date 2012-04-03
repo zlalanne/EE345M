@@ -131,6 +131,7 @@ void CAN0_Open(void){
 // Set up filter to receive these IDs
 // in this case there is just one type, but you could accept multiple ID types
   CAN0_Setup_Message_Object(RCV_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, RCV_ID, MSG_OBJ_TYPE_RX);
+	CAN0_Setup_Message_Object(TACH_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, TACH_ID, MSG_OBJ_TYPE_RX);
   IntEnable(INT_CAN0);
   return;
 }
