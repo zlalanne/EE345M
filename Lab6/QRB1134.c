@@ -13,11 +13,12 @@
 unsigned long Period; 
 unsigned long Last; // last edge time
 
+
 void Tach_Init(void) { 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     GPIOPinTypeTimer(GPIO_PORTB_BASE, GPIO_PIN_0);
-    //GPIOPinConfigure(GPIO_PB0_CCP0);
+    //GPIOPinConfigure(GPIO_PIN_0);
 
     /* Setup Timer0A Counter in edge-time-capture mode.  */
     TimerDisable(TIMER0_BASE, TIMER_A);
@@ -48,8 +49,7 @@ void Timer0A_Handler(void){
         static unsigned long Counter = 0;  // may interrupt from timeouts multiple times before edge
         unsigned long ulIntFlags = TimerIntStatus(TIMER0_BASE, true);
         TimerIntClear(TIMER0_BASE, ulIntFlags);// acknowledge
-        
-        if(ulIntFlags & TIMER_TIMA_TIMEOUT) {
+       if(ulIntFlags & TIMER_TIMA_TIMEOUT) {
                 Counter++;	// keep track of timeouts
         }
         

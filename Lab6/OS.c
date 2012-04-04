@@ -160,7 +160,7 @@ void OS_Init(void) {
   // Initialize Timer0B: Used for time keeping
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
   TimerDisable(TIMER0_BASE, TIMER_B);
-  TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
+  TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_B_PERIODIC);
   TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
   TimerLoadSet(TIMER0_BASE, TIMER_B, 65535);
   TimerPrescaleSet(TIMER0_BASE, TIMER_B, 5); // One unit is 100ns

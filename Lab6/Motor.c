@@ -6,7 +6,7 @@
 #include "driverlib/sysctl.h"
 
 // Frequency of PWM in Hz
-#define FREQUENCY 1000
+#define FREQUENCY 1500
 
 //------------Motor_Init------------
 // Initilizes PWM for motor interfacing

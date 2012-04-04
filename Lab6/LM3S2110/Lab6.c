@@ -59,10 +59,11 @@ int main(void){
 	
 	
 	
-	Tach_Init();
+
 	CAN0_Open();
 	
   OS_Init();
+		Tach_Init();
   OS_Fifo_Init(512);
 	
 	
