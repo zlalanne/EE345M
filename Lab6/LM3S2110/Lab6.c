@@ -51,19 +51,14 @@ void DummyThread(void) {
 
 int main(void){
 	
-	
-	
 	// bus clock at 25 MHz
   SysCtlClockSet(SYSCTL_SYSDIV_8 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                  SYSCTL_XTAL_8MHZ);  
 	
-	
-	
-
 	CAN0_Open();
-	
+	Tach_Init();
   OS_Init();
-		Tach_Init();
+	
   OS_Fifo_Init(512);
 	
 	

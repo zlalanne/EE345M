@@ -9,11 +9,9 @@
  *  Timer0A is being used for the WRB1134 optical reflectance sensor (tachometers) (Configured in Tach_Init, started in Tach_Init)
  *	Timer0B is being used for OS_Time (all setup in OS_Init)
  *  Timer1A is being used to decrement the sleep state, works at 1ms (1khz), initialized in OS_Init, enabled in OS_Launch
- *  Timer1B is unused
+ *  Timer1B is being used to trigger the ADC in ADC_CollectSequence (all setup in ADC_CollectSequence) 
  *	Timer2A is being used for periodic background thread 1 (Configured in OS_Init, started in OS_AddPeriodicThread)
  *	Timer2B is being used for periodic background thread 2 (Configured in OS_Init, started in OS_AddPeriodicThread)
- * 	Timer3A is being used to trigger the ADC in ADC_CollectSequence (all setup in ADC_CollectSequence)
- *  Timer0A is being used to trigger the ADC in ADC_Collect (all setup in ADC_Collect)
  */
 
 
@@ -160,11 +158,11 @@ void OS_Init(void) {
   // Initialize Timer0B: Used for time keeping
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
   TimerDisable(TIMER0_BASE, TIMER_B);
-  TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_B_PERIODIC);
-  TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
+  TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_CAP_TIME | TIMER_CFG_B_PERIODIC);
+	TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
   TimerLoadSet(TIMER0_BASE, TIMER_B, 65535);
   TimerPrescaleSet(TIMER0_BASE, TIMER_B, 5); // One unit is 100ns
-  TimerEnable(TIMER0_BASE, TIMER_B);
+  TimerEnable(TIMER0_BASE, TIMER_BOTH);
 
   // Initialize Timer1A: Used for sleep decrementing
   SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);

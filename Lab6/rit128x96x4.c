@@ -55,8 +55,7 @@
 
 #include "OS.h"
 
-// oLED Semaphore
-Sema4Type oLEDFree;
+
 
 
 //*****************************************************************************
@@ -349,14 +348,13 @@ static void
 RITWriteCommand(const unsigned char *pucBuffer, unsigned long ulCount)
 {
 
-	OS_bWait(&oLEDFree);
+
 
     //
     // Return if SSI port is not enabled for RIT display.
     //
     if(!HWREGBITW(&g_ulSSIFlags, FLAG_SSI_ENABLED))
     {
-		OS_bSignal(&oLEDFree);
         return;
     }
 
@@ -395,8 +393,6 @@ RITWriteCommand(const unsigned char *pucBuffer, unsigned long ulCount)
         //
         ulCount--;
     }
-
-	OS_bSignal(&oLEDFree);
 }
 
 //*****************************************************************************
@@ -415,14 +411,12 @@ static void
 RITWriteData(const unsigned char *pucBuffer, unsigned long ulCount)
 {
 
-	OS_bWait(&oLEDFree);
 
     //
     // Return if SSI port is not enabled for RIT display.
     //
     if(!HWREGBITW(&g_ulSSIFlags, FLAG_SSI_ENABLED))
     {
-		OS_bSignal(&oLEDFree);
         return;
     }
 
@@ -461,8 +455,6 @@ RITWriteData(const unsigned char *pucBuffer, unsigned long ulCount)
         //
         ulCount--;
     }
-
-	OS_bSignal(&oLEDFree);
 }
 
 //*****************************************************************************
@@ -844,8 +836,7 @@ RIT128x96x4Init(unsigned long ulFrequency)
     unsigned long ulIdx;
 
 	
-    // Initialize the semaphore
-    OS_InitSemaphore(&oLEDFree, 1);
+    
 
     //
     // Enable the SSI0 and GPIO port blocks as they are needed by this driver.

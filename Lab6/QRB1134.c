@@ -16,14 +16,14 @@ unsigned long Last; // last edge time
 
 void Tach_Init(void) { 
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+	
     SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
     GPIOPinTypeTimer(GPIO_PORTB_BASE, GPIO_PIN_0);
-    //GPIOPinConfigure(GPIO_PIN_0);
 
     /* Setup Timer0A Counter in edge-time-capture mode.  */
     TimerDisable(TIMER0_BASE, TIMER_A);
-    TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_CAP_TIME);
-    TimerIntEnable(TIMER0_BASE, TIMER_CAPA_EVENT | TIMER_TIMA_TIMEOUT);
+    //TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_CAP_TIME | TIMER_CFG_B_PERIODIC);
+	  TimerIntEnable(TIMER0_BASE, TIMER_CAPA_EVENT | TIMER_TIMA_TIMEOUT);
 
     TimerControlEvent(TIMER0_BASE, TIMER_A, TIMER_EVENT_POS_EDGE);
     TimerLoadSet(TIMER0_BASE, TIMER_A, 0xFFFF);
