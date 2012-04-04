@@ -26,7 +26,6 @@ double NumCreated;
 
 void TachThread(void){
 	unsigned long data;
-	static unsigned long countTach = 0;
 	while(1) {
 		data = Tach_GetPeriod();
 		CAN0_SendData(data, TACH_ID);

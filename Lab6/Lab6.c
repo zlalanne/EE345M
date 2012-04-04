@@ -12,6 +12,7 @@
 #include "CAN0.h"
 #include "IR.h"
 #include "Motor.h"
+#include "Ping.h"
 
 #define TIMESLICE 2*TIME_1MS
 
@@ -25,7 +26,7 @@ void CanConsumer(void) {
 		  oLED_Message(0,0,"Tach Data:", data);
 	  }
 	  if(CAN0_GetMailNonBlock(&data,RCV_ID)) {
-		  oLED_Message(0,1,"Gen Data:", data);
+		  oLED_Message(0,1,"CAN Data:", data);
 	  } 
 	}
 }
@@ -48,6 +49,20 @@ void IRConsumer(void) {
 	}
 }
 
+void PingConsumer(void) {
+	
+	unsigned long data;
+	Ping_Init();
+	
+	while(1){
+		data = Ping_GetDistance(0);
+		oLED_Message(0,2,"Ping 0:",data);
+	  data = Ping_GetDistance(1);
+		oLED_Message(0,3,"Ping 1:",data);
+  }
+}
+
+
 int main(void) {
 	
   SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
@@ -66,6 +81,7 @@ int main(void) {
 	NumCreated += OS_AddThread(&Interpreter, 512, 3);
 	NumCreated += OS_AddThread(&CanConsumer, 512, 1);
 	NumCreated += OS_AddThread(&IRConsumer, 512, 1);
+	NumCreated += OS_AddThread(&PingConsumer, 512, 1);
 	OS_Launch(TIMESLICE);  // doesn't return, interrupts enabled in here
 	return 0;  // This never executes	
 }
