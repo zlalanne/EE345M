@@ -28,8 +28,9 @@ void TachThread(void){
 	unsigned long data;
 	static unsigned long countTach = 0;
 	while(1) {
-		CAN0_SendData(countTach++, TACH_ID);
-		OS_Sleep(10000);
+		data = Tach_GetPeriod();
+		CAN0_SendData(data, TACH_ID);
+		OS_Sleep(2000);
   }
 }
 

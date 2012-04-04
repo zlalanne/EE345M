@@ -10,6 +10,7 @@
 #include "Output.h"
 #include "rit128x96x4.h"
 #include "CAN0.h"
+#include "Motor.h"
 
 #define TIMESLICE 2*TIME_1MS
 
@@ -38,6 +39,9 @@ int main(void) {
 	CAN0_Open();
 	OS_Fifo_Init(512);
 	OS_Init(); 
+	
+	Motor_Init();
+	Motor_Start();
 	
 	NumCreated = 0;
 	NumCreated += OS_AddThread(&Interpreter, 512, 1);

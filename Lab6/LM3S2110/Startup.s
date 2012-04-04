@@ -85,7 +85,7 @@ __heap_limit
 		EXTERN Down_Switch_Handler
 		EXTERN Timer2B_Handler
 		EXTERN Timer1A_Handler
-		EXTERN  CAN0_Handler
+		EXTERN CAN0_Handler
 		EXTERN Timer0A_Handler
 
 ;******************************************************************************
