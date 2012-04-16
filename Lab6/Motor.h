@@ -9,3 +9,7 @@ void Motor_Init(void);
 // Input: none
 // Output: none
 void Motor_Start(void);
+
+
+void Motor_Straight(void);
+void Motor_Turn(void);

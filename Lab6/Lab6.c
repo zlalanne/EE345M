@@ -62,6 +62,18 @@ void PingConsumer(void) {
   }
 }
 
+void MotorControllerDemo(void) {
+	
+  Motor_Start();
+	
+	while(1){
+	  Motor_Straight();
+		OS_Sleep(3000);
+		Motor_Turn();
+		OS_Sleep(1000);
+	}
+	
+}
 
 int main(void) {
 	
@@ -73,11 +85,10 @@ int main(void) {
 	CAN0_Open();
 	OS_Fifo_Init(512);
 	OS_Init(); 
-	
 	Motor_Init();
-	Motor_Start();
 	
 	NumCreated = 0;
+	NumCreated += OS_AddThread(&MotorControllerDemo, 512, 1);
 	NumCreated += OS_AddThread(&Interpreter, 512, 3);
 	NumCreated += OS_AddThread(&CanConsumer, 512, 1);
 	NumCreated += OS_AddThread(&IRConsumer, 512, 1);
