@@ -12,4 +12,6 @@ void Motor_Start(void);
 
 
 void Motor_Straight(void);
-void Motor_Turn(void);
+void Motor_Turn_Right(void);
+void Motor_Turn_Left(void);
+void Motor_Reverse(void);

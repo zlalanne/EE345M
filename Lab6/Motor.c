@@ -6,7 +6,9 @@
 #include "driverlib/sysctl.h"
 
 // Frequency of PWM in Hz
-#define FREQUENCY 2000
+#define FREQUENCY 25500
+
+//255 248
 
 unsigned long MotorPeriod;
 
@@ -42,8 +44,8 @@ void Motor_Init(void) {
 	PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, MotorPeriod);
 	
 	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (31* MotorPeriod) / 32);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (31* MotorPeriod) / 32);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (255* MotorPeriod) / 256);
 		
 	// Enabling PWM0 and PWM2 output 
 	PWMOutputState(PWM0_BASE, PWM_OUT_0_BIT, true);
@@ -73,20 +75,38 @@ void Motor_Start(void) {
 void Motor_Straight(void) {
 	
 	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (31* MotorPeriod) / 32);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (31* MotorPeriod) / 32);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (248* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 	
 	
 }
 
-void Motor_Turn(void) {
+void Motor_Turn_Right(void) {
 	
   // Setting motors to turn
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (31* MotorPeriod) / 32);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (1* MotorPeriod) / 32);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (1* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, GPIO_PIN_7);
 	
+}
+
+void Motor_Turn_Left(void) {
+	
+  // Setting motors to turn
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (1* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (255* MotorPeriod) / 256);
+	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, GPIO_PIN_5);
+	
+}
+
+void Motor_Reverse(void) {
+
+  // Setting motors to turn
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (1* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (1* MotorPeriod) / 256);
+	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, GPIO_PIN_5 | GPIO_PIN_7);
+
 }
 
 

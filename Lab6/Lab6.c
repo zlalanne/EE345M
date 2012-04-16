@@ -68,9 +68,9 @@ void MotorControllerDemo(void) {
 	
 	while(1){
 	  Motor_Straight();
-		OS_Sleep(3000);
-		Motor_Turn();
-		OS_Sleep(1000);
+		// OS_Sleep(1000);
+		//Motor_Turn_Right();
+		//OS_Sleep(500);
 	}
 	
 }
