@@ -120,6 +120,7 @@ void CMD_Run(void) {
   char *tokenPtr;
   char newCMD = FAILURE;
   int i = 0;
+  unsigned long position;
 
   // If no new characters then exit
   if(RxFifo_Get(&letter) == FIFOFAIL) {
@@ -218,10 +219,12 @@ void CMD_Run(void) {
       // TODO: update this to be relevant
       UART0_SendString("Available commands: adc, on, clear, print\n\r");
       break;
-		case 's':
-			// servo position
-		  Servo_Set_Position((unsigned long)atoi((const char *)arg[1][0]));
-		  break;
+	case 's':
+		// servo position
+		sscanf((const char *)arg[1][0], "%d", position);
+		Servo_Set_Position(position);
+	  //Servo_Set_Position((unsigned long)atoi((const char *)arg[1][0]));
+	  break;
     default:
       UART0_SendString("Command not recgonized\n\r");
       break;

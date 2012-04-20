@@ -20,9 +20,27 @@ unsigned long NumCreated;
 
 
 void Display(void) {
-	// just prints the current servo info to the oLED
-	oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
-	oLED_Message(0,1, "servo percent:", 0);
+	while(1) {
+	  // just prints the current servo info to the oLED
+	  //oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
+	  // 45,000 to 105,000
+	  //OS_Sleep(1000); // sleep a second
+	  Servo_Set_Position(37500);
+	  oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
+	  OS_Sleep(2000);
+	  Servo_Set_Position(15000);
+	  oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
+	  OS_Sleep(2000);
+	  Servo_Set_Position(60000);
+	  oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
+	  OS_Sleep(2000);
+	  //Servo_Set_Position(45000);
+	  //oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
+	  //OS_Sleep(1000);
+	  //Servo_Set_Position(80000);
+	  //oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
+	  //OS_Sleep(3000);
+    }
 }
 
 int main(void) {
