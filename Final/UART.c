@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #include "inc/hw_memmap.h"
 #include "inc/hw_types.h"
@@ -34,6 +35,7 @@
 #include "ADC.h"
 #include "Output.h"
 #include "OS.h"
+#include "Servo.h"
 
 #define STARTSTRING "\n\rUART Initilization Complete\n\r"
 #define CMDPROMPT ">> "
@@ -109,7 +111,7 @@ void Interpreter(void) {
 // Input: none
 // Output: none
 void CMD_Run(void) {
-
+	
   unsigned long measurement;
   char buffer[BUFFERSIZE]; // Used for snprintf
 
@@ -216,6 +218,10 @@ void CMD_Run(void) {
       // TODO: update this to be relevant
       UART0_SendString("Available commands: adc, on, clear, print\n\r");
       break;
+		case 's':
+			// servo position
+		  Servo_Set_Position((unsigned long)atoi((const char *)arg[1][0]));
+		  break;
     default:
       UART0_SendString("Command not recgonized\n\r");
       break;
