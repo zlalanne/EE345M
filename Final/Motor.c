@@ -27,9 +27,8 @@ void Motor_Init(void) {
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
 	GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_0);
 	
-	// Setting up PWM2
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
-	GPIOPinTypePWM(GPIO_PORTB_BASE, GPIO_PIN_0);
+	// Setting up PWM1
+	GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_1);
 	
 	// Getting period
 	MotorPeriod = SysCtlClockGet() / FREQUENCY;
@@ -39,17 +38,13 @@ void Motor_Init(void) {
     PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
 	PWMGenPeriodSet(PWM0_BASE, PWM_GEN_0, MotorPeriod);
 	
-	PWMGenConfigure(PWM0_BASE, PWM_GEN_1,
-    PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
-	PWMGenPeriodSet(PWM0_BASE, PWM_GEN_1, MotorPeriod);
-	
 	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (255* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (126* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (126* MotorPeriod) / 256);
 		
-	// Enabling PWM0 and PWM2 output 
+	// Enabling PWM0 and PWM1 output 
 	PWMOutputState(PWM0_BASE, PWM_OUT_0_BIT, true);
-	PWMOutputState(PWM0_BASE, PWM_OUT_2_BIT, true);
+	PWMOutputState(PWM0_BASE, PWM_OUT_1_BIT, true);
 
 	// Configure logic for forwards/backwards
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
@@ -67,16 +62,15 @@ void Motor_Start(void) {
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 	
 	// Enable the PWM generator.
-  PWMGenEnable(PWM0_BASE, PWM_GEN_0);
-	PWMGenEnable(PWM0_BASE, PWM_GEN_1);
+    PWMGenEnable(PWM0_BASE, PWM_GEN_0);
 }
 
 
 void Motor_Straight(void) {
 	
 	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (248* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (126* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (126* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 	
 	

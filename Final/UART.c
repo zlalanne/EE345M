@@ -220,11 +220,18 @@ void CMD_Run(void) {
       UART0_SendString("Available commands: adc, on, clear, print\n\r");
       break;
 	case 's':
+<<<<<<< HEAD
 		// servo position
 		sscanf((const char *)arg[1][0], "%d", position);
 		Servo_Set_Position(position);
 	  //Servo_Set_Position((unsigned long)atoi((const char *)arg[1][0]));
 	  break;
+=======
+	  // servo position
+	  Servo_Set_Position((unsigned long)atoi((const char *)arg[1]));
+	  break;
+
+>>>>>>> 9b33e99af39a80f91856f0a571f092bcaf0b66c4
     default:
       UART0_SendString("Command not recgonized\n\r");
       break;
