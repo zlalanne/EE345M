@@ -7,6 +7,7 @@
 #include "../OS.h"
 #include "../QRB1134.h"
 #include "../CAN0.h"
+#include "../Motor.h"
 
 #define TIMESLICE 2*TIME_1MS  // thread switch time in system time units
 
@@ -27,6 +28,15 @@ void GenDataThread(void) {
 		CAN0_SendData(countGen++, XMT_ID);
 		OS_Sleep(5000);
 	}
+}
+
+void MotorThread(void) {
+
+  Motor_Init();
+  Motor_Start();
+  while(1) {
+    Motor_Straight();
+  }
 }
 
 void DummyThread(void) {
@@ -50,9 +60,8 @@ int main(void){
 	
 	
   NumCreated = 0 ;
-  NumCreated += OS_AddThread(&TachThread, 512, 1);
-	NumCreated += OS_AddThread(&GenDataThread, 512, 1);
-	NumCreated += OS_AddThread(&DummyThread, 512, 2);
+  NumCreated += OS_AddThread(&MotorThread, 512, 1);
+  NumCreated += OS_AddThread(&DummyThread, 512, 2);
 	
 	
   OS_Launch(TIMESLICE); // doesn't return, interrupts enabledin here
