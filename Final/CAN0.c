@@ -53,9 +53,11 @@
 // Mailbox linkage from background to foreground
 unsigned char static RCVData[4];
 unsigned char static TachData[4];
+unsigned char static MotorData[4];
 
 unsigned long static GenMailFlag;
 unsigned long static TachMailFlag;
+unsigned long static MotorMailFlag;
 
 //******** convertCharToLong *************** 
 // Converts a array of chars to a long
@@ -107,7 +109,8 @@ void CAN0_Open(void){
     SysCtlLDOSet(SYSCTL_LDO_2_75V);
   }
   GenMailFlag = FALSE;
-	TachMailFlag = FALSE;
+  TachMailFlag = FALSE;
+  MotorMailFlag = FALSE;
   SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);              // PD0 is CAN0Rx
   GPIOPinTypeCAN(GPIO_PORTD_BASE, GPIO_PIN_0 | GPIO_PIN_1); // PD1 is CAN0Tx
   SysCtlPeripheralEnable(SYSCTL_PERIPH_CAN0);
@@ -119,9 +122,11 @@ void CAN0_Open(void){
 // Set up filter to receive these IDs
 // in this case there is just one type, but you could accept multiple ID types
   CAN0_Setup_Message_Object(RCV_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, RCV_ID, MSG_OBJ_TYPE_RX);
-	CAN0_Setup_Message_Object(TACH_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, TACH_ID, MSG_OBJ_TYPE_RX);
+  CAN0_Setup_Message_Object(TACH_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, TACH_ID, MSG_OBJ_TYPE_RX);
+  CAN0_Setup_Message_Object(MOTOR_RCV_ID, MSG_OBJ_RX_INT_ENABLE, 4, NULL, MOTOR_RCV_ID, MSG_OBJ_TYPE_RX);
 
-	IntEnable(INT_CAN0);
+
+  IntEnable(INT_CAN0);
   return;
 }
 
@@ -144,11 +149,14 @@ void CAN0_SendData(unsigned long data, unsigned long msgType){
 // Outputs: TRUE if valid data, FALSE if invalid
 int CAN0_CheckMail(unsigned long msgType){
   if (msgType == RCV_ID) {
-		return GenMailFlag;
-	} else if (msgType == TACH_ID) {
-		return TachMailFlag;
-	}
-	return -1;
+	return GenMailFlag;
+  } else if (msgType == TACH_ID) {
+    return TachMailFlag;
+  } else if (msgType == MOTOR_RCV_ID) {
+	return MotorMailFlag;
+  }
+	
+  return -1;
 }
 
 //******** CAN0_GetMailNonBlock *************** 
@@ -159,27 +167,38 @@ int CAN0_GetMailNonBlock(unsigned long *data, unsigned long msgType){
 	
   unsigned char tempData[4];
 	
-	if (msgType == RCV_ID) {
-		if (GenMailFlag) {
-			tempData[0] = RCVData[0];
+  if (msgType == RCV_ID) {
+    if (GenMailFlag) {
+      tempData[0] = RCVData[0];
       tempData[1] = RCVData[1];
       tempData[2] = RCVData[2];
       tempData[3] = RCVData[3];
-		  (*data) = convertCharToLong(tempData);
+	  (*data) = convertCharToLong(tempData);
       GenMailFlag = FALSE;
-			return TRUE;
-		} 
+	  return TRUE;
+	} 
   } else if (msgType == TACH_ID) {
-		if (TachMailFlag) {
-			tempData[0] = TachData[0];
-			tempData[1] = TachData[1];
-			tempData[2] = TachData[2];
-			tempData[3] = TachData[3];
-			(*data) = convertCharToLong(tempData);
-			TachMailFlag = FALSE;
-			return TRUE;
-		}
+	if (TachMailFlag) {
+	  tempData[0] = TachData[0];
+	  tempData[1] = TachData[1];
+	  tempData[2] = TachData[2];
+	  tempData[3] = TachData[3];
+	  (*data) = convertCharToLong(tempData);
+	  TachMailFlag = FALSE;
+	  return TRUE;
 	}
+  }  else if (msgType == MOTOR_RCV_ID) {
+    if (MotorMailFlag) {
+	  tempData[0] = MotorData[0];
+	  tempData[1] = MotorData[1];
+	  tempData[2] = MotorData[2];
+	  tempData[3] = MotorData[3];
+	  (*data) = convertCharToLong(tempData);
+	  MotorMailFlag = FALSE;
+	  return TRUE;
+	}
+  }
+
   return FALSE;
 }
 
@@ -192,21 +211,29 @@ void CAN0_GetMail(unsigned long *data, unsigned long MsgType){
 	unsigned char tempData[4];
 	
 	if (MsgType == RCV_ID) {
-		while(GenMailFlag==FALSE){};
-    tempData[0] = RCVData[0];
-    tempData[1] = RCVData[1];
-    tempData[2] = RCVData[2];
-    tempData[3] = RCVData[3];
+	  while(GenMailFlag==FALSE){};
+      tempData[0] = RCVData[0];
+      tempData[1] = RCVData[1];
+      tempData[2] = RCVData[2];
+      tempData[3] = RCVData[3];
 	  (*data) = convertCharToLong(tempData);
-		GenMailFlag = FALSE;
+	  GenMailFlag = FALSE;
 	} else if (MsgType == TACH_ID) {
-		while(TachMailFlag==FALSE){};
-		tempData[0] = TachData[0];
-		tempData[1] = TachData[1];
-		tempData[2] = TachData[2];
-		tempData[3] = TachData[3];
-		(*data) = convertCharToLong(tempData);
-		TachMailFlag = FALSE;
+	  while(TachMailFlag==FALSE){};
+	  tempData[0] = TachData[0];
+	  tempData[1] = TachData[1];
+	  tempData[2] = TachData[2];
+	  tempData[3] = TachData[3];
+	  (*data) = convertCharToLong(tempData);
+	  TachMailFlag = FALSE;
+	} else if (MsgType == MOTOR_RCV_ID) {
+	  while(MotorMailFlag == FALSE){};
+	  tempData[0] = MotorData[0];
+	  tempData[1] = MotorData[1];
+	  tempData[2] = MotorData[2];
+	  tempData[3] = MotorData[3];
+	  (*data) = convertCharToLong(tempData);
+	  MotorMailFlag = FALSE;
 	}
 }
 
@@ -216,7 +243,7 @@ void CAN0_GetMail(unsigned long *data, unsigned long MsgType){
 // Inputs: None
 // Outputs: None
 void CAN0_Handler(void){ 
-	unsigned char data[4];
+  unsigned char data[4];
   unsigned long ulIntStatus, ulIDStatus;
   int i;
   tCANMsgObject xTempMsgObject;
@@ -234,15 +261,21 @@ void CAN0_Handler(void){
           RCVData[3] = data[3];
           GenMailFlag = TRUE;   // new mail
         } else if(xTempMsgObject.ulMsgID == TACH_ID){
-					TachData[0] = data[0];
-					TachData[1] = data[1];
-					TachData[2] = data[2];
-					TachData[3] = data[3];
-					TachMailFlag = TRUE;
-				}
+    	  TachData[0] = data[0];
+		  TachData[1] = data[1];
+		  TachData[2] = data[2];
+		  TachData[3] = data[3];
+		  TachMailFlag = TRUE;
+		} else if(xTempMsgObject.ulMsgID == MOTOR_RCV_ID){
+		  MotorData[0] = data[0];
+		  MotorData[1] = data[1];
+		  MotorData[2] = data[2];
+		  MotorData[3] = data[3];
+		  MotorMailFlag = TRUE;
+        }
       }
     }
-  }
-  CANIntClear(CAN0_BASE, ulIntStatus);  // acknowledge
-}
 
+    CANIntClear(CAN0_BASE, ulIntStatus);  // acknowledge
+  }
+}

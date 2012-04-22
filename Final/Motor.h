@@ -1,3 +1,20 @@
+// Motor.h
+// Created By:
+// Thomas Brezinski	TCB567
+// Zachary Lalanne ZLL67
+// Jeff Mahler
+// Will Collins
+// TA: Zahidul Haq
+// Date of last change: 04/22/2012
+
+// CANO Codes for motors
+#define MOTOR_START 1
+#define MOTOR_STOP 2
+#define MOTOR_STRAIGHT 3
+#define MOTOR_REVERSE 4
+#define MOTOR_LEFT 5
+#define MOTOR_RIGHT 6
+
 //------------Motor_Init------------
 // Initilizes PWM for motor interfacing
 // Input: none
@@ -10,6 +27,11 @@ void Motor_Init(void);
 // Output: none
 void Motor_Start(void);
 
+//------------Motor_Stop------------
+// Stops the motors the motor
+// Input: none
+// Output: none
+void Motor_Stop(void);
 
 void Motor_Straight(void);
 void Motor_Turn_Right(void);

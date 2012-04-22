@@ -30,15 +30,47 @@ void GenDataThread(void) {
 	}
 }
 
+
+//---------- MotorThread ----------
+// Starts the motors and go forward at
+// full speed
 void MotorThread(void) {
 
-  Motor_Init();
   Motor_Start();
   while(1) {
     Motor_Straight();
   }
 }
 
+//----------- MotorConsumer ----------
+// Gets motor command from CAN0 and executes
+void MotorConsumer(void) {
+
+  unsigned long data;
+
+  while(1){
+    if(CAN0_GetMailNonBlock(&data,MOTOR_RCV_ID)) {
+	  switch(data) {
+	    case MOTOR_START:
+		  Motor_Start(); break;
+		case MOTOR_STOP:
+		  Motor_Stop(); break;
+		case MOTOR_STRAIGHT:
+		  Motor_Straight(); break;
+		case MOTOR_REVERSE:
+		  Motor_Reverse(); break;
+		case MOTOR_LEFT:
+		  Motor_Turn_Left(); break;
+		case MOTOR_RIGHT:
+		  Motor_Turn_Right(); break;
+	  }
+	}
+  }
+}
+
+//---------- DummyThread ----------
+// Does nothing useful, should be lowest
+// priority foreground thread
 void DummyThread(void) {
 	static unsigned long dummy = 0;
 	while(1) {
@@ -46,22 +78,37 @@ void DummyThread(void) {
 	}
 }
 
+//---------- TimeThread ----------
+// Sleeps for three minutes then kills
+// the motors and kills the thread
+void TimeThread(void) {
+
+  // Sleep three minutes
+  OS_Sleep(60000);
+  OS_Sleep(60000);
+  OS_Sleep(60000);
+
+  Motor_Stop();
+
+  OS_Kill();
+}
+
 int main(void){
 	
-	// bus clock at 25 MHz
+  // bus clock at 25 MHz
   SysCtlClockSet(SYSCTL_SYSDIV_8 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
                  SYSCTL_XTAL_8MHZ);  
 	
-	CAN0_Open();
-	Tach_Init();
+  CAN0_Open();
+  Tach_Init();
+  Motor_Init();
   OS_Init();
-	
+  	
   OS_Fifo_Init(512);
 	
-	
   NumCreated = 0 ;
-  NumCreated += OS_AddThread(&MotorThread, 512, 1);
-  NumCreated += OS_AddThread(&DummyThread, 512, 2);
+  NumCreated += OS_AddThread(&MotorConsumer, 512, 1);
+  NumCreated += OS_AddThread(&DummyThread, 512, 6);
 	
 	
   OS_Launch(TIMESLICE); // doesn't return, interrupts enabledin here

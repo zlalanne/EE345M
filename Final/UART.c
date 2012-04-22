@@ -120,7 +120,6 @@ void CMD_Run(void) {
   char *tokenPtr;
   char newCMD = FAILURE;
   int i = 0;
-  unsigned long position;
 
   // If no new characters then exit
   if(RxFifo_Get(&letter) == FIFOFAIL) {

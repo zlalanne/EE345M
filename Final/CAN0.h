@@ -46,14 +46,18 @@
 // ID's for sending messages
 #ifdef BOARD_LM3S2110
   #define RCV_ID 2
-	#define TACH_ID 3
+  #define TACH_ID 3
   #define XMT_ID 4
+  #define MOTOR_RCV_ID 5
+  #define MOTOR_XMT_ID 6
 #endif
 
 #ifdef BOARD_LM3S8962
   #define RCV_ID 4
-	#define TACH_ID 3
-	#define XMT_ID 2
+  #define TACH_ID 3
+  #define XMT_ID 2
+  #define MOTOR_RCV_ID 6
+  #define MOTOR_XMT_ID 5
 #endif
 
 //******** CAN0_CheckMail************** 
