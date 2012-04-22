@@ -39,8 +39,8 @@ void Motor_Init(void) {
 	PWMGenPeriodSet(PWM0_BASE, PWM_GEN_0, MotorPeriod);
 	
 	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (126* MotorPeriod) / 256);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (126* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
 		
 	// Enabling PWM0 and PWM1 output 
 	PWMOutputState(PWM0_BASE, PWM_OUT_0_BIT, true);
@@ -69,8 +69,8 @@ void Motor_Start(void) {
 void Motor_Straight(void) {
 	
 	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (126* MotorPeriod) / 256);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (126* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 	
 	
