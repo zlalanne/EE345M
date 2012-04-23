@@ -55,6 +55,8 @@ void Motor_Init(void) {
 	// Configure logic for forwards/backwards
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
 	GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7);
+	// Both motors look at positive duty cycle
+    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 
 }
 
@@ -80,9 +82,9 @@ void Motor_Stop(void) {
   // Both motors look at positive duty cycle
   GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 
-  // Disabling the PWM generator
-  PWMGenDisable(PWM0_BASE, PWM_GEN_0);
-
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (1* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (1* MotorPeriod) / 256);
+	
 }
 
 void Motor_Straight(void) {

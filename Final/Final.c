@@ -22,7 +22,7 @@ unsigned long NumCreated;
 
 void Display(void) {
 
-Servo_Set_Position(53500);
+Servo_Set_Position(50000);
 	while(1) {
 	  // just prints the current servo info to the oLED
 	  //oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
@@ -53,13 +53,11 @@ void MotorControl(void) {
   CAN0_SendData(MOTOR_START, MOTOR_XMT_ID);
 
   // Signal to go straight
-  CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
+  //CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
 
   // Sleep three minutes
-  OS_Sleep(60000);
-  OS_Sleep(60000);
-  OS_Sleep(60000);
-
+  //OS_Sleep(100);
+  
   // Signal to stop the motors
   CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
 
@@ -76,7 +74,7 @@ int main(void) {
 	Output_Init();
 	Servo_Init();
 	Servo_Start();
-	//CAN0_Open();
+	CAN0_Open();
 	OS_Init();
 	
 	NumCreated = 0;
