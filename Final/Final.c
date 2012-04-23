@@ -53,10 +53,10 @@ void MotorControl(void) {
   CAN0_SendData(MOTOR_START, MOTOR_XMT_ID);
 
   // Signal to go straight
-  //CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
+  CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
 
   // Sleep three minutes
-  //OS_Sleep(100);
+  OS_Sleep(5000);
   
   // Signal to stop the motors
   CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);

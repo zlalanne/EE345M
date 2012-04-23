@@ -47,16 +47,19 @@ void Motor_Init(void) {
 	// Setting to forward full speed
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
-		
-	// Enabling PWM0 and PWM1 output 
-	PWMOutputState(PWM0_BASE, PWM_OUT_0_BIT, true);
-	PWMOutputState(PWM0_BASE, PWM_OUT_1_BIT, true);
 
 	// Configure logic for forwards/backwards
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
 	GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7);
+	
 	// Both motors look at positive duty cycle
-    GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
+  GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
+
+  // Configure GPIO Pin used for the LED.
+  GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);
+
+  // Turn off the LED.
+  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
 
 }
 
@@ -69,8 +72,14 @@ void Motor_Start(void) {
   // Both motors look at positive duty cycle
   GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 	
+	// Enabling PWM0 and PWM1 output 
+	PWMOutputState(PWM0_BASE, PWM_OUT_0_BIT, true);
+	PWMOutputState(PWM0_BASE, PWM_OUT_1_BIT, true);
+	
   // Enable the PWM generator.
   PWMGenEnable(PWM0_BASE, PWM_GEN_0);
+	
+	GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
 }
 
 //------------Motor_Stop------------
@@ -82,9 +91,14 @@ void Motor_Stop(void) {
   // Both motors look at positive duty cycle
   GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (1* MotorPeriod) / 256);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (1* MotorPeriod) / 256);
+	// Enabling PWM0 and PWM1 output 
+	PWMOutputState(PWM0_BASE, PWM_OUT_0_BIT, false);
+	PWMOutputState(PWM0_BASE, PWM_OUT_1_BIT, false);
 	
+	// Disable the PWM generator.
+  PWMGenDisable(PWM0_BASE, PWM_GEN_0);
+	
+	GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, 0);
 }
 
 void Motor_Straight(void) {
@@ -93,13 +107,11 @@ void Motor_Straight(void) {
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
-	
-	
 }
 
 void Motor_Turn_Right(void) {
 	
-    // Setting motors to turn
+  // Setting motors to turn
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (1* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, GPIO_PIN_7);
@@ -108,7 +120,7 @@ void Motor_Turn_Right(void) {
 
 void Motor_Turn_Left(void) {
 	
-    // Setting motors to turn
+  // Setting motors to turn
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (1* MotorPeriod) / 256);
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (255* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, GPIO_PIN_5);
@@ -117,7 +129,7 @@ void Motor_Turn_Left(void) {
 
 void Motor_Reverse(void) {
 
-    // Setting motors to turn
+  // Setting motors to turn
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (1* MotorPeriod) / 256);
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_2, (1* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, GPIO_PIN_5 | GPIO_PIN_7);
