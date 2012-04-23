@@ -46,20 +46,49 @@ Servo_Set_Position(50000);
     }
 }
 
+void PingConsumer(void) {
+  
+  unsigned short data;
+  IR_Init();
+  
+  while(1) {
+    
+	data = Ping_GetDistance(0);
+	UARTprintf("Ping0: %u\n\r", data);
+	data = Ping_GetDistance(1);
+	UARTprintf("Ping1: %u\n\r", data);
+	
+	data = IR_GetDistance(0);
+	UARTprintf("IR0: %d\n\r", data);
+	data = IR_GetDistance(1);
+	UARTprintf("IR1: %d\n\r", data);
+	
+	OS_Sleep(1000);
+  }
+
+}
 
 void MotorControl(void) {
 
   // Signal to start the motors
-  CAN0_SendData(MOTOR_START, MOTOR_XMT_ID);
+  //CAN0_SendData(MOTOR_START, MOTOR_XMT_ID);
 
   // Signal to go straight
-  CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
+  //CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
 
   // Sleep three minutes
-  OS_Sleep(5000);
+  OS_Sleep(15000);
   
   // Signal to stop the motors
-  CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
+  //CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
+
+  OS_Sleep(3000);
+
+  //CAN0_SendData(MOTOR_START, MOTOR_XMT_ID);
+
+  OS_Sleep(15000);
+
+  //CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
 
   // Killing the thread
   OS_Kill();
@@ -69,7 +98,10 @@ void MotorControl(void) {
 int main(void) {
 	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
   
-	//ADC_Open();
+
+	Ping_Init();
+	ADC_Open();
+
 	UART0_Init();
 	Output_Init();
 	Servo_Init();
@@ -78,6 +110,7 @@ int main(void) {
 	OS_Init();
 	
 	NumCreated = 0;
+	NumCreated += OS_AddThread(&PingConsumer, 512, 1);
 	NumCreated += OS_AddThread(&MotorControl, 512, 1);
 	NumCreated += OS_AddThread(&Interpreter, 512, 3);
 	NumCreated += OS_AddThread(&Display, 512, 3);	

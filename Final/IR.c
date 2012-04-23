@@ -112,19 +112,19 @@ unsigned short Median(unsigned short v1, unsigned short v2, unsigned short v3) {
 unsigned short Interpolate(unsigned short val, unsigned short* calibration, unsigned short* measurement, int size) {
   int x = 1;
 	unsigned short distance;
-	unsigned short slope;
-	unsigned short dx = 0;
-	unsigned short dy = 0;
+	short slope;
+	short dx = 0;
+	short dy = 0;
+	short diff;
 
-	while (x < size && calibration[x] < val) {
+	while (x < size && calibration[x] >= val) {
 	  x++;
 	}
 
-	dx = measurement[x] - measurement[x-1];
-	dy = calibration[x] - calibration[x-1];
-	slope = dy / dx;
+	dy = measurement[x] - measurement[x-1];
+	dx = calibration[x] - calibration[x-1];
+	diff = val - calibration[x-1];
 
-	dx = val - calibration[x-1];
-	distance = dx * slope + measurement[x-1];
+	distance = (((dy * diff) + (measurement[x-1] * dx)) / dx);
 	return distance;
 }
