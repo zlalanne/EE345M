@@ -39,7 +39,7 @@ typedef struct Sema4 Sema4Type;
 // initialize OS controlled I/O: serial, ADC, systick, select switch and timer2 
 // input:  none
 // output: none
-void OS_Init(void); 
+void OS_Init(void); 	  
 
 // ******** OS_InitSemaphore ************
 // initialize semaphore 

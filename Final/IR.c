@@ -124,7 +124,6 @@ unsigned short Median(unsigned short v1, unsigned short v2, unsigned short v3) {
 unsigned short Interpolate(unsigned short val, unsigned short* calibration, unsigned short* measurement, int size) {
   int x = 1;
 	unsigned short distance;
-	short slope;
 	short dx = 0;
 	short dy = 0;
 	short diff;

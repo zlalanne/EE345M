@@ -20,7 +20,7 @@
 #define TIMESLICE 2*TIME_1MS
 #define PIDDepth 4
 #define PIDPeriod 20  // in ms now
-#define PIDSystemPeriod 1000000 
+#define PIDSystemPeriod 60000 
 
 unsigned long NumCreated;
 
@@ -41,37 +41,48 @@ void PID(void) {
   long Kp = 384;  // 384/256 = 1.5
   long Ki = 0;
   long Kd = 64;   // 384/256 = .25
-  
-	
-	while(1) {
 
-    // Get all 4 sensor values
-    IRL1 = IR_GetDistance(2);  // should be the side left ir
-    IRL2 = IR_GetDistance(0);  // should be the front left
-	IRR1 = IR_GetDistance(3); 
+  // Get all 4 sensor values
+  IRL1 = IR_GetDistance(2);  // should be the side left ir
+  IRL2 = IR_GetDistance(0);  // should be the front left
+  IRR1 = IR_GetDistance(3); 
     IRR2 = IR_GetDistance(1);
+
+    UARTprintf("----------------------------------\n\r");
+    UARTprintf("Front Left: %d cm\n\r", IRL2);
+	UARTprintf("Front Right: %d cm\n\r", IRR2);
+	UARTprintf("Side Left: %d cm\n\r", IRL1);
+	UARTprintf("Side Right: %d cm\n\r", IRL2);
 
     // change weighting to use barrel shifter
     Left = (((179*IRL1) + (77*IRL2))/256);
     Right = (((179*IRR1) + (77*IRR2))/256);
 
+    UARTprintf("Left: %d\n\r", Left);
+    UARTprintf("Right: %d\n\r", Right);
+
     Errors[0] = Left - Right; // negative errors mean turn right
 
-	  // Calculate Derivate
-	  //D(n) = ([E(n) + 3E(n-1) - 3E(n-2) - E(n-3)]/(6*t))
-	  Derivative = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDPeriod);
-    
-	  Output = ((Kp*Errors[0]) + (Ki*Integral) + (Kd*Derivative))/256;
-    // if errors are all 0 output should be 0 degrees
+    UARTprintf("Current P: %d\n\r", Errors[0]);
 
-	  // Update Errors
-	  Errors[3] = Errors[2];
-	  Errors[2] = Errors[1];
-	  Errors[1] = Errors[0];
+    // Calculate Derivate
+    //D(n) = ([E(n) + 3E(n-1) - 3E(n-2) - E(n-3)]/(6*t))
+	Derivative = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDPeriod);
+    UARTprintf("Current D: %d\n\r", Derivative);
+
+	Output = ((Kp*Errors[0]) + (Ki*Integral) + (Kd*Derivative))/256;
+    // if errors are all 0 output should be 0 degrees
+    UARTprintf("Current Output: %d\n\r", Output);
+
+	// Update Errors
+	Errors[3] = Errors[2]; 
+	Errors[2] = Errors[1];
+    Errors[1] = Errors[0];
     
-		// Send change to servo
-		Servo_Set_Degrees(Output); 
-  }
+	// Send change to servo
+	Servo_Set_Degrees(Output); 
+
+  
 }
 
 void PingConsumer(void) {
