@@ -37,6 +37,14 @@ void Servo_Start(void) {
 	PWMGenEnable(PWM0_BASE, PWM_GEN_0);
 }
 
+//-------- Servo_Set_Degrees ----------
+// Sets the servo to the provided degree of rotation (0 is centered)
+// Inputs: degrees
+// Outputs: none
+void Servo_Set_Degrees(long degrees) {
+
+}
+
 void Servo_Set_Position(unsigned long position) {
 	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, position);
 }

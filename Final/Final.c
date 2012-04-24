@@ -1,5 +1,7 @@
 // Final.c
 
+#include <stdlib.h>
+
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "driverlib/sysctl.h"
@@ -16,34 +18,57 @@
 #include "Motor.h"
 
 #define TIMESLICE 2*TIME_1MS
+#define PIDDepth 4
 
 unsigned long NumCreated;
 
+void PID(void) {
+  // start with PD for now
+ 
+  unsigned long PingL = 0;
+  unsigned long PingR = 0;
+  unsigned long IRL = 0;
+  unsigned long IRR = 0;
+  unsigned long Left = 0;
+  unsigned long Right = 0;
+  static long Errors[PIDDepth] = {};
+  long Integral = 0;
+  long Derivate = 0;
+  long Output = 0;
 
-void Display(void) {
+  long Kp = 10;
+  long Ki = 2;
+  long Kd = 5;
 
-Servo_Set_Position(50000);
-	while(1) {
-	  // just prints the current servo info to the oLED
-	  //oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
-	  // 45,000 to 105,000
-	  //OS_Sleep(1000); // sleep a second
-//	  Servo_Set_Position(37500);
-	  oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
-//	  OS_Sleep(2000);
-//	  Servo_Set_Position(15000);
-//	  oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
-//	  OS_Sleep(2000);
-//	  Servo_Set_Position(60000);
-//	  oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
-//	  OS_Sleep(2000);
-	  //Servo_Set_Position(45000);
-	  //oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
-	  //OS_Sleep(1000);
-	  //Servo_Set_Position(80000);
-	  //oLED_Message(0,0, "servo ticks:",Servo_Pulse_Get());
-	  //OS_Sleep(3000);
-    }
+  while(1) {
+
+    // Get all 4 sensor values
+    IRL = IR_GetDistance(0);
+    IRR = IR_GetDistance(1);
+    PingL = Ping_GetDistance(0);
+    PingR = Ping_GetDistance(1);
+
+    // change weighting to use barrel shifter
+    Left =(.7)*PingL + (0.3)*IRL;
+    Right = (.7)*PingR + (0.3)*IRR;
+
+    Errors[0] = Left - Right; // negative errors mean turn right
+
+	// Calculate Derivate
+	//D(n) = ([E(n) + 3E(n-1) - 3E(n-2) - E(n-3)]/(6*t))
+	Derivate = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDperiod);
+    
+	Output = (Kp*Errors[0]) + (Ki*Integral) + (Kd*Derivative);
+    // if errors are all 0 output should be 0 degrees
+
+    
+
+	// Update Errors
+	Errors[3] = Errors[2];
+	Errors[2] = Errors[1];
+	Errors[1] = Errors[0];
+
+  }
 }
 
 
@@ -69,18 +94,20 @@ void MotorControl(void) {
 int main(void) {
 	SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
   
-	//ADC_Open();
+	ADC_Open();
 	UART0_Init();
 	Output_Init();
 	Servo_Init();
 	Servo_Start();
 	CAN0_Open();
+	IR_Init();
+	Ping_Init();
 	OS_Init();
 	
 	NumCreated = 0;
 	NumCreated += OS_AddThread(&MotorControl, 512, 1);
 	NumCreated += OS_AddThread(&Interpreter, 512, 3);
-	NumCreated += OS_AddThread(&Display, 512, 3);	
+	NumCreated += OS_AddThread(&PID, 512, 1);	
 	OS_Launch(TIMESLICE);
 	return 0;	
 }
