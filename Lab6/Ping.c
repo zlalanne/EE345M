@@ -94,7 +94,7 @@ void TriggerSensor0(void) {
 	GPIO_PORTB0 = 0x01;
 	
 	// delay 5 us
-	for (i = 0; i < 15; i++);
+	for (i = 0; i < 75; i++);
 	
 	GPIO_PORTB0 = 0x00;
 	GPIO_PORTB_DIR_R &= ~0x01;   // make PB0 in	
@@ -108,7 +108,7 @@ void TriggerSensor1(void) {
 	GPIO_PORTB1 = 0x02;
 	
 	// delay 5 us
-	for (i = 0; i < 15; i++);
+	for (i = 0; i < 75; i++);
 	
 	GPIO_PORTB1 = 0x00;
 	GPIO_PORTB_DIR_R &= ~0x02;   // make PB1 in	
