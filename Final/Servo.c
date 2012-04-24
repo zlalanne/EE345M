@@ -9,7 +9,7 @@
 #include "UART.h"
 
 #define ZERO_POSITION 41100
-#define PulseScale 1000
+#define PulseScale 100
 #define PulseMax 53000
 #define PulseMin 27000
 

@@ -115,24 +115,24 @@ void PingConsumer(void) {
 void MotorControl(void) {
 
   // Signal to start the motors
-  //CAN0_SendData(MOTOR_START, MOTOR_XMT_ID);
+  CAN0_SendData(MOTOR_START, MOTOR_XMT_ID);
 
   // Signal to go straight
-  //CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
+  CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
 
   // Sleep three minutes
-  OS_Sleep(15000);
+  OS_Sleep(3000);
   
   // Signal to stop the motors
   //CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
 
-  OS_Sleep(3000);
+  //OS_Sleep(3000);
 
   //CAN0_SendData(MOTOR_START, MOTOR_XMT_ID);
 
-  OS_Sleep(15000);
+  //OS_Sleep(15000);
 
-  //CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
+  CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
 
   // Killing the thread
   OS_Kill();
@@ -154,7 +154,7 @@ int main(void) {
   OS_Init();
 	
   NumCreated = 0;
-  //NumCreated += OS_AddThread(&MotorControl, 512, 1);
+  NumCreated += OS_AddThread(&MotorControl, 512, 1);
   NumCreated += OS_AddThread(&Interpreter, 512, 3);
   NumCreated += OS_AddThread(&PID, 512, 1);
   //NumCreated += OS_AddPeriodicThread(&PID, 1, PIDSystemPeriod, 1);	
