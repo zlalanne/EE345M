@@ -45,9 +45,9 @@ void PID(void) {
 	while(1) {
 
     // Get all 4 sensor values
-    IRL1 = IR_GetDistance(0);  // should be the side left ir
-    IRR1 = IR_GetDistance(1);  // should be the front left ir
-    IRL2 = IR_GetDistance(2);  // like above
+    IRL1 = IR_GetDistance(2);  // should be the side left ir
+    IRR1 = IR_GetDistance(0);  // should be the front left ir
+    IRL2 = IR_GetDistance(1);  // like above
     IRR2 = IR_GetDistance(3);
 
     // change weighting to use barrel shifter
@@ -67,7 +67,9 @@ void PID(void) {
 	  Errors[3] = Errors[2];
 	  Errors[2] = Errors[1];
 	  Errors[1] = Errors[0];
-
+    
+		// Send change to servo
+		Servo_Set_Degrees(Output); 
   }
 }
 

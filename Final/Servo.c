@@ -6,7 +6,7 @@
 #include "driverlib/pwm.h"
 #include "driverlib/sysctl.h"
 
-#define ZERO_POSITION 37500
+#define ZERO_POSITION 41100
 
 //-------- Servo_Init -----------
 // Initializes the PWM used to control the steering servo
@@ -42,7 +42,7 @@ void Servo_Start(void) {
 // Inputs: degrees
 // Outputs: none
 void Servo_Set_Degrees(long degrees) {
-
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (ZERO_POSITION + degrees*1000));
 }
 
 void Servo_Set_Position(unsigned long position) {
