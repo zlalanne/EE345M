@@ -53,16 +53,19 @@ void PingConsumer(void) {
   
   while(1) {
     
-	data = Ping_GetDistance(0);
-	UARTprintf("Ping0: %u\n\r", data);
-	data = Ping_GetDistance(1);
-	UARTprintf("Ping1: %u\n\r", data);
+	//data = Ping_GetDistance(0);
+	//UARTprintf("Ping0: %u\n\r", data);
+	//data = Ping_GetDistance(1);
+	//UARTprintf("Ping1: %u\n\r", data);
 	
 	data = IR_GetDistance(0);
 	UARTprintf("IR0: %d\n\r", data);
-	data = IR_GetDistance(1);
-	UARTprintf("IR1: %d\n\r", data);
-	
+//	data = IR_GetDistance(1);
+//	UARTprintf("IR1: %d\n\r", data);
+//	data = IR_GetDistance(2);
+//	UARTprintf("IR2: %d\n\r", data);
+//	data = IR_GetDistance(3);
+//	UARTprintf("IR3: %d\n\r", data);	
 	OS_Sleep(1000);
   }
 

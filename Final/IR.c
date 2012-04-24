@@ -20,11 +20,17 @@
 
 Sema4Type SensorDataAvailable[4];
 
-unsigned short Sensor0Calibration[TABLE_SIZE] = {1023, 855, 585, 450, 355, 310, 230, 185, 158, 125, 105, 0};
-unsigned short Sensor0Measurement[TABLE_SIZE] = {5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 100};
+unsigned short Sensor0Calibration[TABLE_SIZE] = {1023, 855, 585, 450, 355, 310, 230, 185, 158, 125, 105,   0};
+unsigned short Sensor0Measurement[TABLE_SIZE] = {   5,  10,  15,  20,  25,  30,  40,  50,  60,  70,  80, 100};
 
-unsigned short Sensor1Calibration[TABLE_SIZE] = {1023, 878, 595, 455, 365, 315, 240, 195, 160, 140, 125, 0};
-unsigned short Sensor1Measurement[TABLE_SIZE] = {5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 100};
+unsigned short Sensor1Calibration[TABLE_SIZE] = {1023, 855, 585, 450, 355, 310, 230, 185, 158, 125, 105,   0};
+unsigned short Sensor1Measurement[TABLE_SIZE] = {   5,  10,  15,  20,  25,  30,  40,  50,  60,  70,  80, 100};
+
+unsigned short Sensor2Calibration[TABLE_SIZE] = {1023, 855, 585, 450, 355, 310, 230, 185, 158, 125, 105,   0};
+unsigned short Sensor2Measurement[TABLE_SIZE] = {   5,  10,  15,  20,  25,  30,  40,  50,  60,  70,  80, 100};
+
+unsigned short Sensor3Calibration[TABLE_SIZE] = {1023, 878, 595, 455, 365, 315, 240, 195, 160, 140, 125,   0};
+unsigned short Sensor3Measurement[TABLE_SIZE] = {   5,  10,  15,  20,  25,  30,  40,  50,  60,  70,  80, 100};
 
 unsigned short SensorDistances[4];
 unsigned short S0Values[MEDIAN_SIZE] = {0, };
@@ -44,7 +50,8 @@ unsigned short Median(unsigned short v1, unsigned short v2, unsigned short v3);
 unsigned short Interpolate(unsigned short val, unsigned short* calibration, unsigned short* measurement, int size);
 
 void IR_Init(void) {
-  ADCTask tasks[4];
+    
+	ADCTask tasks[4];
 	tasks[0] = &IRSensor0_Handler;
 	tasks[1] = &IRSensor1_Handler;  
 	tasks[2] = &IRSensor2_Handler;  
@@ -66,9 +73,9 @@ unsigned short IR_GetDistance(int sensor) {
 
 void IRSensor0_Handler(unsigned short data) {
 	unsigned short dist;
-  S0Values[S0PutIndex] = data; // overwrite old data if it is there
+    S0Values[S0PutIndex] = data; // overwrite old data if it is there
 	S0PutIndex = (S0PutIndex + 1) % MEDIAN_SIZE;
-  dist = Median(S0Values[0], S0Values[1], S0Values[2]);
+    dist = Median(S0Values[0], S0Values[1], S0Values[2]);
 	SensorDistances[0] = Interpolate(dist, Sensor0Calibration, Sensor0Measurement, TABLE_SIZE);
 	OS_Signal(&SensorDataAvailable[0]);
 }
@@ -77,22 +84,27 @@ void IRSensor1_Handler(unsigned short data) {
 	unsigned short dist;
 	S1Values[S1PutIndex] = data; // overwrite old data if it is there
 	S1PutIndex = (S1PutIndex + 1) % MEDIAN_SIZE;
-  dist = Median(S1Values[0], S1Values[1], S1Values[2]);
+    dist = Median(S1Values[0], S1Values[1], S1Values[2]);
+	SensorDistances[1] = dist;
 	SensorDistances[1] = Interpolate(dist, Sensor1Calibration, Sensor1Measurement, TABLE_SIZE);
 	OS_Signal(&SensorDataAvailable[1]);
 }
 
 void IRSensor2_Handler(unsigned short data) {
+	unsigned short dist;
 	S2Values[S2PutIndex] = data; // overwrite old data if it is there
 	S2PutIndex = (S2PutIndex + 1) % MEDIAN_SIZE;
-  SensorDistances[2] = Median(S2Values[0], S2Values[1], S2Values[2]);
+    dist = Median(S2Values[0], S2Values[1], S2Values[2]);
+	SensorDistances[2] = Interpolate(dist, Sensor2Calibration, Sensor2Measurement, TABLE_SIZE);
 	OS_Signal(&SensorDataAvailable[2]);
 }
 
 void IRSensor3_Handler(unsigned short data) {
+	unsigned short dist;
 	S3Values[S3PutIndex] = data; // overwrite old data if it is there
 	S3PutIndex = (S3PutIndex + 1) % MEDIAN_SIZE;
-  SensorDistances[3] = Median(S3Values[0], S3Values[1], S3Values[2]);
+	dist = Median(S3Values[0], S3Values[1], S3Values[2]);
+	SensorDistances[3] = Interpolate(dist, Sensor3Calibration, Sensor3Measurement, TABLE_SIZE);
 	OS_Signal(&SensorDataAvailable[3]);
 }
 
