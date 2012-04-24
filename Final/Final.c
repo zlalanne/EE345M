@@ -20,6 +20,7 @@
 #define TIMESLICE 2*TIME_1MS
 #define PIDDepth 4
 #define PIDPeriod 20  // in ms now
+#define PIDSystemPeriod 1000000 
 
 unsigned long NumCreated;
 
@@ -103,13 +104,12 @@ int main(void) {
 	Servo_Start();
 	CAN0_Open();
 	IR_Init();
-	Ping_Init();
 	OS_Init();
 	
 	NumCreated = 0;
-	NumCreated += OS_AddThread(&MotorControl, 512, 1);
+	//NumCreated += OS_AddThread(&MotorControl, 512, 1);
 	NumCreated += OS_AddThread(&Interpreter, 512, 3);
-	NumCreated += OS_AddThread(&PID, 512, 1);	
+	//NumCreated += OS_AddPeriodicThread(&PID, 1, PIDSystemPeriod, 1);	
 	OS_Launch(TIMESLICE);
 	return 0;	
 }
