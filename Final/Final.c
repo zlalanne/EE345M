@@ -48,8 +48,8 @@ void PID(void) {
     // Get all 4 sensor values
     IRL1 = IR_GetDistance(2);  // should be the side left ir
     IRL2 = IR_GetDistance(0);  // should be the front left
-	IRR1 = IR_GetDistance(1); 
-    IRR2 = IR_GetDistance(3);
+	IRR1 = IR_GetDistance(3); 
+    IRR2 = IR_GetDistance(1);
 
     // change weighting to use barrel shifter
     Left = (((179*IRL1) + (77*IRL2))/256);
