@@ -41,20 +41,19 @@ void PID(void) {
   long Kp = 384;  // 384/256 = 1.5
   long Ki = 0;
   long Kd = 64;   // 384/256 = .25
-
+  IR_Init();
   while(1) {
   // Get all 4 sensor values
-  UARTprintf("Getting IR values\n\r");
-  //IRL1 = IR_GetDistance(2);  // should be the side left ir
-  //IRL2 = IR_GetDistance(0);  // should be the front left
-  //IRR1 = IR_GetDistance(3); 
-  //IRR2 = IR_GetDistance(1);
-
+  IRL1 = IR_GetDistance(2);  // should be the side left ir
+  IRL2 = IR_GetDistance(0);  // should be the front left
+  IRR1 = IR_GetDistance(3); 
+  IRR2 = IR_GetDistance(1);
+  
     UARTprintf("----------------------------------\n\r");
     UARTprintf("Front Left: %d cm\n\r", IRL2);
 	UARTprintf("Front Right: %d cm\n\r", IRR2);
 	UARTprintf("Side Left: %d cm\n\r", IRL1);
-	UARTprintf("Side Right: %d cm\n\r", IRL2);
+	UARTprintf("Side Right: %d cm\n\r", IRR1);
 
     // change weighting to use barrel shifter
     Left = (((179*IRL1) + (77*IRL2))/256);
@@ -83,7 +82,7 @@ void PID(void) {
     
 	// Send change to servo
 	Servo_Set_Degrees(Output); 
-    OS_Sleep(2000);
+    OS_Sleep(500);
 	}
   
 }
@@ -151,7 +150,7 @@ int main(void) {
   Servo_Init();
   Servo_Start();
   CAN0_Open();
-  IR_Init();
+  
   OS_Init();
 	
   NumCreated = 0;
