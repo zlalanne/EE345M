@@ -42,11 +42,13 @@ void PID(void) {
   long Ki = 0;
   long Kd = 64;   // 384/256 = .25
 
+  while(1) {
   // Get all 4 sensor values
+  UARTprintf("Getting IR values\n\r");
   IRL1 = IR_GetDistance(2);  // should be the side left ir
   IRL2 = IR_GetDistance(0);  // should be the front left
   IRR1 = IR_GetDistance(3); 
-    IRR2 = IR_GetDistance(1);
+  IRR2 = IR_GetDistance(1);
 
     UARTprintf("----------------------------------\n\r");
     UARTprintf("Front Left: %d cm\n\r", IRL2);
@@ -81,7 +83,8 @@ void PID(void) {
     
 	// Send change to servo
 	Servo_Set_Degrees(Output); 
-
+    OS_Sleep(2000);
+	}
   
 }
 
@@ -154,7 +157,8 @@ int main(void) {
   NumCreated = 0;
   //NumCreated += OS_AddThread(&MotorControl, 512, 1);
   NumCreated += OS_AddThread(&Interpreter, 512, 3);
-  NumCreated += OS_AddPeriodicThread(&PID, 1, PIDSystemPeriod, 1);	
+  NumCreated += OS_AddThread(&PID, 512, 1);
+  //NumCreated += OS_AddPeriodicThread(&PID, 1, PIDSystemPeriod, 1);	
   OS_Launch(TIMESLICE);
   return 0;	
 }
