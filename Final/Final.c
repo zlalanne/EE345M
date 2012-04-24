@@ -19,28 +19,30 @@
 
 #define TIMESLICE 2*TIME_1MS
 #define PIDDepth 4
+#define PIDPeriod 20  // in ms now
 
 unsigned long NumCreated;
 
 void PID(void) {
   // start with PD for now
  
-  unsigned long PingL = 0;
-  unsigned long PingR = 0;
-  unsigned long IRL = 0;
-  unsigned long IRR = 0;
+  unsigned long IRL1 = 0;
+	unsigned long IRL2 = 0;
+  unsigned long IRR1 = 0;
+	unsigned long IRR2 = 0;
   unsigned long Left = 0;
   unsigned long Right = 0;
-  static long Errors[PIDDepth] = {};
+  static long Errors[PIDDepth] = {0,};
   long Integral = 0;
-  long Derivate = 0;
+  long Derivative = 0;
   long Output = 0;
 
   long Kp = 384;  // 384/256 = 1.5
-  long Ki = 0
+  long Ki = 0;
   long Kd = 64;   // 384/256 = .25
-
-  while(1) {
+  
+	
+	while(1) {
 
     // Get all 4 sensor values
     IRL1 = IR_GetDistance(0);  // should be the side left ir
@@ -56,7 +58,7 @@ void PID(void) {
 
 	  // Calculate Derivate
 	  //D(n) = ([E(n) + 3E(n-1) - 3E(n-2) - E(n-3)]/(6*t))
-	  Derivate = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDperiod);
+	  Derivative = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDPeriod);
     
 	  Output = ((Kp*Errors[0]) + (Ki*Integral) + (Kd*Derivative))/256;
     // if errors are all 0 output should be 0 degrees
