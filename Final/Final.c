@@ -45,10 +45,10 @@ void PID(void) {
   while(1) {
   // Get all 4 sensor values
   UARTprintf("Getting IR values\n\r");
-  IRL1 = IR_GetDistance(2);  // should be the side left ir
-  IRL2 = IR_GetDistance(0);  // should be the front left
-  IRR1 = IR_GetDistance(3); 
-  IRR2 = IR_GetDistance(1);
+  //IRL1 = IR_GetDistance(2);  // should be the side left ir
+  //IRL2 = IR_GetDistance(0);  // should be the front left
+  //IRR1 = IR_GetDistance(3); 
+  //IRR2 = IR_GetDistance(1);
 
     UARTprintf("----------------------------------\n\r");
     UARTprintf("Front Left: %d cm\n\r", IRL2);
