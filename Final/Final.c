@@ -36,37 +36,35 @@ void PID(void) {
   long Derivate = 0;
   long Output = 0;
 
-  long Kp = 10;
-  long Ki = 2;
-  long Kd = 5;
+  long Kp = 384;  // 384/256 = 1.5
+  long Ki = 0
+  long Kd = 64;   // 384/256 = .25
 
   while(1) {
 
     // Get all 4 sensor values
-    IRL = IR_GetDistance(0);
-    IRR = IR_GetDistance(1);
-    PingL = Ping_GetDistance(0);
-    PingR = Ping_GetDistance(1);
+    IRL1 = IR_GetDistance(0);  // should be the side left ir
+    IRR1 = IR_GetDistance(1);  // should be the front left ir
+    IRL2 = IR_GetDistance(2);  // like above
+    IRR2 = IR_GetDistance(3);
 
     // change weighting to use barrel shifter
-    Left =(.7)*PingL + (0.3)*IRL;
-    Right = (.7)*PingR + (0.3)*IRR;
+    Left = (((179*IRL1) + (77*IRL2))/256);
+    Right = (((179*IRR1) + (77*IRR2))/256);
 
     Errors[0] = Left - Right; // negative errors mean turn right
 
-	// Calculate Derivate
-	//D(n) = ([E(n) + 3E(n-1) - 3E(n-2) - E(n-3)]/(6*t))
-	Derivate = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDperiod);
+	  // Calculate Derivate
+	  //D(n) = ([E(n) + 3E(n-1) - 3E(n-2) - E(n-3)]/(6*t))
+	  Derivate = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDperiod);
     
-	Output = (Kp*Errors[0]) + (Ki*Integral) + (Kd*Derivative);
+	  Output = ((Kp*Errors[0]) + (Ki*Integral) + (Kd*Derivative))/256;
     // if errors are all 0 output should be 0 degrees
 
-    
-
-	// Update Errors
-	Errors[3] = Errors[2];
-	Errors[2] = Errors[1];
-	Errors[1] = Errors[0];
+	  // Update Errors
+	  Errors[3] = Errors[2];
+	  Errors[2] = Errors[1];
+	  Errors[1] = Errors[0];
 
   }
 }
