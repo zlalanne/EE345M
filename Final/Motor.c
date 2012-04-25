@@ -44,9 +44,9 @@ void Motor_Init(void) {
     PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
 	PWMGenPeriodSet(PWM0_BASE, PWM_GEN_0, MotorPeriod);
 	
-	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
+	// Setting to starting speed
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (200* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (200* MotorPeriod) / 256);
 
 	// Configure logic for forwards/backwards
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
@@ -72,14 +72,32 @@ void Motor_Start(void) {
   // Both motors look at positive duty cycle
   GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 	
-	// Enabling PWM0 and PWM1 output 
-	PWMOutputState(PWM0_BASE, PWM_OUT_0_BIT, true);
-	PWMOutputState(PWM0_BASE, PWM_OUT_1_BIT, true);
+  // Enabling PWM0 and PWM1 output 
+  PWMOutputState(PWM0_BASE, PWM_OUT_0_BIT, true);
+  PWMOutputState(PWM0_BASE, PWM_OUT_1_BIT, true);
 	
   // Enable the PWM generator.
   PWMGenEnable(PWM0_BASE, PWM_GEN_0);
 	
-	GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
+  GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
+
+  // Ramping up to full speed
+  OS_Sleep(100);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (210* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (210* MotorPeriod) / 256);
+  OS_Sleep(100);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (220* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (220* MotorPeriod) / 256);
+  OS_Sleep(100);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (230* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (230* MotorPeriod) / 256);
+  OS_Sleep(100);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (240* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (240* MotorPeriod) / 256);
+  OS_Sleep(100);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
+
 }
 
 //------------Motor_Stop------------
