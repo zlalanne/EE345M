@@ -27,6 +27,10 @@
 #define MaxOut 53000
 
 unsigned long NumCreated;
+unsigned long g0;
+unsigned long g1;
+unsigned long g2;
+unsigned long g3;
 unsigned long gLeft;
 unsigned long gRight;
 long gError;
@@ -39,13 +43,17 @@ long gOutputFinal;
 void Display(void) {
 // just prints some data to UART for PID tweaking
   while(1) {
-  UARTprintf("----------------------------------\n\r");
-  UARTprintf("Left: %d cm\n\r", gLeft);
-  UARTprintf("Right: %d cm\n\r", gRight);
-  UARTprintf("Error: %d cm\n\r", gError);
-  UARTprintf("Derivative: %d \n\r", gDerivative);
-  UARTprintf("Output Dif: %d \n\r", gOutput);
-  UARTprintf("Output Final: %d \n\r", gOutputFinal);
+  //UARTprintf("----------------------------------\n\r");
+  //UARTprintf("0: %d cm\n\r", g0);
+  //UARTprintf("1: %d cm\n\r", g1);
+  //UARTprintf("2: %d cm\n\r", g2);
+  //UARTprintf("3: %d cm\n\r", g3);
+  //UARTprintf("Left: %d cm\n\r", gLeft);
+  //UARTprintf("Right: %d cm\n\r", gRight);
+  //UARTprintf("Error: %d cm\n\r", gError);
+  //UARTprintf("Derivative: %d \n\r", gDerivative);
+  //UARTprintf("Output Dif: %d \n\r", gOutput);
+  //UARTprintf("Output Final: %d \n\r", gOutputFinal);
   }
 }
 
@@ -70,9 +78,13 @@ void PID(void) {
   //while(1) {
   // Get all 4 sensor values
   IRL1 = IR_GetDistance(2);  // should be the side left ir
+  g2 = IRL1;
   IRL2 = IR_GetDistance(0);  // should be the front left
+  g0 = IRL2;
   IRR1 = IR_GetDistance(3); 
+  g3 = IRR1;
   IRR2 = IR_GetDistance(1);
+  g1 = IRR2;
   
     //UARTprintf("----------------------------------\n\r");
     //UARTprintf("Front Left: %d cm\n\r", IRL2);
@@ -81,8 +93,8 @@ void PID(void) {
 	//UARTprintf("Side Right: %d cm\n\r", IRR1);
 
     // change weighting to use barrel shifter
-    Left = (((153*IRL1) + (102*IRL2))/256); //(((179*IRL1) + (77*IRL2))/256);
-    Right = (((153*IRR1) + (102*IRR2))/256); //(((179*IRR1) + (77*IRR2))/256);
+    Left = (((153*IRL2) + (102*IRL1))/256); //(((179*IRL1) + (77*IRL2))/256);
+    Right = (((153*IRR2) + (102*IRR1))/256); //(((179*IRR1) + (77*IRR2))/256);
 
     gLeft = Left;
 	gRight = Right;
@@ -164,7 +176,7 @@ void MotorControl(void) {
   CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
 
   // Sleep three minutes
-  OS_Sleep(30000);
+  OS_Sleep(60000);
   
   // Signal to stop the motors
   //CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
