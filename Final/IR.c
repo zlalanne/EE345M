@@ -23,7 +23,7 @@ Sema4Type SensorDataAvailable[4];
 unsigned short Sensor0Calibration[TABLE_SIZE] = {1023, 900, 608, 465, 375, 315, 240, 200, 165, 145, 130,   0};
 unsigned short Sensor0Measurement[TABLE_SIZE] = {   5,  10,  15,  20,  25,  30,  40,  50,  60,  70,  80, 100};
 
-unsigned short Sensor1Calibration[TABLE_SIZE] = {1023, 755, 495, 375, 309, 242, 165, 142, 115,  95,  87,   0};
+unsigned short Sensor1Calibration[TABLE_SIZE] = {1023, 883, 608, 467, 383, 317, 237, 190, 158, 136, 125,   0};
 unsigned short Sensor1Measurement[TABLE_SIZE] = {   5,  10,  15,  20,  25,  30,  40,  50,  60,  70,  80, 100};
 
 unsigned short Sensor2Calibration[TABLE_SIZE] = {1023, 855, 585, 450, 355, 310, 230, 185, 158, 125, 105,   0};
@@ -123,7 +123,6 @@ unsigned short Median(unsigned short v1, unsigned short v2, unsigned short v3) {
 unsigned short Interpolate(unsigned short val, unsigned short* calibration, unsigned short* measurement, int size) {
   int x = 1;
 	unsigned short distance;
-	short slope;
 	short dx = 0;
 	short dy = 0;
 	short diff;

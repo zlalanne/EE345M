@@ -6,7 +6,14 @@
 #include "driverlib/pwm.h"
 #include "driverlib/sysctl.h"
 
-#define ZERO_POSITION 37500
+#include "UART.h"
+
+#define ZERO_POSITION 41100
+#define PulseScale 1000
+#define PulseMax 53000
+#define PulseMin 27000
+
+
 
 //-------- Servo_Init -----------
 // Initializes the PWM used to control the steering servo
@@ -35,6 +42,22 @@ void Servo_Init(void){
 // Outputs: none
 void Servo_Start(void) {
 	PWMGenEnable(PWM0_BASE, PWM_GEN_0);
+}
+
+//-------- Servo_Set_Degrees ----------
+// Sets the servo to the provided degree of rotation (0 is centered)
+// Inputs: degrees
+// Outputs: none
+void Servo_Set_Degrees(long degrees) {
+  unsigned long pulseWidth = ZERO_POSITION + degrees*PulseScale;
+  if (pulseWidth > PulseMax) { 
+    pulseWidth = PulseMax; 
+  }
+  if (pulseWidth < PulseMin) { 
+    pulseWidth = PulseMin;
+  }
+  UARTprintf("Setting pulse width to: %d", pulseWidth);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (pulseWidth));
 }
 
 void Servo_Set_Position(unsigned long position) {
