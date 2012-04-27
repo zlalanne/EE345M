@@ -26,33 +26,33 @@ unsigned long MotorPeriod;
 void Motor_Init(void) {
 	
 
-	SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
+  SysCtlPWMClockSet(SYSCTL_PWMDIV_1);
 	
-	// Setting up PWM0
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-	GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_0);
+  // Setting up PWM0
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_PWM0);
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+  GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_0);
 	
-	// Setting up PWM1
-	GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_1);
+  // Setting up PWM1
+  GPIOPinTypePWM(GPIO_PORTF_BASE, GPIO_PIN_1);
 	
-	// Getting period
-	MotorPeriod = SysCtlClockGet() / FREQUENCY;
+  // Getting period
+  MotorPeriod = SysCtlClockGet() / FREQUENCY;
 	
-	// Configuring for period
-	PWMGenConfigure(PWM0_BASE, PWM_GEN_0,
-    PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
-	PWMGenPeriodSet(PWM0_BASE, PWM_GEN_0, MotorPeriod);
+  // Configuring for period
+  PWMGenConfigure(PWM0_BASE, PWM_GEN_0,
+  PWM_GEN_MODE_UP_DOWN | PWM_GEN_MODE_NO_SYNC);
+  PWMGenPeriodSet(PWM0_BASE, PWM_GEN_0, MotorPeriod);
 	
-	// Setting to starting speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (200* MotorPeriod) / 256);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (200* MotorPeriod) / 256);
+  // Setting to starting speed
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
 
-	// Configure logic for forwards/backwards
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
-	GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7);
+  // Configure logic for forwards/backwards
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOC);
+  GPIOPinTypeGPIOOutput(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7);
 	
-	// Both motors look at positive duty cycle
+  // Both motors look at positive duty cycle
   GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 
   // Configure GPIO Pin used for the LED.
@@ -77,10 +77,10 @@ void Motor_Start(void) {
   PWMOutputState(PWM0_BASE, PWM_OUT_1_BIT, true);
 	
   // Enable the PWM generator.
-  PWMGenEnable(PWM0_BASE, PWM_GEN_0);
-	
+  PWMGenEnable(PWM0_BASE, PWM_GEN_0);	
   GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
 
+  /*
   // Ramping up to full speed
   OS_Sleep(100);
   PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (210* MotorPeriod) / 256);
@@ -97,7 +97,7 @@ void Motor_Start(void) {
   OS_Sleep(100);
   PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
   PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
-
+  */
 }
 
 //------------Motor_Stop------------
