@@ -8,11 +8,13 @@
 
 #include "UART.h"
 
+
 #define ZERO_POSITION 41100
-#define PulseScale 1000
+/*
+#define PulseScale 100
 #define PulseMax 53000
 #define PulseMin 27000
-
+*/
 
 
 //-------- Servo_Init -----------
@@ -49,15 +51,15 @@ void Servo_Start(void) {
 // Inputs: degrees
 // Outputs: none
 void Servo_Set_Degrees(long degrees) {
-  unsigned long pulseWidth = ZERO_POSITION + degrees*PulseScale;
+  /*unsigned long pulseWidth = ZERO_POSITION + degrees*PulseScale;
   if (pulseWidth > PulseMax) { 
     pulseWidth = PulseMax; 
   }
   if (pulseWidth < PulseMin) { 
     pulseWidth = PulseMin;
   }
-  UARTprintf("Setting pulse width to: %d", pulseWidth);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (pulseWidth));
+  UARTprintf("Setting pulse width to: %d\r\n", pulseWidth);	 */
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (degrees));
 }
 
 void Servo_Set_Position(unsigned long position) {

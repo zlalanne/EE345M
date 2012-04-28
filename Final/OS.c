@@ -154,12 +154,13 @@ void OS_Init(void) {
   SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
   TimerDisable(TIMER2_BASE, TIMER_A | TIMER_B);
   TimerConfigure(TIMER2_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC);
-  
+  TimerPrescaleSet(TIMER2_BASE, TIMER_BOTH, 127);
+
   // Initialize Timer0B: Used for time keeping
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
   TimerDisable(TIMER0_BASE, TIMER_B);
   TimerConfigure(TIMER0_BASE, TIMER_CFG_16_BIT_PAIR | TIMER_CFG_A_CAP_TIME | TIMER_CFG_B_PERIODIC);
-	TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
+  TimerIntDisable(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
   TimerLoadSet(TIMER0_BASE, TIMER_B, 65535);
   TimerPrescaleSet(TIMER0_BASE, TIMER_B, 5); // One unit is 100ns
   TimerEnable(TIMER0_BASE, TIMER_BOTH);
