@@ -132,6 +132,7 @@ int ADC_CollectSequence(unsigned short numChannels, unsigned int fs,
 	// Enable the ADC0 for interrupt Sequence 0 with lower priority then single shot
   ADCSequenceConfigure(ADC0_BASE, 1, ADC_TRIGGER_TIMER, 1);
 
+  ADCHardwareOversampleConfigure(ADC0_BASE, 16);
 	// loop through the channels from 0 to numChannels-1, configuring each channel as a step
 	// of the sequence and setting the respective task to handle the result
 	for (channelNum = 0; channelNum < numChannels; channelNum++) {
