@@ -18,9 +18,8 @@
 #include "Motor.h"
 
 #define TIMESLICE 2*TIME_1MS
-#define PIDDepth 4
-#define PIDPeriod 50  // in ms now
-#define PIDSystemPeriod 19531
+#define PIDDepth 40
+#define PIDSystemPeriod 9765
 
 #define ZERO_POSITION 41100
 #define MinOut 27000
@@ -35,10 +34,13 @@ unsigned long gLeft;
 unsigned long gRight;
 long gError;
 long gDerivative;
+long gIntegral;
+long gIntegral2;
 long gOutput;
 long gOutputFinal;
 
-
+long gErrors[PIDDepth];
+long *gCurrent = &gErrors[0];
 
 void Display(void) {
 // just prints some data to UART for PID tweaking
@@ -54,67 +56,77 @@ void Display(void) {
   //UARTprintf("Derivative: %d \n\r", gDerivative);
   //UARTprintf("Output Dif: %d \n\r", gOutput);
   //UARTprintf("Output Final: %d \n\r", gOutputFinal);
+  UARTprintf("Errors: %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\r\n", *gCurrent, *(gCurrent + 1), *(gCurrent + 2), *(gCurrent + 3), *(gCurrent + 4), *(gCurrent + 5), *(gCurrent + 6), *(gCurrent + 7), *(gCurrent + 8), *(gCurrent + 9), *(gCurrent + 10), *(gCurrent + 11), *(gCurrent + 12), *(gCurrent + 13), *(gCurrent + 14), *(gCurrent + 15), *(gCurrent + 16), *(gCurrent + 17), *(gCurrent + 18), *(gCurrent + 19), *(gCurrent + 20));
+  UARTprintf("Sum or Errors: %d   %d\r\n", gIntegral, gIntegral2);
   }
 }
 
 void PID(void) {
   // start with PD for now
- 
-  unsigned long IRL1 = 0;
-  unsigned long IRL2 = 0;
-  unsigned long IRR1 = 0;
-  unsigned long IRR2 = 0;
+  unsigned long index;
+  unsigned long IRLB = 0;
+  unsigned long IRLF = 0;
+  unsigned long IRRB = 0;
+  unsigned long IRRF = 0;
   unsigned long Left = 0;
   unsigned long Right = 0;
-  static long Errors[PIDDepth] = {0,};
+  //static long Errors[PIDDepth] = {0,};
+  //long *gCurrent = &gErrors[0];
   long Integral = 0;
   long Derivative = 0;
   long Output = 0;
 
-  long Kp = 400; // 384;  // 384/256 = 1.5
-  long Ki = 0;
-  long Kd = 80; //64;   // 384/256 = .25
+  long Kp = 12; // 384;  // 384/256 = 1.5
+  long Ki = 16;
+  long Kd = 100;   // 384/256 = .25
   IR_Init();
-  //while(1) {
+
   // Get all 4 sensor values
-  IRL1 = IR_GetDistance(2);  // should be the side left ir
-  g2 = IRL1;
-  IRL2 = IR_GetDistance(0);  // should be the front left
-  g0 = IRL2;
-  IRR1 = IR_GetDistance(3); 
-  g3 = IRR1;
-  IRR2 = IR_GetDistance(1);
-  g1 = IRR2;
+  IRLB = IR_GetDistance(2);  // should be the side left ir
+  g2 = IRLB;
+  IRLF = IR_GetDistance(0);  // should be the front left
+  g0 = IRLF;
+  IRRB = IR_GetDistance(3); 
+  g3 = IRRB;
+  IRRF = IR_GetDistance(1);
+  g1 = IRRF;
   
-    //UARTprintf("----------------------------------\n\r");
-    //UARTprintf("Front Left: %d cm\n\r", IRL2);
-	//UARTprintf("Front Right: %d cm\n\r", IRR2);
-	//UARTprintf("Side Left: %d cm\n\r", IRL1);
-	//UARTprintf("Side Right: %d cm\n\r", IRR1);
+  Left = (IRLB + IRLF)/2; //(((150*IRLB) + (106*IRLF))/256); //(((179*IRL1) + (77*IRL2))/256);
+  Right = (IRRB + IRRF)/2; //(((150*IRRB) + (106*IRRF))/256); //(((179*IRR1) + (77*IRR2))/256);
 
-    // change weighting to use barrel shifter
-    Left = (((153*IRL2) + (102*IRL1))/256); //(((179*IRL1) + (77*IRL2))/256);
-    Right = (((153*IRR2) + (102*IRR1))/256); //(((179*IRR1) + (77*IRR2))/256);
+  gLeft = Left;
+  gRight = Right;
+    
+  Integral =  Integral - *(gCurrent + 10); // remove the one from 10 samples ago
+  if (gCurrent == &gErrors[0]){
+    gCurrent = &gErrors[9];  // Wrap
+  } else {
+    gCurrent--;
+  }
+  *gCurrent = *(gCurrent+10) = Left - Right;
+  Integral += *gCurrent;
+  gIntegral = Integral;
+  gIntegral2 = 0;
+  for (index = 0; index < 10; index++) {
+    gIntegral2 += *(gCurrent + index);
+  }
+  
+  
+  //Errors[0] = Left - Right; // negative errors mean turn right
 
-    gLeft = Left;
-	gRight = Right;
 
-    //UARTprintf("Left: %d\n\r", Left);
-    //UARTprintf("Right: %d\n\r", Right);
 
-    Errors[0] = Left - Right; // negative errors mean turn right
-
-    gError = Errors[0];
-    //UARTprintf("Current P: %d\n\r", Errors[0]);
+  gError = *gCurrent; //Errors[0];
 
     // Calculate Derivate
     //D(n) = ([E(n) + 3E(n-1) - 3E(n-2) - E(n-3)]/(6*t))
-	Derivative = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDPeriod);
+  Derivative = *(gCurrent) - *(gCurrent + 1); //Errors[1] - Errors[0];
+	//Derivative = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDPeriod);
     //UARTprintf("Current D: %d\n\r", Derivative);
 
 	gDerivative = Derivative;
 	
-	Output = (Kp*Errors[0]) + (Ki*Integral) + (Kd*Derivative);
+	Output = (Kp*(*gCurrent)) + (Ki*gIntegral2)/256 + (Kd*Derivative);
 	
     gOutput = Output;
 
@@ -127,45 +139,18 @@ void PID(void) {
 	}
 
 	gOutputFinal = Output;
-    // if errors are all 0 output should be 0 degrees
-    //UARTprintf("Current Output: %d\n\r", Output);
 
+   /*
 	// Update Errors
 	Errors[3] = Errors[2]; 
 	Errors[2] = Errors[1];
     Errors[1] = Errors[0];
-    
+    */
 	// Send change to servo
-	Servo_Set_Degrees(Output); 
-    //OS_Sleep(500);
-	//}
-  
+	Servo_Set_Degrees(Output);   
 }
 
-void PingConsumer(void) {
-  
-  unsigned short data;
-  IR_Init();
-  
-  while(1) {
-    
-	//data = Ping_GetDistance(0);
-	//UARTprintf("Ping0: %u\n\r", data);
-	//data = Ping_GetDistance(1);
-	//UARTprintf("Ping1: %u\n\r", data);
-	
-	data = IR_GetDistance(0);
-	UARTprintf("IR0: %d\n\r", data);
-//	data = IR_GetDistance(1);
-//	UARTprintf("IR1: %d\n\r", data);
-//	data = IR_GetDistance(2);
-//	UARTprintf("IR2: %d\n\r", data);
-//	data = IR_GetDistance(3);
-//	UARTprintf("IR3: %d\n\r", data);	
-	OS_Sleep(1000);
-  }
 
-}
 
 void MotorControl(void) {
 
@@ -176,7 +161,7 @@ void MotorControl(void) {
   CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
 
   // Sleep three minutes
-  OS_Sleep(60000);
+  OS_Sleep(5000);
   
   // Signal to stop the motors
   //CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
