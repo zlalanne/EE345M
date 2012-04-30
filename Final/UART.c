@@ -51,6 +51,12 @@
 char CMDCursor = 0;
 char CurCMD[MAXCMDSIZE] = "";
 
+extern long gKp;
+extern long gKi;
+extern long gKd;
+extern long gMotorRunTime;
+extern long gDisplay;
+
 AddIndexFifo(Rx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
 AddIndexFifo(Tx, FIFOSIZE, char, FIFOSUCCESS, FIFOFAIL)
 
@@ -221,6 +227,31 @@ void CMD_Run(void) {
 	case 's':
 	  // servo position
 	  Servo_Set_Position((unsigned long)atoi((const char *)arg[1]));
+	  break;
+	case 'k':
+	  switch(arg[0][1]) {
+	    case 'p':
+		  // set kp
+		  gKp = (long)atoi((const char *)arg[1]);
+		  break;
+		case 'i':
+		  //set ki
+		  gKi = (long)atoi((const char *)arg[1]);
+		  break;
+		case 'd':
+		  //set kd
+		  gKd = (long)atoi((const char *)arg[1]);
+		  break;
+        default:
+		  UARTprintf("Invalid K command\n\r");
+		  break;
+		}
+		break;
+	case 'm':
+	  gMotorRunTime = (long)atoi((const char *)arg[1]);
+	  break;
+	case 'd':
+	  gDisplay ^= 0x01;
 	  break;
     default:
       UART0_SendString("Command not recgonized\n\r");

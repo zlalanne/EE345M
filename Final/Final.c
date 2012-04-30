@@ -39,25 +39,35 @@ long gIntegral2;
 long gOutput;
 long gOutputFinal;
 
+long gKp = 14;
+long gKi = 30;
+long gKd = 100;
+long gMotorRunTime = 6000;
+long gDisplay;
+
+
 long gErrors[PIDDepth];
 long *gCurrent = &gErrors[0];
 
 void Display(void) {
 // just prints some data to UART for PID tweaking
   while(1) {
+    if (gDisplay) {
   //UARTprintf("----------------------------------\n\r");
   //UARTprintf("0: %d cm\n\r", g0);
   //UARTprintf("1: %d cm\n\r", g1);
   //UARTprintf("2: %d cm\n\r", g2);
   //UARTprintf("3: %d cm\n\r", g3);
+  UARTprintf("0: %d cm   1: %d cm   2: %d cm   3: %d cm\r\n", g0, g1, g2, g3);
   //UARTprintf("Left: %d cm\n\r", gLeft);
   //UARTprintf("Right: %d cm\n\r", gRight);
   //UARTprintf("Error: %d cm\n\r", gError);
   //UARTprintf("Derivative: %d \n\r", gDerivative);
   //UARTprintf("Output Dif: %d \n\r", gOutput);
   //UARTprintf("Output Final: %d \n\r", gOutputFinal);
-  UARTprintf("Errors: %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\r\n", *gCurrent, *(gCurrent + 1), *(gCurrent + 2), *(gCurrent + 3), *(gCurrent + 4), *(gCurrent + 5), *(gCurrent + 6), *(gCurrent + 7), *(gCurrent + 8), *(gCurrent + 9), *(gCurrent + 10), *(gCurrent + 11), *(gCurrent + 12), *(gCurrent + 13), *(gCurrent + 14), *(gCurrent + 15), *(gCurrent + 16), *(gCurrent + 17), *(gCurrent + 18), *(gCurrent + 19), *(gCurrent + 20));
-  UARTprintf("Sum or Errors: %d   %d\r\n", gIntegral, gIntegral2);
+  //UARTprintf("Errors: %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\r\n", *gCurrent, *(gCurrent + 1), *(gCurrent + 2), *(gCurrent + 3), *(gCurrent + 4), *(gCurrent + 5), *(gCurrent + 6), *(gCurrent + 7), *(gCurrent + 8), *(gCurrent + 9), *(gCurrent + 10), *(gCurrent + 11), *(gCurrent + 12), *(gCurrent + 13), *(gCurrent + 14), *(gCurrent + 15), *(gCurrent + 16), *(gCurrent + 17), *(gCurrent + 18), *(gCurrent + 19), *(gCurrent + 20));
+  //UARTprintf("Sum or Errors: %d   %d\r\n", gIntegral, gIntegral2);
+  }
   }
 }
 
@@ -76,9 +86,9 @@ void PID(void) {
   long Derivative = 0;
   long Output = 0;
 
-  long Kp = 12; // 384;  // 384/256 = 1.5
-  long Ki = 16;
-  long Kd = 100;   // 384/256 = .25
+  long Kp = gKp;
+  long Ki = gKi;
+  long Kd = gKd;
   IR_Init();
 
   // Get all 4 sensor values
@@ -91,8 +101,8 @@ void PID(void) {
   IRRF = IR_GetDistance(1);
   g1 = IRRF;
   
-  Left = (IRLB + IRLF)/2; //(((150*IRLB) + (106*IRLF))/256); //(((179*IRL1) + (77*IRL2))/256);
-  Right = (IRRB + IRRF)/2; //(((150*IRRB) + (106*IRRF))/256); //(((179*IRR1) + (77*IRR2))/256);
+  Left = (((141*IRLB) + (115*IRLF))/256); //(((179*IRL1) + (77*IRL2))/256);
+  Right = (((141*IRRB) + (115*IRRF))/256); //(((179*IRR1) + (77*IRR2))/256);
 
   gLeft = Left;
   gRight = Right;
@@ -140,12 +150,6 @@ void PID(void) {
 
 	gOutputFinal = Output;
 
-   /*
-	// Update Errors
-	Errors[3] = Errors[2]; 
-	Errors[2] = Errors[1];
-    Errors[1] = Errors[0];
-    */
 	// Send change to servo
 	Servo_Set_Degrees(Output);   
 }
@@ -161,7 +165,7 @@ void MotorControl(void) {
   CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
 
   // Sleep three minutes
-  OS_Sleep(5000);
+  OS_Sleep(gMotorRunTime);
   
   // Signal to stop the motors
   //CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
@@ -179,6 +183,11 @@ void MotorControl(void) {
 
 }
 
+
+void StartMotors(void) {
+  OS_AddThread(&MotorControl, 512, 1);
+}
+
 int main(void) {
 	
   SysCtlClockSet(SYSCTL_SYSDIV_4 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_8MHZ);
@@ -194,10 +203,11 @@ int main(void) {
   OS_Init();
 	
   NumCreated = 0;
-  NumCreated += OS_AddThread(&MotorControl, 512, 1);
+  //NumCreated += OS_AddThread(&MotorControl, 512, 1);
   NumCreated += OS_AddThread(&Interpreter, 512, 3);
   NumCreated += OS_AddThread(&Display, 512, 1);
-  NumCreated += OS_AddPeriodicThread(&PID, 1, PIDSystemPeriod, 1);	
+  NumCreated += OS_AddPeriodicThread(&PID, 1, PIDSystemPeriod, 1);
+  NumCreated += OS_AddButtonTask(&StartMotors, 2);	
   OS_Launch(TIMESLICE);
   return 0;	
 }
