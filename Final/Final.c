@@ -25,6 +25,20 @@
 #define MinOut 27000
 #define MaxOut 53000
 
+#define USESTATEMACHINE 1
+
+#define StraightKp 10
+#define StraightKi 8
+#define StraightKd 100
+
+#define NormalKp 14
+#define NormalKi 30
+#define NormalKd 100
+
+#define ShitKp 50
+#define ShitKi 0
+#define ShitKd 0
+
 unsigned long NumCreated;
 unsigned long g0;
 unsigned long g1;
@@ -39,18 +53,27 @@ long gIntegral2;
 long gOutput;
 long gOutputFinal;
 
-long gKp = 10; //14;
-long gKi = 8; //30;
-long gKd = 100;
+long gKp = NormalKp;
+long gKi = NormalKi;
+long gKd = NormalKd;
 long gMotorRunTime = 7000;
 long gDisplay;
-
 
 long gErrors[PIDDepth];
 long *gCurrent = &gErrors[0];
 
+// both sides are within 8 cm of each other, maybe with an average across samples
+// both forward sensors are between 40 and 70 cm
+unsigned long gStateStraight = 0;  						  // STATE 0
+
+unsigned long gStateNormal = 1;							  // STATE 1
+
+// both front sensors are less that 25 cm, should basically saturate the servo
+unsigned long gStateOhShit = 0;							  // STATE 2
+
+unsigned long gStateNumber = 1;
+
 void Display(void) {
-// just prints some data to UART for PID tweaking
   while(1) {
     if (gDisplay) {
   //UARTprintf("----------------------------------\n\r");
@@ -58,7 +81,9 @@ void Display(void) {
   //UARTprintf("1: %d cm\n\r", g1);
   //UARTprintf("2: %d cm\n\r", g2);
   //UARTprintf("3: %d cm\n\r", g3);
-  UARTprintf("0: %d cm   1: %d cm   2: %d cm   3: %d cm\r\n", g0, g1, g2, g3);
+  //UARTprintf("0: %d cm   1: %d cm   2: %d cm   3: %d cm\r\n", g0, g1, g2, g3);
+  UARTprintf("State Number: %d     %d     %d\n\r", gStateNumber, gStateNumber, gStateNumber);
+  
   //UARTprintf("Left: %d cm\n\r", gLeft);
   //UARTprintf("Right: %d cm\n\r", gRight);
   //UARTprintf("Error: %d cm\n\r", gError);
@@ -74,6 +99,7 @@ void Display(void) {
 void PID(void) {
   // start with PD for now
   static int count = 0;
+  static int lastState = 1;
   unsigned long index;
   unsigned long IRLB = 0;
   unsigned long IRLF = 0;
@@ -87,9 +113,12 @@ void PID(void) {
   long Derivative = 0;
   long Output = 0;
 
-  long Kp = gKp;
-  long Ki = gKi;
-  long Kd = gKd;
+  static long Kp = NormalKp;
+  static long Ki = NormalKi;
+  static long Kd = NormalKd;
+
+  long Difference;
+
   IR_Init();
 
   // Get all 4 sensor values
@@ -109,8 +138,8 @@ void PID(void) {
     }
   }
 
-  Left = (IRLB + IRLF)/2; //(((141*IRLB) + (115*IRLF))/256); //(((179*IRL1) + (77*IRL2))/256);
-  Right = (IRRB + IRRF)/2; //(((141*IRRB) + (115*IRRF))/256); //(((179*IRR1) + (77*IRR2))/256);
+  Left = (IRLB + IRLF)/2;
+  Right = (IRRB + IRRF)/2;
 
   gLeft = Left;
   gRight = Right;
@@ -129,40 +158,86 @@ void PID(void) {
     gIntegral2 += *(gCurrent + index);
   }
   
-  
-  //Errors[0] = Left - Right; // negative errors mean turn right
-
-
-
   gError = *gCurrent; //Errors[0];
 
     // Calculate Derivate
     //D(n) = ([E(n) + 3E(n-1) - 3E(n-2) - E(n-3)]/(6*t))
   Derivative = *(gCurrent) - *(gCurrent + 1); //Errors[1] - Errors[0];
-	//Derivative = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDPeriod);
-    //UARTprintf("Current D: %d\n\r", Derivative);
+  //Derivative = (Errors[0] + 3*Errors[1] - 3*Errors[2] - Errors[3]) / (6 * PIDPeriod);
+ 
+  gDerivative = Derivative;
 
-	gDerivative = Derivative;
-	
-	Output = (Kp*(*gCurrent)) + (Ki*gIntegral2)/256 + (Kd*Derivative);
-	
-    gOutput = Output;
-
-	Output += ZERO_POSITION;
-	
-	if (Output > MaxOut) {
-	  Output = MaxOut;
-	} else if (Output < MinOut) {
-	  Output = MinOut;
+  // Calculate state change
+  if (USESTATEMACHINE) {
+    // check if in straight state
+	// both sides are within 8 cm of each other, maybe with an average across samples
+    // both forward sensors are between 40 and 70 cm
+	Difference = IRLB - IRRB;
+	if (Difference < 0) { 
+	  Difference = Difference * -1;
 	}
-
-	gOutputFinal = Output;
-
-	// Send change to servo
-	Servo_Set_Degrees(Output); 
+	if ((Difference < 80) && (IRLF >  400) && (IRLF < 700) && (IRRF > 400) && (IRRF < 700)) {
+	  gStateStraight = 1;
+      gStateNormal = 0;
+	  gStateOhShit = 0;
+	  if (lastState != 0) {
+	    // send message
+		CAN0_SendData(MOTOR_SPEED1, MOTOR_XMT_ID);
+		// set weights
+		Kp = StraightKp;
+		Ki = StraightKi;
+		Kd = StraightKd;
+		lastState = 0;
+		gStateNumber = 0;
+	  }
+	} else if ((IRLF < 250) && (IRRF < 250)) {
+	  gStateStraight = 0;
+      gStateNormal = 0;
+	  gStateOhShit = 1;
+	  if (lastState != 2) {
+	    // send message
+		CAN0_SendData(MOTOR_SPEED3, MOTOR_XMT_ID);
+		// set weights
+		Kp = ShitKp;
+		Ki = ShitKi;
+		Kd = ShitKd;
+	  	lastState = 2;
+		gStateNumber = 2;
+	  }
+	} else {
+	  gStateStraight = 0;
+      gStateNormal = 1;
+	  gStateOhShit = 0;
+	  if (lastState != 1) {
+	    // send message
+		CAN0_SendData(MOTOR_SPEED2, MOTOR_XMT_ID);
+		// set weights
+		Kp = NormalKp;
+		Ki = NormalKi;
+		Kd = NormalKd;
+		lastState = 1;
+		gStateNumber = 1;
+	  }
+	}
+  }
+  // both front sensors are less that 25 cm, should basically saturate the servo
 	
+  Output = (Kp*(*gCurrent)) + (Ki*gIntegral2)/256 + (Kd*Derivative);
 	
-	  
+  gOutput = Output;
+
+  Output += ZERO_POSITION;
+	
+  if (Output > MaxOut) {
+    Output = MaxOut;
+  } else if (Output < MinOut) {
+    Output = MinOut;
+  }
+
+  gOutputFinal = Output;
+
+  // Send change to servo
+  Servo_Set_Degrees(Output); 	  
 }
 
 
@@ -218,7 +293,6 @@ int main(void) {
   OS_Init();
 	
   NumCreated = 0;
-  //NumCreated += OS_AddThread(&MotorControl, 512, 1);
   NumCreated += OS_AddThread(&Interpreter, 512, 3);
   NumCreated += OS_AddThread(&Display, 512, 1);
   NumCreated += OS_AddPeriodicThread(&PID, 1, PIDSystemPeriod, 1);
