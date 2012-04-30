@@ -14,6 +14,8 @@
 #include "driverlib/pwm.h"
 #include "driverlib/sysctl.h"
 
+#include "OS.h"
+
 // Frequency of PWM in Hz
 #define FREQUENCY 25500
 
@@ -80,24 +82,24 @@ void Motor_Start(void) {
   PWMGenEnable(PWM0_BASE, PWM_GEN_0);	
   GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_2, GPIO_PIN_2);
 
-  /*
-  // Ramping up to full speed
+  
+  // Ramping down to full speed
   OS_Sleep(100);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (210* MotorPeriod) / 256);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (210* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
   OS_Sleep(100);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (220* MotorPeriod) / 256);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (220* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
+  OS_Sleep(100);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
   OS_Sleep(100);
   PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (230* MotorPeriod) / 256);
   PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (230* MotorPeriod) / 256);
   OS_Sleep(100);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (240* MotorPeriod) / 256);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (240* MotorPeriod) / 256);
-  OS_Sleep(100);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
-  */
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (220* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (220* MotorPeriod) / 256);
+
 }
 
 //------------Motor_Stop------------
@@ -122,8 +124,8 @@ void Motor_Stop(void) {
 void Motor_Straight(void) {
 	
 	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
+	//PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
+	//PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTC_BASE, GPIO_PIN_5 | GPIO_PIN_7, 0);
 }
 

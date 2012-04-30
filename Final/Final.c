@@ -39,10 +39,10 @@ long gIntegral2;
 long gOutput;
 long gOutputFinal;
 
-long gKp = 14;
-long gKi = 30;
+long gKp = 10; //14;
+long gKi = 8; //30;
 long gKd = 100;
-long gMotorRunTime = 6000;
+long gMotorRunTime = 7000;
 long gDisplay;
 
 
@@ -73,6 +73,7 @@ void Display(void) {
 
 void PID(void) {
   // start with PD for now
+  static int count = 0;
   unsigned long index;
   unsigned long IRLB = 0;
   unsigned long IRLF = 0;
@@ -101,8 +102,15 @@ void PID(void) {
   IRRF = IR_GetDistance(1);
   g1 = IRRF;
   
-  Left = (((141*IRLB) + (115*IRLF))/256); //(((179*IRL1) + (77*IRL2))/256);
-  Right = (((141*IRRB) + (115*IRRF))/256); //(((179*IRR1) + (77*IRR2))/256);
+  count++;
+  if (count > 10) {
+    if ((IRRF < 200) && (IRLF < 200)) {
+      CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
+    }
+  }
+
+  Left = (IRLB + IRLF)/2; //(((141*IRLB) + (115*IRLF))/256); //(((179*IRL1) + (77*IRL2))/256);
+  Right = (IRRB + IRRF)/2; //(((141*IRRB) + (115*IRRF))/256); //(((179*IRR1) + (77*IRR2))/256);
 
   gLeft = Left;
   gRight = Right;
@@ -151,7 +159,10 @@ void PID(void) {
 	gOutputFinal = Output;
 
 	// Send change to servo
-	Servo_Set_Degrees(Output);   
+	Servo_Set_Degrees(Output); 
+	
+	
+	  
 }
 
 
@@ -164,8 +175,12 @@ void MotorControl(void) {
   // Signal to go straight
   CAN0_SendData(MOTOR_STRAIGHT, MOTOR_XMT_ID);
 
+
   // Sleep three minutes
   OS_Sleep(gMotorRunTime);
+ 
+  //CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
+ 
   
   // Signal to stop the motors
   //CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
