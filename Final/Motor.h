@@ -15,6 +15,10 @@
 #define MOTOR_LEFT 5
 #define MOTOR_RIGHT 6
 
+#define MOTOR_SPEED1 7
+#define MOTOR_SPEED2 8
+#define MOTOR_SPEED3 9
+
 //------------Motor_Init------------
 // Initilizes PWM for motor interfacing
 // Input: none
@@ -37,3 +41,7 @@ void Motor_Straight(void);
 void Motor_Turn_Right(void);
 void Motor_Turn_Left(void);
 void Motor_Reverse(void);
+
+void Motor_Speed1(void);
+void Motor_Speed2(void);
+void Motor_Speed3(void);

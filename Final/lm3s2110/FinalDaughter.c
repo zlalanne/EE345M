@@ -63,6 +63,12 @@ void MotorConsumer(void) {
 		  Motor_Turn_Left(); break;
 		case MOTOR_RIGHT:
 		  Motor_Turn_Right(); break;
+		case MOTOR_SPEED1:
+		  Motor_Speed1(); break;
+		case MOTOR_SPEED2:
+		  Motor_Speed2(); break;
+		case MOTOR_SPEED3:
+		  Motor_Speed3(); break;
 	  }
 	}
   }
