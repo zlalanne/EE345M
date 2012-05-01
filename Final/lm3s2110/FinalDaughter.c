@@ -3,6 +3,7 @@
 #include "inc/hw_types.h"
 #include "inc/hw_memmap.h"
 #include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
 
 #include "../OS.h"
 #include "../QRB1134.h"
@@ -12,6 +13,27 @@
 #define TIMESLICE 2*TIME_1MS  // thread switch time in system time units
 
 double NumCreated;
+
+typedef enum {
+	blue = GPIO_PIN_3 | GPIO_PIN_4,
+	green =  GPIO_PIN_2 | GPIO_PIN_4,
+	red =  GPIO_PIN_2 | GPIO_PIN_3
+} colors;
+
+
+void StatusLED_Init(void) {
+	
+	// Making status LED output
+	GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4);
+  
+	// Stauts LED off
+  GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4, GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4);	
+}
+
+void StatusLED_Color(colors newColor) {
+	
+	GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_2 | GPIO_PIN_3 | GPIO_PIN_4, newColor);	
+}
 
 
 //----------- MotorConsumer ----------
@@ -36,11 +58,14 @@ void MotorConsumer(void) {
 			case MOTOR_RIGHT:
 				Motor_Turn_Right(); break;
 			case MOTOR_SPEED1:
-				Motor_Speed1(); break;
+				Motor_Speed1();
+			  StatusLED_Color(blue); break;
 			case MOTOR_SPEED2:
-				Motor_Speed2(); break;
+				Motor_Speed2(); 
+				StatusLED_Color(green); break;
 			case MOTOR_SPEED3:
-				Motor_Speed3(); break;
+				Motor_Speed3(); 
+				StatusLED_Color(red); break;
 			}
 	  }
   }
@@ -67,12 +92,14 @@ int main(void){
   Tach_Init();
   Motor_Init();
   OS_Init();
+	
+	StatusLED_Init();
   	
   OS_Fifo_Init(512);
 	
   NumCreated = 0 ;
   NumCreated += OS_AddThread(&MotorConsumer, 512, 1);
-  NumCreated += OS_AddThread(&DummyThread, 512, 6);
+  NumCreated += OS_AddThread(&DummyThread, 512, 1);
 	
 	
   OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
