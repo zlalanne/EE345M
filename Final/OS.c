@@ -456,14 +456,14 @@ int OS_AddButtonTask(void(*task)(void), unsigned long priority) {
   SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
   GPIOPinTypeGPIOInput(GPIO_PORTF_BASE, GPIO_PIN_1);
   GPIOPadConfigSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-  GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
-  GPIOPinIntClear(GPIO_PORTF_BASE, GPIO_PIN_1);
+  GPIOIntTypeSet(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_FALLING_EDGE);
+	
 
   gButtonThreadSelectPt = task;
   gButtonThreadSelectPriority = priority;
 
   // Enabling interrupts
-  GPIOPinIntClear(GPIO_PORTF_BASE,GPIO_PIN_1);
+	GPIOPinIntClear(GPIO_PORTF_BASE,GPIO_PIN_1);
   GPIOPinIntEnable(GPIO_PORTF_BASE, GPIO_PIN_1);
   IntPrioritySet(INT_GPIOF, (priority << 5));
   IntEnable(INT_GPIOF);
@@ -495,7 +495,7 @@ int OS_AddDownTask(void(*task)(void), unsigned long priority) {
   SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
   GPIOPinTypeGPIOInput(GPIO_PORTE_BASE, GPIO_PIN_1);
   GPIOPadConfigSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD_WPU);
-  GPIOIntTypeSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_RISING_EDGE);
+  GPIOIntTypeSet(GPIO_PORTE_BASE, GPIO_PIN_1, GPIO_FALLING_EDGE);
   GPIOPinIntClear(GPIO_PORTE_BASE, GPIO_PIN_1);
 
 

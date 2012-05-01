@@ -13,34 +13,6 @@
 
 double NumCreated;
 
-void TachThread(void){
-	unsigned long data;
-	while(1) {
-		data = Tach_GetPeriod();
-		CAN0_SendData(data, TACH_ID);
-		OS_Sleep(2000);
-  }
-}
-
-void GenDataThread(void) {
-	static unsigned long countGen = 0;
-	while(1) {
-		CAN0_SendData(countGen++, XMT_ID);
-		OS_Sleep(5000);
-	}
-}
-
-
-//---------- MotorThread ----------
-// Starts the motors and go forward at
-// full speed
-void MotorThread(void) {
-
-  Motor_Start();
-  while(1) {
-    Motor_Straight();
-  }
-}
 
 //----------- MotorConsumer ----------
 // Gets motor command from CAN0 and executes
@@ -49,28 +21,28 @@ void MotorConsumer(void) {
   unsigned long data;
 
   while(1){
-    if(CAN0_GetMailNonBlock(&data,MOTOR_RCV_ID)) {
-	  switch(data) {
-	    case MOTOR_START:
-		  Motor_Start(); break;
-		case MOTOR_STOP:
-		  Motor_Stop(); break;
-		case MOTOR_STRAIGHT:
-		  Motor_Straight(); break;
-		case MOTOR_REVERSE:
-		  Motor_Reverse(); break;
-		case MOTOR_LEFT:
-		  Motor_Turn_Left(); break;
-		case MOTOR_RIGHT:
-		  Motor_Turn_Right(); break;
-		case MOTOR_SPEED1:
-		  Motor_Speed1(); break;
-		case MOTOR_SPEED2:
-		  Motor_Speed2(); break;
-		case MOTOR_SPEED3:
-		  Motor_Speed3(); break;
+    if(CAN0_GetMailNonBlock(&data,MOTOR_RCV_ID) == TRUE) {
+			switch(data) {
+				case MOTOR_START:
+				Motor_Start(); break;
+			case MOTOR_STOP:
+				Motor_Stop(); break;
+			case MOTOR_STRAIGHT:
+				Motor_Straight(); break;
+			case MOTOR_REVERSE:
+				Motor_Reverse(); break;
+			case MOTOR_LEFT:
+				Motor_Turn_Left(); break;
+			case MOTOR_RIGHT:
+				Motor_Turn_Right(); break;
+			case MOTOR_SPEED1:
+				Motor_Speed1(); break;
+			case MOTOR_SPEED2:
+				Motor_Speed2(); break;
+			case MOTOR_SPEED3:
+				Motor_Speed3(); break;
+			}
 	  }
-	}
   }
 }
 
@@ -84,20 +56,6 @@ void DummyThread(void) {
 	}
 }
 
-//---------- TimeThread ----------
-// Sleeps for three minutes then kills
-// the motors and kills the thread
-void TimeThread(void) {
-
-  // Sleep three minutes
-  OS_Sleep(60000);
-  OS_Sleep(60000);
-  OS_Sleep(60000);
-
-  Motor_Stop();
-
-  OS_Kill();
-}
 
 int main(void){
 	
@@ -117,7 +75,7 @@ int main(void){
   NumCreated += OS_AddThread(&DummyThread, 512, 6);
 	
 	
-  OS_Launch(TIMESLICE); // doesn't return, interrupts enabledin here
+  OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
   return 0;             // this never executes
 }
 
