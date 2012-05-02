@@ -94,11 +94,11 @@ void Motor_Start(void) {
   PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (255* MotorPeriod) / 256);
   PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (255* MotorPeriod) / 256);
   OS_Sleep(100);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (230* MotorPeriod) / 256);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (230* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (215* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (215* MotorPeriod) / 256);
   OS_Sleep(100);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (220* MotorPeriod) / 256);
-  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (220* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (180* MotorPeriod) / 256);
+  PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (180* MotorPeriod) / 256);
 
 }
 

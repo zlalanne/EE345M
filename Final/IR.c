@@ -20,8 +20,10 @@
 
 Sema4Type SensorDataAvailable[4];
 
-unsigned short Sensor0Calibration[17] = {1023,   779,  564,  442,  362,  305,  271,  245,  225, 210, 198, 182, 171, 166, 157, 153,    0};
+//unsigned short Sensor0Calibration[17] = {1023,   779,  564,  442,  362,  305,  271,  245,  225, 210, 198, 182, 171, 166, 157, 153,    0};
 unsigned short Sensor0Measurement[17] = {   50,  100,  150,  200,  250,  300,  350,  400,  450, 500, 550, 600, 650, 700, 750, 800, 1000};
+unsigned short Sensor0Calibration[17] = {1023,    779,    564, 442,  363,  303,  262,  245,  210, 189, 176, 162, 156, 149, 130, 123, 0};   
+
 
 unsigned short Sensor1Calibration[17] = {1023,   858,  563,  447,  363,  317,  271,  243,  224, 204, 190, 177, 167, 164, 158, 147,    0};
 unsigned short Sensor1Measurement[17] = {   50,  100,  150,  200,  250,  300,  350,  400,  450, 500, 550, 600, 650, 700, 750, 800, 1000};

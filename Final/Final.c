@@ -56,9 +56,9 @@ long gOutputFinal;
 long gKp = NormalKp;
 long gKi = NormalKi;
 long gKd = NormalKd;
-long gMotorRunTime = 2000;
+long gMotorRunTime = 60000;
 long gDisplay;
-
+	  
 long gErrors[PIDDepth];
 long *gCurrent = &gErrors[0];
 
@@ -81,8 +81,8 @@ void Display(void) {
       //UARTprintf("1: %d cm\n\r", g1);
       //UARTprintf("2: %d cm\n\r", g2);
       //UARTprintf("3: %d cm\n\r", g3);
-      //UARTprintf("0: %d cm   1: %d cm   2: %d cm   3: %d cm\r\n", g0, g1, g2, g3);
-      UARTprintf("State Number: %d     %d     %d\n\r", gStateNumber, gStateNumber, gStateNumber);
+      UARTprintf("0: %d cm   1: %d cm   2: %d cm   3: %d cm\r\n", g0, g1, g2, g3);
+      //UARTprintf("State Number: %d     %d     %d\n\r", gStateNumber, gStateNumber, gStateNumber);
       //UARTprintf("Left: %d cm\n\r", gLeft);
       //UARTprintf("Right: %d cm\n\r", gRight);
       //UARTprintf("Error: %d cm\n\r", gError);
@@ -235,9 +235,11 @@ void MotorControl(void) {
 
   // Signal to start the motors
   CAN0_SendData(MOTOR_START, MOTOR_XMT_ID);
-
+  CAN0_SendData(MOTOR_SPEED2, MOTOR_XMT_ID);
   // Sleep three minutes
   OS_Sleep(gMotorRunTime);
+  OS_Sleep(gMotorRunTime);
+  OS_Sleep(50000);
 
   CAN0_SendData(MOTOR_STOP, MOTOR_XMT_ID);
 
