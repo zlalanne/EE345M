@@ -46,6 +46,8 @@ unsigned long g2;
 unsigned long g3;
 unsigned long gLeft;
 unsigned long gRight;
+unsigned long gStraightHistory = 0;
+
 long gError;
 long gDerivative;
 long gIntegral;
@@ -56,7 +58,7 @@ long gOutputFinal;
 long gKp = NormalKp;
 long gKi = NormalKi;
 long gKd = NormalKd;
-long gMotorRunTime = 60000;
+long gMotorRunTime = 30000;
 long gDisplay;
 	  
 long gErrors[PIDDepth];
@@ -167,22 +169,44 @@ void PID(void) {
     if(Difference < 0) {
       Difference = Difference * -1;
     }
-    if((Difference < 80) && (IRLF > 400) && (IRLF < 700) && (IRRF > 400) && (IRRF < 700)) {
-      gStateStraight = 1;
-      gStateNormal = 0;
-      gStateOhShit = 0;
-      if(lastState != 0) {
-        // send message
-        CAN0_SendData(MOTOR_SPEED1, MOTOR_XMT_ID);
-        // set weights
-        Kp = StraightKp;
-        Ki = StraightKi;
-        Kd = StraightKd;
-        lastState = 0;
-        gStateNumber = 0;
-      }
-    } else if((IRLF < 250) && (IRRF < 250)) {
-      gStateStraight = 0;
+    if((Difference < 80) && (IRLF > 400) && (IRRF > 400) ) {
+	  gStraightHistory++;
+	  if (gStraightHistory > 10) {
+	    // Straight State
+		gStateStraight = 1;
+	    gStateNormal = 0;
+	    gStateOhShit = 0;
+	    if(lastState != 0) {
+	      // send message
+	      CAN0_SendData(MOTOR_SPEED1, MOTOR_XMT_ID);
+	      // set weights
+	      Kp = StraightKp;
+	      Ki = StraightKi;
+	      Kd = StraightKd;
+	      lastState = 0;
+	      gStateNumber = 0; 
+        } 
+	  } else {
+	    // Normal State, not enough straight
+		// history to get into straight state
+	    gStateStraight = 0;
+        gStateNormal = 1;
+        gStateOhShit = 0;
+        if(lastState != 1) {
+          // send message
+          CAN0_SendData(MOTOR_SPEED2, MOTOR_XMT_ID);
+          // set weights
+          Kp = NormalKp;
+          Ki = NormalKi;
+          Kd = NormalKd;
+          lastState = 1;
+          gStateNumber = 1;
+        }
+	  }
+    } else if((IRLF < 300) && (IRRF < 300)) {
+      // OhShit State
+	  gStraightHistory = 0;
+	  gStateStraight = 0;
       gStateNormal = 0;
       gStateOhShit = 1;
       if(lastState != 2) {
@@ -196,6 +220,8 @@ void PID(void) {
         gStateNumber = 2;
       }
     } else {
+	  // Normal State
+	  gStraightHistory = 0;
       gStateStraight = 0;
       gStateNormal = 1;
       gStateOhShit = 0;
