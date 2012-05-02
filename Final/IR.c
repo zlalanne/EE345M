@@ -22,13 +22,13 @@ Sema4Type SensorDataAvailable[4];
 
 //unsigned short Sensor0Calibration[17] = {1023,   779,  564,  442,  362,  305,  271,  245,  225, 210, 198, 182, 171, 166, 157, 153,    0};
 unsigned short Sensor0Measurement[17] = {   50,  100,  150,  200,  250,  300,  350,  400,  450, 500, 550, 600, 650, 700, 750, 800, 1000};
-unsigned short Sensor0Calibration[17] = {1023,    779,    564, 442,  363,  303,  262,  245,  210, 189, 176, 162, 156, 149, 130, 123, 0};   
+unsigned short Sensor0Calibration[17] = {1023,    779,    564, 442,  363,  303,  262,  238,  212, 192, 180, 170, 156, 145, 133, 128, 0};   
 
 
-unsigned short Sensor1Calibration[17] = {1023,   858,  563,  447,  363,  317,  271,  243,  224, 204, 190, 177, 167, 164, 158, 147,    0};
+unsigned short Sensor1Calibration[17] = {1023,   858,  563,  447,  363,  324,  285,  243,  219, 198, 188, 171, 163, 154, 140, 137,    0};
 unsigned short Sensor1Measurement[17] = {   50,  100,  150,  200,  250,  300,  350,  400,  450, 500, 550, 600, 650, 700, 750, 800, 1000};
 
-unsigned short Sensor2Calibration[17] = {1023,   844,  593,  469,  390,  338,  294,  266,  238, 220, 206, 200, 193, 180, 178, 172,    0};
+unsigned short Sensor2Calibration[17] = {1023,   844,  593,  469,  390,  338,  286,  252,  235, 213, 194, 187, 171, 162, 153, 145,    0};
 unsigned short Sensor2Measurement[17] = {   50,  100,  150,  200,  250,  300,  350,  400,  450, 500, 550, 600, 650, 700, 750, 800, 1000};
 
 unsigned short Sensor3Calibration[17] = {1023,   870,  601,  458,  373,  321,  282,  248,  224, 209, 189, 174, 155, 142, 128, 115,    0};
@@ -78,8 +78,8 @@ void IRSensor0_Handler(unsigned short data) {
     S0Values[S0PutIndex] = data; // overwrite old data if it is there
 	S0PutIndex = (S0PutIndex + 1) % MEDIAN_SIZE;
     dist = Median(S0Values[0], S0Values[1], S0Values[2]);
-	//SensorDistances[0] = dist;
-	SensorDistances[0] = Interpolate(dist, Sensor0Calibration, Sensor0Measurement, 17);
+	SensorDistances[0] = dist;
+	//SensorDistances[0] = Interpolate(dist, Sensor0Calibration, Sensor0Measurement, 17);
 	//OS_Signal(&SensorDataAvailable[0]);
 }
 
@@ -88,8 +88,8 @@ void IRSensor1_Handler(unsigned short data) {
 	S1Values[S1PutIndex] = data; // overwrite old data if it is there
 	S1PutIndex = (S1PutIndex + 1) % MEDIAN_SIZE;
   dist = Median(S1Values[0], S1Values[1], S1Values[2]);
-	//SensorDistances[1] = dist;
-	SensorDistances[1] = Interpolate(dist, Sensor1Calibration, Sensor1Measurement, 17);
+	SensorDistances[1] = dist;
+	//SensorDistances[1] = Interpolate(dist, Sensor1Calibration, Sensor1Measurement, 17);
 	//OS_Signal(&SensorDataAvailable[1]);
 }
 
@@ -98,8 +98,8 @@ void IRSensor2_Handler(unsigned short data) {
 	S2Values[S2PutIndex] = data; // overwrite old data if it is there
 	S2PutIndex = (S2PutIndex + 1) % MEDIAN_SIZE;
     dist = Median(S2Values[0], S2Values[1], S2Values[2]);
-	//SensorDistances[2] = dist;
-	SensorDistances[2] = Interpolate(dist, Sensor2Calibration, Sensor2Measurement, 17);
+	SensorDistances[2] = dist;
+	//SensorDistances[2] = Interpolate(dist, Sensor2Calibration, Sensor2Measurement, 17);
 	
 	//OS_Signal(&SensorDataAvailable[2]);
 }
@@ -109,8 +109,8 @@ void IRSensor3_Handler(unsigned short data) {
 	S3Values[S3PutIndex] = data; // overwrite old data if it is there
 	S3PutIndex = (S3PutIndex + 1) % MEDIAN_SIZE;
 	dist = Median(S3Values[0], S3Values[1], S3Values[2]);
-	//SensorDistances[3] = dist;
-	SensorDistances[3] = Interpolate(dist, Sensor3Calibration, Sensor3Measurement, 17);
+	SensorDistances[3] = dist;
+	//SensorDistances[3] = Interpolate(dist, Sensor3Calibration, Sensor3Measurement, 17);
 	//OS_Signal(&SensorDataAvailable[3]);
 }
 

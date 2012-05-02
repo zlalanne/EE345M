@@ -124,15 +124,15 @@ void Motor_Stop(void) {
 void Motor_Speed1(void) {
 	
 	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (220* MotorPeriod) / 256);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (220* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (210* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (210* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1, 0);
 }
 void Motor_Speed2(void) {
 	
 	// Setting to forward full speed
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (180* MotorPeriod) / 256);
-	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (180* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_0, (170* MotorPeriod) / 256);
+	PWMPulseWidthSet(PWM0_BASE, PWM_OUT_1, (170* MotorPeriod) / 256);
 	GPIOPinWrite(GPIO_PORTA_BASE, GPIO_PIN_0 | GPIO_PIN_1, 0);
 }
 
